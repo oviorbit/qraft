@@ -3,6 +3,17 @@ mod writer;
 mod ident;
 mod operator;
 mod raw;
+mod builder;
+
+pub use raw::Raw;
+
+pub fn raw(value: &'static str) -> Raw {
+    Raw::new_static(value)
+}
+
+pub fn raw_by_ref(value: &str) -> Raw {
+    Raw::new(value)
+}
 
 #[cfg(test)]
 pub(crate) mod tests {
