@@ -257,4 +257,11 @@ mod tests {
         let raw = format_writer(value, Dialect::Postgres);
         assert_eq!("test $so?me$ test ' bob", raw);
     }
+
+    #[test]
+    fn test_full_query() {
+        let value = Raw::new_static("select * from users where \"userna?me\" = ? and \"id\" = ?");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("select * from users where \"userna?me\" = $1 and \"id\" = $2", raw);
+    }
 }
