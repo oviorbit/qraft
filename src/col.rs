@@ -2,14 +2,36 @@ use std::fmt;
 
 use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub enum Columns {
+    #[default]
     None,
     Single(TableIdent),
     Many(Vec<TableIdent>),
 }
 
 impl Columns {
+    pub fn append(&mut self, other: Self) {
+        let combined = match (std::mem::replace(self, Columns::None), other) {
+            (Columns::None, cols) | (cols, Columns::None) => cols,
+            (Columns::Single(a), Columns::Single(b)) =>
+                Columns::Many(vec![a, b]),
+            (Columns::Single(a), Columns::Many(mut b)) => {
+                b.insert(0, a);
+                Columns::Many(b)
+            }
+            (Columns::Many(mut a), Columns::Single(b)) => {
+                a.push(b);
+                Columns::Many(a)
+            }
+            (Columns::Many(mut a), Columns::Many(mut b)) => {
+                a.append(&mut b);
+                Columns::Many(a)
+            }
+        };
+        *self = combined;
+    }
+
     pub fn into_vec(self) -> Vec<TableIdent> {
         match self {
             Columns::None => Vec::new(),
@@ -46,9 +68,9 @@ trait IntoTableIdent {
     fn into_table_ident(self) -> TableIdent;
 }
 
-impl IntoTableIdent for &'static str {
+impl IntoTableIdent for &str {
     fn into_table_ident(self) -> TableIdent {
-        TableIdent::Ident(Ident::new_static(self))
+        TableIdent::Ident(Ident::new(self))
     }
 }
 
@@ -108,6 +130,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{dialect::Dialect, tests::format_writer};
+
     use super::*;
 
     fn test<T>(_: T)
@@ -123,5 +147,26 @@ mod tests {
         test(Ident::new("test?"));
         test(["hello"]);
         test([TableIdent::Ident(Ident::new_static("bob")), TableIdent::Raw(Raw::new_static("test"))]);
+    }
+
+    #[test]
+    fn test_format_wildcard() {
+        let s = Columns::None;
+        let wildcard = format_writer(s, Dialect::Postgres);
+        assert_eq!("*", wildcard);
+    }
+
+    #[test]
+    fn test_single_column() {
+        let s = Columns::Single(TableIdent::Ident(Ident::new_static("id")));
+        let wildcard = format_writer(s, Dialect::Postgres);
+        assert_eq!("\"id\"", wildcard);
+    }
+
+    #[test]
+    fn test_multi_column() {
+        let s = Columns::Many(vec![TableIdent::Ident(Ident::new_static("id")), TableIdent::Raw(Raw::new_static("count(*)")), TableIdent::Ident(Ident::new_static("username"))]);
+        let wildcard = format_writer(s, Dialect::Postgres);
+        assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }
 }

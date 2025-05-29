@@ -11,7 +11,7 @@ pub enum TableIdent {
 impl FormatWriter for TableIdent {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
         match self {
-            TableIdent::Ident(ident) => ident.format_writer(context)
+            TableIdent::Ident(ident) => ident.format_writer(context),
             TableIdent::Raw(raw) => raw.format_writer(context)
         }
     }

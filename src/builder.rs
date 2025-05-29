@@ -1,6 +1,6 @@
-use crate::{col::{Columns, IntoColumns}, ident::TableIdent};
+use crate::{col::{Columns, IntoColumns}, ident::TableIdent, writer::FormatWriter};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Builder {
     query: String,
 
@@ -13,11 +13,20 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn select<T>(&mut self, table: T) -> &mut Self
+    pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
         T: IntoColumns
     {
-        let cols = table.into_columns();
+        self.columns = cols.into_columns();
+        self
+    }
+
+    pub fn add_select<T>(&mut self, cols: T) -> &mut Self
+    where
+        T: IntoColumns
+    {
+        let other = cols.into_columns();
+        self.columns.append(other);
         self
     }
 
@@ -25,4 +34,17 @@ impl Builder {
         self.distinct = true;
         self
     }
+}
+
+impl FormatWriter for Builder {
+    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+        context.writer.write_str("select ")?;
+        self.columns.format_writer(context)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }
