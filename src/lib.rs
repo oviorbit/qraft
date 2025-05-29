@@ -15,6 +15,10 @@ pub use col::Columns;
 pub use col::IntoColumns;
 pub use col::IntoTable;
 
+pub use bind::Binds;
+pub use bind::IntoBind;
+pub use bind::IntoBinds;
+
 pub use ident::TableIdent;
 pub use ident::Ident;
 pub use raw::Raw;
@@ -35,16 +39,6 @@ pub fn raw_static(value: &'static str) -> Raw {
 
 pub fn raw(value: &str) -> Raw {
     Raw::new(value)
-}
-
-#[macro_export]
-macro_rules! col {
-    () => {
-        []
-    };
-    ( $($col:expr),+ $(,)? ) => {
-        [$( $col.into_table() ),+]
-    };
 }
 
 #[cfg(test)]

@@ -230,7 +230,7 @@ mod tests {
         select(String::from("hello"));
         select(Ident::new("test?"));
         select(["hello"]);
-        select(col![ident_static("bob"), raw_static("test")]);
+        select([ident_static("bob").into_table(), raw_static("test").into_table()]);
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_multi_column() {
-        let s = select(col!["id", raw_static("count(*)"), "username"]);
+        let s = select(["id".into_table(), raw_static("count(*)").into_table(), "username".into_table()]);
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }
