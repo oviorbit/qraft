@@ -64,6 +64,11 @@ impl FormatWriter for Columns {
     }
 }
 
+pub trait Table {
+    fn table() -> TableIdent;
+    fn columns() -> Columns;
+}
+
 pub trait IntoColumns {
     fn into_columns(self) -> Columns;
 }
@@ -99,6 +104,12 @@ impl IntoTableIdent for Ident {
 impl IntoTableIdent for TableIdent {
     fn into_table_ident(self) -> TableIdent {
         self
+    }
+}
+
+impl<T: Table> IntoTableIdent for T {
+    fn into_table_ident(self) -> TableIdent {
+        T::table()
     }
 }
 
@@ -229,6 +240,12 @@ impl IntoColumns for Vec<TableIdent> {
 impl IntoColumns for Columns {
     fn into_columns(self) -> Columns {
         self
+    }
+}
+
+impl<T: Table> IntoColumns for T {
+    fn into_columns(self) -> Columns {
+        T::columns()
     }
 }
 

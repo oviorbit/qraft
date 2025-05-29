@@ -1,4 +1,4 @@
-use crate::{col::{Columns, IntoColumns, IntoTableIdent}, dialect::HasDialect, ident::TableIdent, writer::{FormatContext, FormatWriter}};
+use crate::{col::{Columns, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, writer::{FormatContext, FormatWriter}, Ident};
 
 #[derive(Debug, Default)]
 pub struct Builder {
@@ -13,6 +13,15 @@ pub struct Builder {
 }
 
 impl Builder {
+    pub fn table_as<T: Table>() -> Self {
+        Self {
+            query: String::new(),
+            distinct: false,
+            maybe_table: Some(T::table()),
+            columns: Columns::None,
+        }
+    }
+
     pub fn table<T>(table: T) -> Self
     where
         T: IntoTableIdent
@@ -23,6 +32,11 @@ impl Builder {
             maybe_table: Some(table.into_table_ident()),
             columns: Columns::None,
         }
+    }
+
+    pub fn select_as<T: Table>(&mut self) -> &mut Self {
+        self.columns = T::columns();
+        self
     }
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
@@ -81,7 +95,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dialect::Postgres, Ident};
+    use crate::dialect::Postgres;
 
     use super::*;
 
@@ -104,20 +118,20 @@ mod tests {
         admin: bool,
     }
 
-    impl IntoTableIdent for User {
-        fn into_table_ident(self) -> TableIdent {
+    impl Table for User {
+        fn table() -> TableIdent {
             TableIdent::Ident(Ident::new_static("users"))
+        }
+
+        fn columns() -> Columns {
+            [Ident::new_static("id"), Ident::new_static("admin")].into_columns()
         }
     }
 
     #[test]
     fn test_select_into_ident() {
-        let user = User {
-            id: 0,
-            admin: true,
-        };
-        let mut builder = Builder::table(user.clone());
-        builder.select(user);
-        assert_eq!("select \"users\" from \"users\"", builder.to_sql::<Postgres>());
+        let mut builder = Builder::table_as::<User>();
+        builder.select_as::<User>();
+        assert_eq!("select \"id\", \"admin\" from \"users\"", builder.to_sql::<Postgres>());
     }
 }
