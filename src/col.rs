@@ -102,19 +102,50 @@ impl IntoTableIdent for TableIdent {
     }
 }
 
-impl<T> IntoColumns for T
-where
-    T: IntoTableIdent,
-{
+impl IntoColumns for &str {
     fn into_columns(self) -> Columns {
         Columns::Single(self.into_table_ident())
     }
 }
 
-impl<T, const N: usize> IntoColumns for [T; N]
-where
-    T: IntoTableIdent,
-{
+impl IntoColumns for String {
+    fn into_columns(self) -> Columns {
+        Columns::Single(self.into_table_ident())
+    }
+}
+
+impl IntoColumns for Raw {
+    fn into_columns(self) -> Columns {
+        Columns::Single(self.into_table_ident())
+    }
+}
+
+impl IntoColumns for Ident {
+    fn into_columns(self) -> Columns {
+        Columns::Single(self.into_table_ident())
+    }
+}
+
+impl IntoColumns for TableIdent {
+    fn into_columns(self) -> Columns {
+        Columns::Single(self.into_table_ident())
+    }
+}
+
+impl<const N: usize> IntoColumns for [&str; N] {
+    fn into_columns(self) -> Columns {
+        // cheap clone O(1)
+        if N == 1 {
+            Columns::Single(self[0].into_table_ident())
+        } else {
+            let vec: Vec<TableIdent> =
+                self.map(|t| t.into_table_ident()).to_vec();
+            Columns::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoColumns for [String; N] {
     fn into_columns(self) -> Columns {
         let vec: Vec<TableIdent> =
             self.map(|t| t.into_table_ident()).to_vec();
@@ -122,10 +153,73 @@ where
     }
 }
 
-impl<T> IntoColumns for Vec<T>
-where
-    T: IntoTableIdent,
-{
+impl<const N: usize> IntoColumns for [Ident; N] {
+    fn into_columns(self) -> Columns {
+        // cheap clone O(1)
+        if N == 1 {
+            Columns::Single(self[0].clone().into_table_ident())
+        } else {
+            let vec: Vec<TableIdent> =
+                self.map(|t| t.into_table_ident()).to_vec();
+            Columns::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoColumns for [Raw; N] {
+    fn into_columns(self) -> Columns {
+        // cheap clone O(1)
+        if N == 1 {
+            Columns::Single(self[0].clone().into_table_ident())
+        } else {
+            let vec: Vec<TableIdent> =
+                self.map(|t| t.into_table_ident()).to_vec();
+            Columns::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoColumns for [TableIdent; N] {
+    fn into_columns(self) -> Columns {
+        // cheap clone O(1)
+        if N == 1 {
+            Columns::Single(self[0].clone())
+        } else {
+            let vec: Vec<TableIdent> = self.to_vec();
+            Columns::Many(vec)
+        }
+    }
+}
+
+impl IntoColumns for Vec<&str> {
+    fn into_columns(self) -> Columns {
+        let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
+        Columns::Many(vec)
+    }
+}
+
+impl IntoColumns for Vec<String> {
+    fn into_columns(self) -> Columns {
+        let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
+        Columns::Many(vec)
+    }
+}
+
+impl IntoColumns for Vec<Ident> {
+    fn into_columns(self) -> Columns {
+        let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
+        Columns::Many(vec)
+    }
+}
+
+impl IntoColumns for Vec<Raw> {
+    fn into_columns(self) -> Columns {
+        let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
+        Columns::Many(vec)
+    }
+}
+
+impl IntoColumns for Vec<TableIdent> {
     fn into_columns(self) -> Columns {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
         Columns::Many(vec)

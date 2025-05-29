@@ -63,6 +63,7 @@ impl Builder {
 }
 
 
+
 impl FormatWriter for Builder {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         context.writer.write_str("select ")?;
@@ -80,7 +81,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::dialect::Postgres;
+    use crate::{dialect::Postgres, Ident};
 
     use super::*;
 
@@ -95,5 +96,28 @@ mod tests {
         assert_eq!("select \"username\", \"id\" from \"users\"", builder.to_sql::<Postgres>());
         builder.reset_select();
         assert_eq!("select * from \"users\"", builder.to_sql::<Postgres>());
+    }
+
+    #[derive(Debug, Clone)]
+    struct User {
+        id: i64,
+        admin: bool,
+    }
+
+    impl IntoTableIdent for User {
+        fn into_table_ident(self) -> TableIdent {
+            TableIdent::Ident(Ident::new_static("users"))
+        }
+    }
+
+    #[test]
+    fn test_select_into_ident() {
+        let user = User {
+            id: 0,
+            admin: true,
+        };
+        let mut builder = Builder::table(user.clone());
+        builder.select(user);
+        assert_eq!("select \"users\" from \"users\"", builder.to_sql::<Postgres>());
     }
 }
