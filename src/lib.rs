@@ -39,3 +39,13 @@ pub(crate) mod tests {
         str
     }
 }
+
+#[macro_export]
+macro_rules! columns {
+    () => {
+        []
+    };
+    ( $($col:expr),+ $(,)? ) => {
+        [$( $col.into_table_ident() ),+]
+    };
+}

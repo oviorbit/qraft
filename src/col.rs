@@ -136,11 +136,11 @@ impl IntoColumns for Columns {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dialect::Dialect, tests::format_writer};
+    use crate::{columns, dialect::Dialect, ident, raw, tests::format_writer};
 
     use super::*;
 
-    fn test<T>(value: T) -> Columns
+    fn select<T>(value: T) -> Columns
     where
         T: IntoColumns
     {
@@ -149,11 +149,11 @@ mod tests {
 
     #[test]
     fn test_into_columns() {
-        test("hello");
-        test(String::from("hello"));
-        test(Ident::new("test?"));
-        test(["hello"]);
-        test([TableIdent::Ident(Ident::new_static("bob")), TableIdent::Raw(Raw::new_static("test"))]);
+        select("hello");
+        select(String::from("hello"));
+        select(Ident::new("test?"));
+        select(["hello"]);
+        select(columns![ident("bob"), raw("test")]);
     }
 
     #[test]
@@ -165,14 +165,14 @@ mod tests {
 
     #[test]
     fn test_single_column() {
-        let s = test("id");
+        let s = select("id");
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\"", wildcard);
     }
 
     #[test]
     fn test_multi_column() {
-        let s = test([TableIdent::Ident(Ident::new_static("id")), TableIdent::Raw(Raw::new_static("count(*)")), TableIdent::Ident(Ident::new_static("username"))]);
+        let s = select(columns!["id", raw("count(*)"), "username"]);
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }
