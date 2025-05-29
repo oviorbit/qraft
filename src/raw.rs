@@ -78,6 +78,7 @@ impl FormatWriter for Raw {
                             context.write_placeholder()?;
                             span_start = index + char.len_utf8();
                         }
+                        chars.next();
                     }
                     // write the rest of raw string
                 }
@@ -168,5 +169,12 @@ mod tests {
         let value = Raw::new_static("\"te? ? \"\"st\" = ?");
         let raw = format_writer(value, Dialect::Postgres);
         assert_eq!("\"te? ? \"\"st\" = $1", raw);
+    }
+
+    #[test]
+    fn test_placeholder_double() {
+        let value = Raw::new_static("test ??");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ??", raw);
     }
 }
