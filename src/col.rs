@@ -1,55 +1,14 @@
 use std::fmt;
 
-use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
+use crate::{bind::Array, ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 
-#[derive(Debug, Default, Clone)]
-pub enum Columns {
-    #[default]
-    Wildcard,
-    Single(TableIdent),
-    Many(Vec<TableIdent>),
-}
-
-impl Columns {
-    pub fn append(&mut self, other: Self) {
-        let combined = match (std::mem::replace(self, Columns::Wildcard), other) {
-            (Columns::Wildcard, cols) | (cols, Columns::Wildcard) => cols,
-            (Columns::Single(a), Columns::Single(b)) =>
-                Columns::Many(vec![a, b]),
-            (Columns::Single(a), Columns::Many(mut b)) => {
-                b.insert(0, a);
-                Columns::Many(b)
-            }
-            (Columns::Many(mut a), Columns::Single(b)) => {
-                a.push(b);
-                Columns::Many(a)
-            }
-            (Columns::Many(mut a), Columns::Many(mut b)) => {
-                a.append(&mut b);
-                Columns::Many(a)
-            }
-        };
-        *self = combined;
-    }
-
-    pub fn reset(&mut self) {
-        *self = Columns::Wildcard;
-    }
-
-    pub fn into_vec(self) -> Vec<TableIdent> {
-        match self {
-            Columns::Wildcard => Vec::new(),
-            Columns::Single(one) => Vec::from([one]),
-            Columns::Many(many) => many,
-        }
-    }
-}
+pub type Columns = Array<TableIdent>;
 
 impl FormatWriter for Columns {
     fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> fmt::Result {
         match self {
-            Columns::Wildcard => context.writer.write_char('*')?,
-            Columns::Single(ident) => ident.format_writer(context)?,
+            Columns::None => context.writer.write_char('*')?,
+            Columns::One(ident) => ident.format_writer(context)?,
             Columns::Many(idents) => {
                 // just format the elem seperated with comma
                 for (index, elem) in idents.iter().enumerate() {
@@ -118,31 +77,31 @@ impl<T: TableSchema> IntoTable for T {
 
 impl IntoColumns for &str {
     fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table())
+        Columns::One(self.into_table())
     }
 }
 
 impl IntoColumns for String {
     fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table())
+        Columns::One(self.into_table())
     }
 }
 
 impl IntoColumns for Raw {
     fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table())
+        Columns::One(self.into_table())
     }
 }
 
 impl IntoColumns for Ident {
     fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table())
+        Columns::One(self.into_table())
     }
 }
 
 impl IntoColumns for TableIdent {
     fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table())
+        Columns::One(self.into_table())
     }
 }
 
@@ -150,7 +109,7 @@ impl<const N: usize> IntoColumns for [&str; N] {
     fn into_columns(self) -> Columns {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].into_table())
+            Columns::One(self[0].into_table())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
@@ -171,7 +130,7 @@ impl<const N: usize> IntoColumns for [Ident; N] {
     fn into_columns(self) -> Columns {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone().into_table())
+            Columns::One(self[0].clone().into_table())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
@@ -184,7 +143,7 @@ impl<const N: usize> IntoColumns for [Raw; N] {
     fn into_columns(self) -> Columns {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone().into_table())
+            Columns::One(self[0].clone().into_table())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
@@ -197,7 +156,7 @@ impl<const N: usize> IntoColumns for [TableIdent; N] {
     fn into_columns(self) -> Columns {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone())
+            Columns::One(self[0].clone())
         } else {
             let vec: Vec<TableIdent> = self.to_vec();
             Columns::Many(vec)
@@ -276,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_format_wildcard() {
-        let s = Columns::Wildcard;
+        let s = Columns::None;
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("*", wildcard);
     }

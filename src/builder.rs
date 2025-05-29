@@ -14,7 +14,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(T::table()),
-            columns: Columns::Wildcard,
+            columns: Columns::None,
         }
     }
 
@@ -26,14 +26,14 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(table.into_table()),
-            columns: Columns::Wildcard,
+            columns: Columns::None,
         }
     }
 
     // todo: add raw bindings required for select raw variant
     pub fn select_raw<T: IntoRaw>(&mut self, value: T) -> &mut Self {
         let raw = value.into_raw();
-        self.columns = Columns::Single(TableIdent::Raw(raw));
+        self.columns = Columns::One(TableIdent::Raw(raw));
         self
     }
 
