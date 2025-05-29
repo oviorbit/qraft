@@ -128,16 +128,23 @@ where
     }
 }
 
+impl IntoColumns for Columns {
+    fn into_columns(self) -> Columns {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{dialect::Dialect, tests::format_writer};
 
     use super::*;
 
-    fn test<T>(_: T)
+    fn test<T>(value: T) -> Columns
     where
         T: IntoColumns
     {
+        value.into_columns()
     }
 
     #[test]
@@ -158,14 +165,14 @@ mod tests {
 
     #[test]
     fn test_single_column() {
-        let s = Columns::Single(TableIdent::Ident(Ident::new_static("id")));
+        let s = test("id");
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\"", wildcard);
     }
 
     #[test]
     fn test_multi_column() {
-        let s = Columns::Many(vec![TableIdent::Ident(Ident::new_static("id")), TableIdent::Raw(Raw::new_static("count(*)")), TableIdent::Ident(Ident::new_static("username"))]);
+        let s = test([TableIdent::Ident(Ident::new_static("id")), TableIdent::Raw(Raw::new_static("count(*)")), TableIdent::Ident(Ident::new_static("username"))]);
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }
