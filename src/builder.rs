@@ -1,4 +1,4 @@
-use crate::ident::TableIdent;
+use crate::{col::{Columns, IntoColumns}, ident::TableIdent};
 
 #[derive(Debug)]
 pub struct Builder {
@@ -8,10 +8,19 @@ pub struct Builder {
 
     maybe_table: Option<TableIdent>,
 
-    columns: Option<Vec<TableIdent>>,
+    /// If the columns is None, we know it's a wildcard.
+    columns: Columns,
 }
 
 impl Builder {
+    pub fn select<T>(&mut self, table: T) -> &mut Self
+    where
+        T: IntoColumns
+    {
+        let cols = table.into_columns();
+        self
+    }
+
     pub fn distinct(&mut self) -> &mut Self {
         self.distinct = true;
         self

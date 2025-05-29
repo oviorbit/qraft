@@ -2,7 +2,7 @@ use smol_str::SmolStr;
 
 use crate::{dialect::Dialect, writer::FormatWriter};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Raw(SmolStr);
 
 impl Raw {

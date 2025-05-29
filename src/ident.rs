@@ -2,13 +2,13 @@ use smol_str::SmolStr;
 
 use crate::{raw::Raw, writer::{self, FormatWriter}};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TableIdent {
     Ident(Ident),
     Raw(Raw),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ident(SmolStr);
 
 impl Ident {
