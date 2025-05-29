@@ -83,8 +83,6 @@ impl Builder {
     }
 }
 
-
-
 impl FormatWriter for Builder {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         context.writer.write_str("select ")?;
