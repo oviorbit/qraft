@@ -101,6 +101,19 @@ mod tests {
     }
 
     #[test]
+    fn test_format_ident_quote() {
+        let ident = Ident::new_static("us\"ers");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"us\"\"ers\"", ident);
+        let ident = Ident::new_static("us`ers");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"us`ers\"", ident);
+        let ident = Ident::new_static("us`ers");
+        let ident = format_ident(ident, Dialect::MySql);
+        assert_eq!("`us``ers`", ident);
+    }
+
+    #[test]
     fn test_format_ident_alias_dup() {
         let ident = Ident::new_static("us\"ers");
         let ident = format_ident(ident, Dialect::Postgres);
