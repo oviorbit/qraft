@@ -4,10 +4,6 @@ use crate::dialect::Dialect;
 
 pub(crate) trait FormatWriter {
     fn format_writer<W: Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result;
-
-    fn size_hint(&self) -> usize {
-        0
-    }
 }
 
 pub(crate) struct FormatContext<'a, W: Write> {
