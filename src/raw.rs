@@ -186,64 +186,64 @@ mod tests {
 
     use super::*;
 
-    //#[test]
-    //fn test_raw_str() {
-    //    let value = Raw::new_static("'te?st'");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("'te?st'", raw);
-    //}
-    //
-    //#[test]
-    //fn test_raw_double_quote() {
-    //    let value = Raw::new_static("'te''? st'");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("'te''? st'", raw);
-    //}
-    //
-    //#[test]
-    //fn test_raw_bind() {
-    //    let value = Raw::new_static("'test' = ?");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("'test' = $1", raw);
-    //}
-    //
-    //#[test]
-    //fn test_raw_ident() {
-    //    let value = Raw::new_static("\"te? ? \"\"st\" = ?");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("\"te? ? \"\"st\" = $1", raw);
-    //}
-    //
-    //#[test]
-    //fn test_placeholder_escaped() {
-    //    let value = Raw::new_static("test ??");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("test ??", raw);
-    //}
-    //
-    //#[test]
-    //fn test_placeholder_jsonb() {
-    //    let value = Raw::new_static("test ?| some");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("test ?| some", raw);
-    //    let value = Raw::new_static("test ?& some");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("test ?& some", raw);
-    //}
-    //
-    //#[test]
-    //fn test_placeholder_tag() {
-    //    let value = Raw::new_static("test $so?me$");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("test $so?me$", raw);
-    //}
-    //
-    //#[test]
-    //fn test_placeholder_tag_unfinish() {
-    //    let value = Raw::new_static("test $so?me$$");
-    //    let raw = format_writer(value, Dialect::Postgres);
-    //    assert_eq!("test $so?me$$", raw);
-    //}
+    #[test]
+    fn test_raw_str() {
+        let value = Raw::new_static("'te?st'");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("'te?st'", raw);
+    }
+
+    #[test]
+    fn test_raw_double_quote() {
+        let value = Raw::new_static("'te''? st'");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("'te''? st'", raw);
+    }
+
+    #[test]
+    fn test_raw_bind() {
+        let value = Raw::new_static("'test' = ?");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("'test' = $1", raw);
+    }
+
+    #[test]
+    fn test_raw_ident() {
+        let value = Raw::new_static("\"te? ? \"\"st\" = ?");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("\"te? ? \"\"st\" = $1", raw);
+    }
+
+    #[test]
+    fn test_placeholder_escaped() {
+        let value = Raw::new_static("test ??");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ??", raw);
+    }
+
+    #[test]
+    fn test_placeholder_jsonb() {
+        let value = Raw::new_static("test ?| some");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ?| some", raw);
+        let value = Raw::new_static("test ?& some");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ?& some", raw);
+    }
+
+    #[test]
+    fn test_placeholder_tag() {
+        let value = Raw::new_static("test $so?me$");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test $so?me$", raw);
+    }
+
+    #[test]
+    fn test_placeholder_tag_unfinish() {
+        let value = Raw::new_static("test $so?me$$");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test $so?me$$", raw);
+    }
 
     #[test]
     fn test_placeholder_quote_unfinished() {
