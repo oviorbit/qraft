@@ -259,6 +259,13 @@ mod tests {
     }
 
     #[test]
+    fn test_double_single_quote() {
+        let value = Raw::new_static("''");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("''", raw);
+    }
+
+    #[test]
     fn test_full_query() {
         let value = Raw::new_static("select * from users where \"userna?me\" = ? and \"id\" = ?");
         let raw = format_writer(value, Dialect::Postgres);
