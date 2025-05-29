@@ -6,8 +6,6 @@ mod raw;
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
-
     use crate::{dialect, writer};
 
     pub(crate) fn format_writer<W: writer::FormatWriter>(writer: W, dialect: dialect::Dialect) -> String {
