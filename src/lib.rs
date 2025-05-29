@@ -8,23 +8,23 @@ mod col;
 
 pub use builder::Builder;
 
-use ident::Ident;
+use ident::{Ident, TableIdent};
 pub use raw::Raw;
 
-pub fn ident(value: &'static str) -> Ident {
-    Ident::new_static(value)
+pub fn ident(value: &'static str) -> TableIdent {
+    TableIdent::Ident(Ident::new_static(value))
 }
 
-pub fn ident_by_ref(value: &str) -> Ident {
-    Ident::new(value)
+pub fn ident_by_ref(value: &str) -> TableIdent {
+    TableIdent::Ident(Ident::new(value))
 }
 
-pub fn raw(value: &'static str) -> Raw {
-    Raw::new_static(value)
+pub fn raw(value: &'static str) -> TableIdent {
+    TableIdent::Raw(Raw::new_static(value))
 }
 
-pub fn raw_by_ref(value: &str) -> Raw {
-    Raw::new(value)
+pub fn raw_by_ref(value: &str) -> TableIdent {
+    TableIdent::Raw(Raw::new(value))
 }
 
 #[cfg(test)]

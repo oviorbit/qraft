@@ -93,9 +93,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{ident, raw};
+
     use super::*;
 
-    fn test<T>(value: T)
+    fn test<T>(_: T)
     where
         T: IntoColumns
     {
@@ -108,5 +110,6 @@ mod tests {
         test(Ident::new("test?"));
         test(["hello"]);
         test([TableIdent::Ident(Ident::new_static("bob")), TableIdent::Raw(Raw::new_static("test"))]);
+        test([ident("bob"), raw("test")]);
     }
 }
