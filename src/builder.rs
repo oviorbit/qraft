@@ -30,6 +30,11 @@ impl Builder {
         self
     }
 
+    pub fn reset_select(&mut self) -> &mut Self {
+        self.columns.reset();
+        self
+    }
+
     pub fn distinct(&mut self) -> &mut Self {
         self.distinct = true;
         self
