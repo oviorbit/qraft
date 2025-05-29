@@ -22,9 +22,9 @@ impl Ident {
 
 impl FormatWriter for Ident {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
-        let str = self.0.as_str();
-        if let Some(index) = find_as(str.as_bytes()) {
-            let (lhs, rhs) = str.split_at(index);
+        let table = self.0.as_str();
+        if let Some(index) = find_as(table.as_bytes()) {
+            let (lhs, rhs) = table.split_at(index);
             let alias = &rhs[4..];
             context.format_table(lhs)?;
             context.writer.write_str(" as ")?;
@@ -32,7 +32,7 @@ impl FormatWriter for Ident {
             return Ok(());
         }
 
-        context.format_ident(str)?;
+        context.format_table(table)?;
         Ok(())
     }
 }
@@ -114,9 +114,22 @@ mod tests {
     }
 
     #[test]
-    fn test_format_ident_alias_dup() {
-        let ident = Ident::new_static("us\"ers");
+    fn test_format_ident_dot() {
+        let ident = Ident::new_static("x.y");
         let ident = format_ident(ident, Dialect::Postgres);
-        assert_eq!("\"us\"\"ers\"", ident);
+        assert_eq!("\"x\".\"y\"", ident);
+        let ident = Ident::new_static("x.y");
+        let ident = format_ident(ident, Dialect::MySql);
+        assert_eq!("`x`.`y`", ident);
+    }
+
+    #[test]
+    fn test_format_ident_space_dot() {
+        let ident = Ident::new_static("w x.y.z as foo.bar");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"w x\".\"y\".\"z\" as \"foo.bar\"", ident);
+        let ident = Ident::new_static("w x.y.z as foo.bar");
+        let ident = format_ident(ident, Dialect::MySql);
+        assert_eq!("`w x`.`y`.`z` as `foo.bar`", ident);
     }
 }
