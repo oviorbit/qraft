@@ -32,6 +32,10 @@ impl Columns {
         *self = combined;
     }
 
+    pub fn reset(&mut self) {
+        *self = Columns::None;
+    }
+
     pub fn into_vec(self) -> Vec<TableIdent> {
         match self {
             Columns::None => Vec::new(),
