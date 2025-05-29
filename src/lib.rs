@@ -8,7 +8,16 @@ mod col;
 
 pub use builder::Builder;
 
+use ident::Ident;
 pub use raw::Raw;
+
+pub fn ident(value: &'static str) -> Ident {
+    Ident::new_static(value)
+}
+
+pub fn ident_by_ref(value: &str) -> Ident {
+    Ident::new(value)
+}
 
 pub fn raw(value: &'static str) -> Raw {
     Raw::new_static(value)
