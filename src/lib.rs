@@ -28,6 +28,16 @@ pub fn raw_by_ref(value: &str) -> Raw {
     Raw::new(value)
 }
 
+#[macro_export]
+macro_rules! col {
+    () => {
+        []
+    };
+    ( $($col:expr),+ $(,)? ) => {
+        [$( $col.into_table_ident() ),+]
+    };
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::{dialect, writer};
@@ -38,14 +48,4 @@ pub(crate) mod tests {
         writer.format_writer(&mut context).unwrap();
         str
     }
-}
-
-#[macro_export]
-macro_rules! columns {
-    () => {
-        []
-    };
-    ( $($col:expr),+ $(,)? ) => {
-        [$( $col.into_table_ident() ),+]
-    };
 }

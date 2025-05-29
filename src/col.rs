@@ -136,7 +136,7 @@ impl IntoColumns for Columns {
 
 #[cfg(test)]
 mod tests {
-    use crate::{columns, dialect::Dialect, ident, raw, tests::format_writer};
+    use crate::{col, dialect::Dialect, ident, raw, tests::format_writer};
 
     use super::*;
 
@@ -153,7 +153,7 @@ mod tests {
         select(String::from("hello"));
         select(Ident::new("test?"));
         select(["hello"]);
-        select(columns![ident("bob"), raw("test")]);
+        select(col![ident("bob"), raw("test")]);
     }
 
     #[test]
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_multi_column() {
-        let s = select(columns!["id", raw("count(*)"), "username"]);
+        let s = select(col!["id", raw("count(*)"), "username"]);
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }
