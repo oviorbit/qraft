@@ -73,14 +73,19 @@ impl FormatWriter for Raw {
                             true
                         };
 
+                        if let Some(&(_, next_ch)) = chars.peek() {
+                            if next_ch == '?' || next_ch == '|' || next_ch == '&' {
+                                let _ = chars.next();
+                                continue;
+                            }
+                        }
+
                         if is_placeholder {
                             context.writer.write_str(&sql[span_start..index])?;
                             context.write_placeholder()?;
                             span_start = index + char.len_utf8();
                         }
-                        chars.next();
                     }
-                    // write the rest of raw string
                 }
                 State::Ident => {
                      while let Some(&(next_idx, next_ch)) = chars.peek() {
@@ -172,9 +177,19 @@ mod tests {
     }
 
     #[test]
-    fn test_placeholder_double() {
+    fn test_placeholder_escaped() {
         let value = Raw::new_static("test ??");
         let raw = format_writer(value, Dialect::Postgres);
         assert_eq!("test ??", raw);
+    }
+
+    #[test]
+    fn test_placeholder_jsonb() {
+        let value = Raw::new_static("test ?| some");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ?| some", raw);
+        let value = Raw::new_static("test ?& some");
+        let raw = format_writer(value, Dialect::Postgres);
+        assert_eq!("test ?& some", raw);
     }
 }
