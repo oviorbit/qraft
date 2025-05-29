@@ -21,6 +21,18 @@ pub enum Bind {
 
 pub type Binds = Array<Bind>;
 
+impl IntoBinds for Binds {
+    fn into_binds(self) -> Binds {
+        self
+    }
+}
+
+impl IntoBinds for () {
+    fn into_binds(self) -> Binds {
+        Binds::None
+    }
+}
+
 // if T <= 32 bytes we are good and it's a free data structure.
 #[derive(Debug, Default)]
 pub enum Array<T> {
@@ -52,6 +64,14 @@ impl<T> Array<T> {
         *self = combined;
     }
 
+    pub fn len(&self) -> usize {
+        match self {
+            Array::None => 0,
+            Array::One(_) => 1,
+            Array::Many(items) => items.len(),
+        }
+    }
+
     pub fn reset(&mut self) {
         *self = Self::None;
     }
@@ -67,6 +87,47 @@ impl<T> Array<T> {
 
 pub trait IntoBind {
     fn into_bind(self) -> Bind;
+}
+
+pub trait IntoBinds {
+    fn into_binds(self) -> Binds;
+}
+
+impl<T> IntoBinds for T
+where
+    T: IntoBind
+{
+    fn into_binds(self) -> Binds {
+        Binds::One(self.into_bind())
+    }
+}
+
+impl<T> IntoBinds for Vec<T>
+where
+    T: IntoBind
+{
+    fn into_binds(self) -> Binds {
+        Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
+    }
+}
+
+impl<T, const N: usize> IntoBinds for [T; N]
+where
+    T: IntoBind
+{
+    fn into_binds(self) -> Binds {
+        let mut iter = self.into_iter().map(IntoBind::into_bind);
+        match N {
+            0 => Binds::None,
+            1 => {
+                let one = iter.next().expect("safe since N is 1");
+                Binds::One(one)
+            }
+            _ => {
+                Binds::Many(iter.collect())
+            }
+        }
+    }
 }
 
 impl<T> IntoBind for Option<T>
@@ -85,11 +146,5 @@ where
 impl IntoBind for i32 {
     fn into_bind(self) -> Bind {
         Bind::I32(self)
-    }
-}
-
-impl IntoBind for u64 {
-    fn into_bind(self) -> Bind {
-        Bind::U64(self)
     }
 }

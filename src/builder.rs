@@ -1,4 +1,4 @@
-use crate::{col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
+use crate::{bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
 
 #[derive(Debug, Default)]
 pub struct Builder {
@@ -6,6 +6,7 @@ pub struct Builder {
     distinct: bool,
     maybe_table: Option<TableIdent>,
     columns: Columns,
+    binds: Binds,
 }
 
 impl Builder {
@@ -15,6 +16,7 @@ impl Builder {
             distinct: false,
             maybe_table: Some(T::table()),
             columns: Columns::None,
+            binds: Binds::None,
         }
     }
 
@@ -27,13 +29,15 @@ impl Builder {
             distinct: false,
             maybe_table: Some(table.into_table()),
             columns: Columns::None,
+            binds: Binds::None,
         }
     }
 
     // todo: add raw bindings required for select raw variant
-    pub fn select_raw<T: IntoRaw>(&mut self, value: T) -> &mut Self {
+    pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
         let raw = value.into_raw();
         self.columns = Columns::One(TableIdent::Raw(raw));
+        self.binds.append(binds.into_binds());
         self
     }
 
@@ -98,7 +102,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{col::ColumnSchema, dialect::Postgres, ident_static};
+    use crate::{bind::{self, Bind}, col::ColumnSchema, dialect::Postgres, ident_static};
 
     use super::*;
 
@@ -145,7 +149,21 @@ mod tests {
     #[test]
     fn test_select_raw() {
         let mut builder = Builder::table("users");
-        builder.select_raw("id, count(*)");
+        builder.select_raw("id, count(*)", Binds::None);
         assert_eq!("select id, count(*) from \"users\"", builder.to_sql::<Postgres>());
+    }
+
+    #[test]
+    fn test_select_raw_bound() {
+        let mut builder = Builder::table("users");
+        builder.select_raw("price + ? as fee", [5]);
+        assert_eq!("select price + $1 as fee from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(1, builder.binds.len());
+        let value = match builder.binds {
+            bind::Array::None => panic!("should have one value"),
+            bind::Array::One(value) => value,
+            bind::Array::Many(_) => panic!("wrong size"),
+        };
+        assert!(matches!(value, Bind::I32(5)));
     }
 }
