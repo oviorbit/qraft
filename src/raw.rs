@@ -1,6 +1,6 @@
 use smol_str::SmolStr;
 
-use crate::{dialect::Dialect, writer::FormatWriter};
+use crate::{dialect::Dialect, writer::{self, FormatWriter}};
 
 #[derive(Debug, Clone)]
 pub struct Raw(SmolStr);
@@ -21,7 +21,7 @@ impl Raw {
 impl FormatWriter for Raw {
     fn format_writer<W: std::fmt::Write>(
         &self,
-        context: &mut crate::writer::FormatContext<'_, W>,
+        context: &mut writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
         let sql = self.0.as_str();
 

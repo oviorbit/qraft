@@ -6,7 +6,7 @@ mod raw;
 mod builder;
 pub mod col;
 
-pub use ident::TableIdent;
+pub use ident::Table;
 pub use ident::Ident;
 pub use raw::Raw;
 
@@ -34,7 +34,7 @@ macro_rules! col {
         []
     };
     ( $($col:expr),+ $(,)? ) => {
-        [$( $col.into_table_ident() ),+]
+        [$( $col.into_table() ),+]
     };
 }
 

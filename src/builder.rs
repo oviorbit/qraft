@@ -1,46 +1,43 @@
-use crate::{col::{Columns, ColumnsIdent, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter}};
+use crate::{col::{HasColumns, Columns, IntoColumns, IntoTable, HasTable}, dialect::HasDialect, ident::Table, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
 
 #[derive(Debug, Default)]
 pub struct Builder {
     query: String,
-
     distinct: bool,
-
-    maybe_table: Option<TableIdent>,
-
-    /// If the columns is None, we know it's a wildcard.
-    columns: ColumnsIdent,
+    maybe_table: Option<Table>,
+    columns: Columns,
 }
 
 impl Builder {
-    pub fn table_as<T: Table>() -> Self {
+    pub fn table_as<T: HasTable>() -> Self {
         Self {
             query: String::new(),
             distinct: false,
             maybe_table: Some(T::table()),
-            columns: ColumnsIdent::None,
+            columns: Columns::None,
         }
     }
 
     pub fn table<T>(table: T) -> Self
     where
-        T: IntoTableIdent
+        T: IntoTable
     {
         Self {
             query: String::new(),
             distinct: false,
-            maybe_table: Some(table.into_table_ident()),
-            columns: ColumnsIdent::None,
+            maybe_table: Some(table.into_table()),
+            columns: Columns::None,
         }
     }
 
+    // todo: add raw bindings required for select raw variant
     pub fn select_raw<T: IntoRaw>(&mut self, value: T) -> &mut Self {
         let raw = value.into_raw();
-        self.columns = ColumnsIdent::Single(TableIdent::Raw(raw));
+        self.columns = Columns::Single(Table::Raw(raw));
         self
     }
 
-    pub fn select_as<T: Columns>(&mut self) -> &mut Self {
+    pub fn select_as<T: HasColumns>(&mut self) -> &mut Self {
         self.columns = T::columns();
         self
     }
@@ -101,7 +98,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{col::Columns, dialect::Postgres, Ident};
+    use crate::{col::HasColumns, dialect::Postgres, Ident};
 
     use super::*;
 
@@ -125,15 +122,15 @@ mod tests {
     }
 
     // generated ?
-    impl Table for User {
-        fn table() -> TableIdent {
-            TableIdent::ident_static("users")
+    impl HasTable for User {
+        fn table() -> Table {
+            Table::ident_static("users")
         }
     }
 
     // generated ?
-    impl Columns for User {
-        fn columns() -> ColumnsIdent {
+    impl HasColumns for User {
+        fn columns() -> Columns {
             [Ident::new_static("id"), Ident::new_static("admin")].into_columns()
         }
     }
