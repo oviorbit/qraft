@@ -4,6 +4,9 @@ mod ident;
 mod operator;
 mod raw;
 mod builder;
+mod col;
+
+pub use builder::Builder;
 
 pub use raw::Raw;
 
