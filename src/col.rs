@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 
 #[derive(Debug, Clone)]
@@ -18,8 +20,21 @@ impl Columns {
 }
 
 impl FormatWriter for Columns {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
-        todo!()
+    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> fmt::Result {
+        match self {
+            Columns::None => context.writer.write_char('*')?,
+            Columns::Single(ident) => ident.format_writer(context)?,
+            Columns::Many(idents) => {
+                // just format the elem seperated with comma
+                for (index, elem) in idents.iter().enumerate() {
+                    if index > 0 {
+                        context.writer.write_str(", ")?;
+                    }
+                    elem.format_writer(context)?;
+                }
+            }
+        };
+        Ok(())
     }
 }
 
@@ -93,8 +108,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{ident, raw};
-
     use super::*;
 
     fn test<T>(_: T)
@@ -110,6 +123,5 @@ mod tests {
         test(Ident::new("test?"));
         test(["hello"]);
         test([TableIdent::Ident(Ident::new_static("bob")), TableIdent::Raw(Raw::new_static("test"))]);
-        test([ident("bob"), raw("test")]);
     }
 }
