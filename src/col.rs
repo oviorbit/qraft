@@ -5,15 +5,15 @@ use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 #[derive(Debug, Default, Clone)]
 pub enum Columns {
     #[default]
-    None,
+    Wildcard,
     Single(TableIdent),
     Many(Vec<TableIdent>),
 }
 
 impl Columns {
     pub fn append(&mut self, other: Self) {
-        let combined = match (std::mem::replace(self, Columns::None), other) {
-            (Columns::None, cols) | (cols, Columns::None) => cols,
+        let combined = match (std::mem::replace(self, Columns::Wildcard), other) {
+            (Columns::Wildcard, cols) | (cols, Columns::Wildcard) => cols,
             (Columns::Single(a), Columns::Single(b)) =>
                 Columns::Many(vec![a, b]),
             (Columns::Single(a), Columns::Many(mut b)) => {
@@ -33,12 +33,12 @@ impl Columns {
     }
 
     pub fn reset(&mut self) {
-        *self = Columns::None;
+        *self = Columns::Wildcard;
     }
 
     pub fn into_vec(self) -> Vec<TableIdent> {
         match self {
-            Columns::None => Vec::new(),
+            Columns::Wildcard => Vec::new(),
             Columns::Single(one) => Vec::from([one]),
             Columns::Many(many) => many,
         }
@@ -48,7 +48,7 @@ impl Columns {
 impl FormatWriter for Columns {
     fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> fmt::Result {
         match self {
-            Columns::None => context.writer.write_char('*')?,
+            Columns::Wildcard => context.writer.write_char('*')?,
             Columns::Single(ident) => ident.format_writer(context)?,
             Columns::Many(idents) => {
                 // just format the elem seperated with comma
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_format_wildcard() {
-        let s = Columns::None;
+        let s = Columns::Wildcard;
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("*", wildcard);
     }

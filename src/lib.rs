@@ -7,6 +7,7 @@ mod operator;
 mod raw;
 mod builder;
 pub mod col;
+mod bind;
 
 pub use ident::TableIdent;
 pub use ident::Ident;

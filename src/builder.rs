@@ -14,7 +14,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(T::table()),
-            columns: Columns::None,
+            columns: Columns::Wildcard,
         }
     }
 
@@ -26,7 +26,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(table.into_table()),
-            columns: Columns::None,
+            columns: Columns::Wildcard,
         }
     }
 
@@ -98,7 +98,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{col::ColumnSchema, dialect::Postgres, Ident};
+    use crate::{col::ColumnSchema, dialect::Postgres, ident_static};
 
     use super::*;
 
@@ -131,7 +131,7 @@ mod tests {
     // generated ?
     impl ColumnSchema for User {
         fn columns() -> Columns {
-            [Ident::new_static("id"), Ident::new_static("admin")].into_columns()
+            [ident_static("id"), ident_static("admin")].into_columns()
         }
     }
 
