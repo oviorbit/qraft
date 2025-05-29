@@ -26,13 +26,13 @@ impl FormatWriter for Ident {
         if let Some(index) = find_as(table.as_bytes()) {
             let (lhs, rhs) = table.split_at(index);
             let alias = &rhs[4..];
-            context.format_table(lhs)?;
+            context.write_table(lhs)?;
             context.writer.write_str(" as ")?;
-            context.format_ident(alias)?;
+            context.write_ident(alias)?;
             return Ok(());
         }
 
-        context.format_table(table)?;
+        context.write_table(table)?;
         Ok(())
     }
 }
@@ -52,16 +52,9 @@ fn find_as(h: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dialect::Dialect, writer::FormatContext};
+    use crate::{dialect::Dialect, tests::format_writer};
 
     use super::*;
-
-    fn format_ident(ident: Ident, dialect: Dialect) -> String {
-        let mut str = String::new();
-        let mut context = FormatContext::new(&mut str, dialect);
-        ident.format_writer(&mut context).unwrap();
-        str
-    }
 
     #[test]
     fn test_find_as() {
@@ -79,57 +72,57 @@ mod tests {
     #[test]
     fn test_format_ident_simple() {
         let ident = Ident::new_static("users");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"users\"", ident);
         let ident = Ident::new_static("users");
-        let ident = format_ident(ident, Dialect::MySql);
+        let ident = format_writer(ident, Dialect::MySql);
         assert_eq!("`users`", ident)
     }
 
     #[test]
-    fn test_format_ident_spaces() {
+    fn test_format_writer_spaces() {
         let ident = Ident::new_static("an sql table");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"an sql table\"", ident);
     }
 
     #[test]
-    fn test_format_ident_alias() {
+    fn test_format_writer_alias() {
         let ident = Ident::new_static("users as foo");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"users\" as \"foo\"", ident);
     }
 
     #[test]
-    fn test_format_ident_quote() {
+    fn test_format_writer_quote() {
         let ident = Ident::new_static("us\"ers");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"us\"\"ers\"", ident);
         let ident = Ident::new_static("us`ers");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"us`ers\"", ident);
         let ident = Ident::new_static("us`ers");
-        let ident = format_ident(ident, Dialect::MySql);
+        let ident = format_writer(ident, Dialect::MySql);
         assert_eq!("`us``ers`", ident);
     }
 
     #[test]
-    fn test_format_ident_dot() {
+    fn test_format_writer_dot() {
         let ident = Ident::new_static("x.y");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"x\".\"y\"", ident);
         let ident = Ident::new_static("x.y");
-        let ident = format_ident(ident, Dialect::MySql);
+        let ident = format_writer(ident, Dialect::MySql);
         assert_eq!("`x`.`y`", ident);
     }
 
     #[test]
-    fn test_format_ident_space_dot() {
+    fn test_format_writer_space_dot() {
         let ident = Ident::new_static("some space.x.y as some.table");
-        let ident = format_ident(ident, Dialect::Postgres);
+        let ident = format_writer(ident, Dialect::Postgres);
         assert_eq!("\"some space\".\"x\".\"y\" as \"some.table\"", ident);
         let ident = Ident::new_static("some space.x.y as some.table");
-        let ident = format_ident(ident, Dialect::MySql);
+        let ident = format_writer(ident, Dialect::MySql);
         assert_eq!("`some space`.`x`.`y` as `some.table`", ident);
     }
 }

@@ -1,4 +1,4 @@
-use std::{fmt::Write, ops::{Deref, DerefMut}};
+use std::{fmt::Write, ops::Deref};
 
 use crate::dialect::Dialect;
 
@@ -21,17 +21,17 @@ impl<'a, W: Write> FormatContext<'a, W> {
         }
     }
 
-    pub(crate) fn format_table(&mut self, ident: &str) -> std::fmt::Result {
+    pub(crate) fn write_table(&mut self, ident: &str) -> std::fmt::Result {
         for (i, part) in ident.split('.').enumerate() {
             if i > 0 {
                 self.writer.write_char('.')?;
             }
-            self.format_ident(part)?;
+            self.write_ident(part)?;
         }
         Ok(())
     }
 
-    pub(crate) fn format_ident(&mut self, part: &str) -> std::fmt::Result {
+    pub(crate) fn write_ident(&mut self, part: &str) -> std::fmt::Result {
         let quote = match self.dialect {
             Dialect::Postgres | Dialect::Sqlite => '"',
             Dialect::MySql => '`',
@@ -57,6 +57,12 @@ impl<'a, W: Write> FormatContext<'a, W> {
         }
 
         self.writer.write_char(quote)?;
+        Ok(())
+    }
+
+    pub(crate) fn write_placeholder(&mut self) -> std::fmt::Result {
+        self.placeholder += 1;
+        write!(self.writer, "${}", self.placeholder)?;
         Ok(())
     }
 }
