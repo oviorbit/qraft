@@ -3,12 +3,12 @@ use smol_str::SmolStr;
 use crate::{raw::Raw, writer::{self, FormatWriter}};
 
 #[derive(Debug, Clone)]
-pub enum Table {
+pub enum TableIdent {
     Ident(Ident),
     Raw(Raw),
 }
 
-impl Table {
+impl TableIdent {
     pub fn ident_static(value: &'static str) -> Self {
         Self::Ident(Ident::new_static(value))
     }
@@ -32,11 +32,11 @@ impl Table {
     }
 }
 
-impl FormatWriter for Table {
+impl FormatWriter for TableIdent {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
         match self {
-            Table::Ident(ident) => ident.format_writer(context),
-            Table::Raw(raw) => raw.format_writer(context)
+            TableIdent::Ident(ident) => ident.format_writer(context),
+            TableIdent::Raw(raw) => raw.format_writer(context)
         }
     }
 }

@@ -1,15 +1,15 @@
-use crate::{col::{HasColumns, Columns, IntoColumns, IntoTable, HasTable}, dialect::HasDialect, ident::Table, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
+use crate::{col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
 
 #[derive(Debug, Default)]
 pub struct Builder {
     query: String,
     distinct: bool,
-    maybe_table: Option<Table>,
+    maybe_table: Option<TableIdent>,
     columns: Columns,
 }
 
 impl Builder {
-    pub fn table_as<T: HasTable>() -> Self {
+    pub fn table_as<T: TableSchema>() -> Self {
         Self {
             query: String::new(),
             distinct: false,
@@ -33,11 +33,11 @@ impl Builder {
     // todo: add raw bindings required for select raw variant
     pub fn select_raw<T: IntoRaw>(&mut self, value: T) -> &mut Self {
         let raw = value.into_raw();
-        self.columns = Columns::Single(Table::Raw(raw));
+        self.columns = Columns::Single(TableIdent::Raw(raw));
         self
     }
 
-    pub fn select_as<T: HasColumns>(&mut self) -> &mut Self {
+    pub fn select_as<T: ColumnSchema>(&mut self) -> &mut Self {
         self.columns = T::columns();
         self
     }
@@ -98,7 +98,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{col::HasColumns, dialect::Postgres, Ident};
+    use crate::{col::ColumnSchema, dialect::Postgres, Ident};
 
     use super::*;
 
@@ -122,14 +122,14 @@ mod tests {
     }
 
     // generated ?
-    impl HasTable for User {
-        fn table() -> Table {
-            Table::ident_static("users")
+    impl TableSchema for User {
+        fn table() -> TableIdent {
+            TableIdent::ident_static("users")
         }
     }
 
     // generated ?
-    impl HasColumns for User {
+    impl ColumnSchema for User {
         fn columns() -> Columns {
             [Ident::new_static("id"), Ident::new_static("admin")].into_columns()
         }

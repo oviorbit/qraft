@@ -1,13 +1,13 @@
 use std::fmt;
 
-use crate::{ident::{Ident, Table}, writer::FormatWriter, Raw};
+use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 
 #[derive(Debug, Default, Clone)]
 pub enum Columns {
     #[default]
     None,
-    Single(Table),
-    Many(Vec<Table>),
+    Single(TableIdent),
+    Many(Vec<TableIdent>),
 }
 
 impl Columns {
@@ -36,7 +36,7 @@ impl Columns {
         *self = Columns::None;
     }
 
-    pub fn into_vec(self) -> Vec<Table> {
+    pub fn into_vec(self) -> Vec<TableIdent> {
         match self {
             Columns::None => Vec::new(),
             Columns::Single(one) => Vec::from([one]),
@@ -64,11 +64,11 @@ impl FormatWriter for Columns {
     }
 }
 
-pub trait HasTable {
-    fn table() -> Table;
+pub trait TableSchema {
+    fn table() -> TableIdent;
 }
 
-pub trait HasColumns {
+pub trait ColumnSchema {
     fn columns() -> Columns;
 }
 
@@ -77,41 +77,41 @@ pub trait IntoColumns {
 }
 
 pub trait IntoTable {
-    fn into_table(self) -> Table;
+    fn into_table(self) -> TableIdent;
 }
 
 impl IntoTable for &str {
-    fn into_table(self) -> Table {
-        Table::ident(self)
+    fn into_table(self) -> TableIdent {
+        TableIdent::ident(self)
     }
 }
 
 impl IntoTable for String {
-    fn into_table(self) -> Table {
-        Table::ident(self)
+    fn into_table(self) -> TableIdent {
+        TableIdent::ident(self)
     }
 }
 
 impl IntoTable for Raw {
-    fn into_table(self) -> Table {
-        Table::Raw(self)
+    fn into_table(self) -> TableIdent {
+        TableIdent::Raw(self)
     }
 }
 
 impl IntoTable for Ident {
-    fn into_table(self) -> Table {
-        Table::Ident(self)
+    fn into_table(self) -> TableIdent {
+        TableIdent::Ident(self)
     }
 }
 
-impl IntoTable for Table {
-    fn into_table(self) -> Table {
+impl IntoTable for TableIdent {
+    fn into_table(self) -> TableIdent {
         self
     }
 }
 
-impl<T: HasTable> IntoTable for T {
-    fn into_table(self) -> Table {
+impl<T: TableSchema> IntoTable for T {
+    fn into_table(self) -> TableIdent {
         T::table()
     }
 }
@@ -140,7 +140,7 @@ impl IntoColumns for Ident {
     }
 }
 
-impl IntoColumns for Table {
+impl IntoColumns for TableIdent {
     fn into_columns(self) -> Columns {
         Columns::Single(self.into_table())
     }
@@ -152,7 +152,7 @@ impl<const N: usize> IntoColumns for [&str; N] {
         if N == 1 {
             Columns::Single(self[0].into_table())
         } else {
-            let vec: Vec<Table> =
+            let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
@@ -161,7 +161,7 @@ impl<const N: usize> IntoColumns for [&str; N] {
 
 impl<const N: usize> IntoColumns for [String; N] {
     fn into_columns(self) -> Columns {
-        let vec: Vec<Table> =
+        let vec: Vec<TableIdent> =
             self.map(|t| t.into_table()).to_vec();
         Columns::Many(vec)
     }
@@ -173,7 +173,7 @@ impl<const N: usize> IntoColumns for [Ident; N] {
         if N == 1 {
             Columns::Single(self[0].clone().into_table())
         } else {
-            let vec: Vec<Table> =
+            let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
@@ -186,20 +186,20 @@ impl<const N: usize> IntoColumns for [Raw; N] {
         if N == 1 {
             Columns::Single(self[0].clone().into_table())
         } else {
-            let vec: Vec<Table> =
+            let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
     }
 }
 
-impl<const N: usize> IntoColumns for [Table; N] {
+impl<const N: usize> IntoColumns for [TableIdent; N] {
     fn into_columns(self) -> Columns {
         // cheap clone O(1)
         if N == 1 {
             Columns::Single(self[0].clone())
         } else {
-            let vec: Vec<Table> = self.to_vec();
+            let vec: Vec<TableIdent> = self.to_vec();
             Columns::Many(vec)
         }
     }
@@ -233,7 +233,7 @@ impl IntoColumns for Vec<Raw> {
     }
 }
 
-impl IntoColumns for Vec<Table> {
+impl IntoColumns for Vec<TableIdent> {
     fn into_columns(self) -> Columns {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Columns::Many(vec)
@@ -246,7 +246,7 @@ impl IntoColumns for Columns {
     }
 }
 
-impl<T: HasColumns> IntoColumns for T {
+impl<T: ColumnSchema> IntoColumns for T {
     fn into_columns(self) -> Columns {
         T::columns()
     }

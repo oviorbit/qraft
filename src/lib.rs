@@ -6,7 +6,7 @@ mod raw;
 mod builder;
 pub mod col;
 
-pub use ident::Table;
+pub use ident::TableIdent;
 pub use ident::Ident;
 pub use raw::Raw;
 
