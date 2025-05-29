@@ -6,8 +6,14 @@ mod ident;
 mod operator;
 mod raw;
 mod builder;
-pub mod col;
+mod col;
 mod bind;
+
+pub use col::TableSchema;
+pub use col::ColumnSchema;
+pub use col::Columns;
+pub use col::IntoColumns;
+pub use col::IntoTable;
 
 pub use ident::TableIdent;
 pub use ident::Ident;
