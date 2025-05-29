@@ -125,11 +125,11 @@ mod tests {
 
     #[test]
     fn test_format_ident_space_dot() {
-        let ident = Ident::new_static("w x.y.z as foo.bar");
+        let ident = Ident::new_static("some space.x.y as some.table");
         let ident = format_ident(ident, Dialect::Postgres);
-        assert_eq!("\"w x\".\"y\".\"z\" as \"foo.bar\"", ident);
-        let ident = Ident::new_static("w x.y.z as foo.bar");
+        assert_eq!("\"some space\".\"x\".\"y\" as \"some.table\"", ident);
+        let ident = Ident::new_static("some space.x.y as some.table");
         let ident = format_ident(ident, Dialect::MySql);
-        assert_eq!("`w x`.`y`.`z` as `foo.bar`", ident);
+        assert_eq!("`some space`.`x`.`y` as `some.table`", ident);
     }
 }
