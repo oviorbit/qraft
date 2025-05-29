@@ -14,19 +14,19 @@ pub use raw::Raw;
 
 pub use builder::Builder;
 
-pub fn ident(value: &'static str) -> Ident {
+pub fn ident_static(value: &'static str) -> Ident {
     Ident::new_static(value)
 }
 
-pub fn ident_by_ref(value: &str) -> Ident {
+pub fn ident(value: &str) -> Ident {
     Ident::new(value)
 }
 
-pub fn raw(value: &'static str) -> Raw {
+pub fn raw_static(value: &'static str) -> Raw {
     Raw::new_static(value)
 }
 
-pub fn raw_by_ref(value: &str) -> Raw {
+pub fn raw(value: &str) -> Raw {
     Raw::new(value)
 }
 
