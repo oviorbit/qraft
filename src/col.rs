@@ -68,7 +68,7 @@ pub trait IntoColumns {
     fn into_columns(self) -> Columns;
 }
 
-trait IntoTableIdent {
+pub trait IntoTableIdent {
     fn into_table_ident(self) -> TableIdent;
 }
 
