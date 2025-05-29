@@ -1,4 +1,4 @@
-use crate::{col::{Columns, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, writer::{FormatContext, FormatWriter}, Ident};
+use crate::{col::{Columns, ColumnsIdent, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, writer::{FormatContext, FormatWriter}};
 
 #[derive(Debug, Default)]
 pub struct Builder {
@@ -9,7 +9,7 @@ pub struct Builder {
     maybe_table: Option<TableIdent>,
 
     /// If the columns is None, we know it's a wildcard.
-    columns: Columns,
+    columns: ColumnsIdent,
 }
 
 impl Builder {
@@ -18,7 +18,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(T::table()),
-            columns: Columns::None,
+            columns: ColumnsIdent::None,
         }
     }
 
@@ -30,11 +30,11 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(table.into_table_ident()),
-            columns: Columns::None,
+            columns: ColumnsIdent::None,
         }
     }
 
-    pub fn select_as<T: Table>(&mut self) -> &mut Self {
+    pub fn select_as<T: Columns>(&mut self) -> &mut Self {
         self.columns = T::columns();
         self
     }
@@ -95,7 +95,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::dialect::Postgres;
+    use crate::{col::Columns, dialect::Postgres, Ident};
 
     use super::*;
 
@@ -118,12 +118,16 @@ mod tests {
         admin: bool,
     }
 
+    // generated ?
     impl Table for User {
         fn table() -> TableIdent {
-            TableIdent::Ident(Ident::new_static("users"))
+            TableIdent::ident_static("users")
         }
+    }
 
-        fn columns() -> Columns {
+    // generated ?
+    impl Columns for User {
+        fn columns() -> ColumnsIdent {
             [Ident::new_static("id"), Ident::new_static("admin")].into_columns()
         }
     }

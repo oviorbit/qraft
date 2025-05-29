@@ -8,6 +8,30 @@ pub enum TableIdent {
     Raw(Raw),
 }
 
+impl TableIdent {
+    pub fn ident_static(value: &'static str) -> Self {
+        Self::Ident(Ident::new_static(value))
+    }
+
+    pub fn ident<T>(value: T) -> Self
+    where
+        T: Into<SmolStr>
+    {
+        Self::Ident(Ident::new(value))
+    }
+
+    pub fn raw<T>(value: T) -> Self
+    where
+        T: Into<SmolStr>
+    {
+        Self::Raw(Raw::new(value))
+    }
+
+    pub fn raw_static(value: &'static str) -> Self {
+        Self::Raw(Raw::new_static(value))
+    }
+}
+
 impl FormatWriter for TableIdent {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
         match self {

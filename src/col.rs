@@ -3,54 +3,54 @@ use std::fmt;
 use crate::{ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
 
 #[derive(Debug, Default, Clone)]
-pub enum Columns {
+pub enum ColumnsIdent {
     #[default]
     None,
     Single(TableIdent),
     Many(Vec<TableIdent>),
 }
 
-impl Columns {
+impl ColumnsIdent {
     pub fn append(&mut self, other: Self) {
-        let combined = match (std::mem::replace(self, Columns::None), other) {
-            (Columns::None, cols) | (cols, Columns::None) => cols,
-            (Columns::Single(a), Columns::Single(b)) =>
-                Columns::Many(vec![a, b]),
-            (Columns::Single(a), Columns::Many(mut b)) => {
+        let combined = match (std::mem::replace(self, ColumnsIdent::None), other) {
+            (ColumnsIdent::None, cols) | (cols, ColumnsIdent::None) => cols,
+            (ColumnsIdent::Single(a), ColumnsIdent::Single(b)) =>
+                ColumnsIdent::Many(vec![a, b]),
+            (ColumnsIdent::Single(a), ColumnsIdent::Many(mut b)) => {
                 b.insert(0, a);
-                Columns::Many(b)
+                ColumnsIdent::Many(b)
             }
-            (Columns::Many(mut a), Columns::Single(b)) => {
+            (ColumnsIdent::Many(mut a), ColumnsIdent::Single(b)) => {
                 a.push(b);
-                Columns::Many(a)
+                ColumnsIdent::Many(a)
             }
-            (Columns::Many(mut a), Columns::Many(mut b)) => {
+            (ColumnsIdent::Many(mut a), ColumnsIdent::Many(mut b)) => {
                 a.append(&mut b);
-                Columns::Many(a)
+                ColumnsIdent::Many(a)
             }
         };
         *self = combined;
     }
 
     pub fn reset(&mut self) {
-        *self = Columns::None;
+        *self = ColumnsIdent::None;
     }
 
     pub fn into_vec(self) -> Vec<TableIdent> {
         match self {
-            Columns::None => Vec::new(),
-            Columns::Single(one) => Vec::from([one]),
-            Columns::Many(many) => many,
+            ColumnsIdent::None => Vec::new(),
+            ColumnsIdent::Single(one) => Vec::from([one]),
+            ColumnsIdent::Many(many) => many,
         }
     }
 }
 
-impl FormatWriter for Columns {
+impl FormatWriter for ColumnsIdent {
     fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> fmt::Result {
         match self {
-            Columns::None => context.writer.write_char('*')?,
-            Columns::Single(ident) => ident.format_writer(context)?,
-            Columns::Many(idents) => {
+            ColumnsIdent::None => context.writer.write_char('*')?,
+            ColumnsIdent::Single(ident) => ident.format_writer(context)?,
+            ColumnsIdent::Many(idents) => {
                 // just format the elem seperated with comma
                 for (index, elem) in idents.iter().enumerate() {
                     if index > 0 {
@@ -66,11 +66,14 @@ impl FormatWriter for Columns {
 
 pub trait Table {
     fn table() -> TableIdent;
-    fn columns() -> Columns;
+}
+
+pub trait Columns {
+    fn columns() -> ColumnsIdent;
 }
 
 pub trait IntoColumns {
-    fn into_columns(self) -> Columns;
+    fn into_columns(self) -> ColumnsIdent;
 }
 
 pub trait IntoTableIdent {
@@ -79,13 +82,13 @@ pub trait IntoTableIdent {
 
 impl IntoTableIdent for &str {
     fn into_table_ident(self) -> TableIdent {
-        TableIdent::Ident(Ident::new(self))
+        TableIdent::ident(self)
     }
 }
 
 impl IntoTableIdent for String {
     fn into_table_ident(self) -> TableIdent {
-        TableIdent::Ident(Ident::new(self))
+        TableIdent::ident(self)
     }
 }
 
@@ -114,137 +117,137 @@ impl<T: Table> IntoTableIdent for T {
 }
 
 impl IntoColumns for &str {
-    fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table_ident())
+    fn into_columns(self) -> ColumnsIdent {
+        ColumnsIdent::Single(self.into_table_ident())
     }
 }
 
 impl IntoColumns for String {
-    fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table_ident())
+    fn into_columns(self) -> ColumnsIdent {
+        ColumnsIdent::Single(self.into_table_ident())
     }
 }
 
 impl IntoColumns for Raw {
-    fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table_ident())
+    fn into_columns(self) -> ColumnsIdent {
+        ColumnsIdent::Single(self.into_table_ident())
     }
 }
 
 impl IntoColumns for Ident {
-    fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table_ident())
+    fn into_columns(self) -> ColumnsIdent {
+        ColumnsIdent::Single(self.into_table_ident())
     }
 }
 
 impl IntoColumns for TableIdent {
-    fn into_columns(self) -> Columns {
-        Columns::Single(self.into_table_ident())
+    fn into_columns(self) -> ColumnsIdent {
+        ColumnsIdent::Single(self.into_table_ident())
     }
 }
 
 impl<const N: usize> IntoColumns for [&str; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].into_table_ident())
+            ColumnsIdent::Single(self[0].into_table_ident())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table_ident()).to_vec();
-            Columns::Many(vec)
+            ColumnsIdent::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [String; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec: Vec<TableIdent> =
             self.map(|t| t.into_table_ident()).to_vec();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
 impl<const N: usize> IntoColumns for [Ident; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone().into_table_ident())
+            ColumnsIdent::Single(self[0].clone().into_table_ident())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table_ident()).to_vec();
-            Columns::Many(vec)
+            ColumnsIdent::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [Raw; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone().into_table_ident())
+            ColumnsIdent::Single(self[0].clone().into_table_ident())
         } else {
             let vec: Vec<TableIdent> =
                 self.map(|t| t.into_table_ident()).to_vec();
-            Columns::Many(vec)
+            ColumnsIdent::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [TableIdent; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         // cheap clone O(1)
         if N == 1 {
-            Columns::Single(self[0].clone())
+            ColumnsIdent::Single(self[0].clone())
         } else {
             let vec: Vec<TableIdent> = self.to_vec();
-            Columns::Many(vec)
+            ColumnsIdent::Many(vec)
         }
     }
 }
 
 impl IntoColumns for Vec<&str> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<String> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<Ident> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<Raw> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<TableIdent> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> ColumnsIdent {
         let vec = self.into_iter().map(|t| t.into_table_ident()).collect();
-        Columns::Many(vec)
+        ColumnsIdent::Many(vec)
     }
 }
 
-impl IntoColumns for Columns {
-    fn into_columns(self) -> Columns {
+impl IntoColumns for ColumnsIdent {
+    fn into_columns(self) -> ColumnsIdent {
         self
     }
 }
 
-impl<T: Table> IntoColumns for T {
-    fn into_columns(self) -> Columns {
+impl<T: Columns> IntoColumns for T {
+    fn into_columns(self) -> ColumnsIdent {
         T::columns()
     }
 }
@@ -255,7 +258,7 @@ mod tests {
 
     use super::*;
 
-    fn select<T>(value: T) -> Columns
+    fn select<T>(value: T) -> ColumnsIdent
     where
         T: IntoColumns
     {
@@ -273,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_format_wildcard() {
-        let s = Columns::None;
+        let s = ColumnsIdent::None;
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("*", wildcard);
     }

@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub(crate) enum Dialect {
+pub enum Dialect {
     Postgres,
     MySql,
     Sqlite
