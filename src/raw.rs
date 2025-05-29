@@ -180,6 +180,25 @@ impl FormatWriter for Raw {
     }
 }
 
+pub trait IntoRaw {
+    fn into_raw(self) -> Raw;
+}
+
+impl<T> IntoRaw for T
+where
+    T: Into<SmolStr>
+{
+    fn into_raw(self) -> Raw {
+        Raw::new(self.into())
+    }
+}
+
+impl IntoRaw for Raw {
+    fn into_raw(self) -> Raw {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tests::format_writer;

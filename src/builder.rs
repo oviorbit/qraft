@@ -1,4 +1,4 @@
-use crate::{col::{Columns, ColumnsIdent, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, writer::{FormatContext, FormatWriter}};
+use crate::{col::{Columns, ColumnsIdent, IntoColumns, IntoTableIdent, Table}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter}};
 
 #[derive(Debug, Default)]
 pub struct Builder {
@@ -32,6 +32,12 @@ impl Builder {
             maybe_table: Some(table.into_table_ident()),
             columns: ColumnsIdent::None,
         }
+    }
+
+    pub fn select_raw<T: IntoRaw>(&mut self, value: T) -> &mut Self {
+        let raw = value.into_raw();
+        self.columns = ColumnsIdent::Single(TableIdent::Raw(raw));
+        self
     }
 
     pub fn select_as<T: Columns>(&mut self) -> &mut Self {
@@ -137,5 +143,12 @@ mod tests {
         let mut builder = Builder::table_as::<User>();
         builder.select_as::<User>();
         assert_eq!("select \"id\", \"admin\" from \"users\"", builder.to_sql::<Postgres>());
+    }
+
+    #[test]
+    fn test_select_raw() {
+        let mut builder = Builder::table("users");
+        builder.select_raw("id, count(*)");
+        assert_eq!("select id, count(*) from \"users\"", builder.to_sql::<Postgres>());
     }
 }
