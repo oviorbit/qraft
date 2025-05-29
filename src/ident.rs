@@ -1,0 +1,109 @@
+use smol_str::SmolStr;
+
+use crate::writer::{self, FormatWriter};
+
+#[derive(Debug)]
+pub struct Ident(SmolStr);
+
+impl Ident {
+    #[inline]
+    pub fn new<T>(value: T) -> Self
+    where
+        T: Into<SmolStr>
+    {
+        Self(value.into())
+    }
+
+    #[inline]
+    pub fn new_static(value: &'static str) -> Self {
+        Self(SmolStr::new_static(value))
+    }
+}
+
+impl FormatWriter for Ident {
+    fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
+        let str = self.0.as_str();
+        if let Some(index) = find_as(str.as_bytes()) {
+            let (lhs, rhs) = str.split_at(index);
+            let alias = &rhs[4..];
+            context.format_table(lhs)?;
+            context.writer.write_str(" as ")?;
+            context.format_ident(alias)?;
+            return Ok(());
+        }
+
+        context.format_ident(str)?;
+        Ok(())
+    }
+}
+
+/// Return the index of " as " in bytes case insensitive with no allocations.
+fn find_as(h: &[u8]) -> Option<usize> {
+    if h.len() < 4 {
+        return None;
+    }
+    for (i, w) in h.windows(4).enumerate() {
+        if w[0] == b' ' && w[3] == b' ' && (w[1] | 0x20) == b'a' && (w[2] | 0x20) == b's' {
+            return Some(i);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{dialect::Dialect, writer::FormatContext};
+
+    use super::*;
+
+    fn format_ident(ident: Ident, dialect: Dialect) -> String {
+        let mut str = String::new();
+        let mut context = FormatContext::new(&mut str, dialect);
+        ident.format_writer(&mut context).unwrap();
+        str
+    }
+
+    #[test]
+    fn test_find_as() {
+        let matches = "users as u";
+        let index = find_as(matches.as_bytes());
+        assert_eq!(index, Some(5));
+        let no_match = "users";
+        let index = find_as(no_match.as_bytes());
+        assert_eq!(index, None);
+        let first_match = "users as u as bob";
+        let index = find_as(first_match.as_bytes());
+        assert_eq!(index, Some(5));
+    }
+
+    #[test]
+    fn test_format_ident_simple() {
+        let ident = Ident::new_static("users");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"users\"", ident);
+        let ident = Ident::new_static("users");
+        let ident = format_ident(ident, Dialect::MySql);
+        assert_eq!("`users`", ident)
+    }
+
+    #[test]
+    fn test_format_ident_spaces() {
+        let ident = Ident::new_static("an sql table");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"an sql table\"", ident);
+    }
+
+    #[test]
+    fn test_format_ident_alias() {
+        let ident = Ident::new_static("users as foo");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"users\" as \"foo\"", ident);
+    }
+
+    #[test]
+    fn test_format_ident_alias_dup() {
+        let ident = Ident::new_static("us\"ers");
+        let ident = format_ident(ident, Dialect::Postgres);
+        assert_eq!("\"us\"\"ers\"", ident);
+    }
+}
