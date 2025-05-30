@@ -1,3 +1,5 @@
+use crate::{scalar::TakeBindings, writer::FormatWriter};
+
 // max size is 32 bytes
 #[derive(Debug, Clone)]
 pub enum Bind {
@@ -35,6 +37,16 @@ impl Bind {
 
 pub type Binds = Array<Bind>;
 
+impl TakeBindings for Binds {
+    fn take_bindings(&mut self) -> Binds {
+        let b: Vec<Bind> = self
+            .iter_mut()
+            .map(|v| std::mem::replace(v, Bind::Consumed))
+            .collect();
+        Binds::Many(b)
+    }
+}
+
 impl IntoBinds for Binds {
     fn into_binds(self) -> Binds {
         self
@@ -47,7 +59,22 @@ pub enum Array<T> {
     #[default]
     None,
     One(T),
-    Many(Vec<T>)
+    Many(Vec<T>),
+}
+
+impl FormatWriter for Binds {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
+        for (index, _) in self.iter().enumerate() {
+            if index > 0 {
+                context.writer.write_str(", ")?;
+            }
+            context.write_placeholder()?;
+        }
+        Ok(())
+    }
 }
 
 pub enum ArrayIter<'a, T> {
@@ -79,8 +106,8 @@ impl<'a, T> Iterator for ArrayIterMut<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            ArrayIterMut::None            => None,
-            ArrayIterMut::One(o)  => o.take(),
+            ArrayIterMut::None => None,
+            ArrayIterMut::One(o) => o.take(),
             ArrayIterMut::Many(i) => i.next(),
         }
     }
@@ -107,25 +134,24 @@ impl<'a, T> IntoIterator for &'a mut Array<T> {
 impl<T> Array<T> {
     pub fn iter(&self) -> ArrayIter<'_, T> {
         match self {
-            Array::None      => ArrayIter::None,
-            Array::One(x)    => ArrayIter::One(Some(x)),
-            Array::Many(xs)  => ArrayIter::Many(xs.iter()),
+            Array::None => ArrayIter::None,
+            Array::One(x) => ArrayIter::One(Some(x)),
+            Array::Many(xs) => ArrayIter::Many(xs.iter()),
         }
     }
 
     pub fn iter_mut(&mut self) -> ArrayIterMut<'_, T> {
         match self {
-            Array::None      => ArrayIterMut::None,
-            Array::One(x)    => ArrayIterMut::One(Some(x)),
-            Array::Many(xs)  => ArrayIterMut::Many(xs.iter_mut()),
+            Array::None => ArrayIterMut::None,
+            Array::One(x) => ArrayIterMut::One(Some(x)),
+            Array::Many(xs) => ArrayIterMut::Many(xs.iter_mut()),
         }
     }
 
     pub fn append(&mut self, other: Self) {
         let combined = match (std::mem::replace(self, Self::None), other) {
             (Self::None, cols) | (cols, Self::None) => cols,
-            (Self::One(a), Self::One(b)) =>
-                Self::Many(vec![a, b]),
+            (Self::One(a), Self::One(b)) => Self::Many(vec![a, b]),
             (Self::One(a), Self::Many(mut b)) => {
                 b.insert(0, a);
                 Self::Many(b)
@@ -173,7 +199,7 @@ pub trait IntoBinds {
 
 impl<T> IntoBinds for T
 where
-    T: IntoBind
+    T: IntoBind,
 {
     fn into_binds(self) -> Binds {
         Binds::One(self.into_bind())
@@ -182,7 +208,7 @@ where
 
 impl<T> IntoBinds for Vec<T>
 where
-    T: IntoBind
+    T: IntoBind,
 {
     fn into_binds(self) -> Binds {
         Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
@@ -191,7 +217,7 @@ where
 
 impl<T, const N: usize> IntoBinds for [T; N]
 where
-    T: IntoBind
+    T: IntoBind,
 {
     fn into_binds(self) -> Binds {
         let mut iter = self.into_iter().map(IntoBind::into_bind);
@@ -201,16 +227,14 @@ where
                 let one = iter.next().expect("safe since N is 1");
                 Binds::One(one)
             }
-            _ => {
-                Binds::Many(iter.collect())
-            }
+            _ => Binds::Many(iter.collect()),
         }
     }
 }
 
 impl<T> IntoBind for Option<T>
 where
-    T: IntoBind
+    T: IntoBind,
 {
     fn into_bind(self) -> Bind {
         if let Some(value) = self {

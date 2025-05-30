@@ -1,4 +1,4 @@
-use crate::{bind::{Array, Bind}, operator::Operator, writer::FormatWriter, Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent};
+use crate::{bind::{Array, Bind}, expr::binary::Operator, writer::FormatWriter, Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent};
 
 // scalar should be <= 32 bytes
 #[derive(Debug, Clone)]

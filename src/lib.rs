@@ -3,8 +3,8 @@
 mod dialect;
 mod writer;
 mod ident;
-mod operator;
 mod raw;
+mod set;
 mod builder;
 mod col;
 mod bind;

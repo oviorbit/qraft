@@ -33,33 +33,36 @@ pub fn unary_operator_methods_impl(input: TokenStream) -> TokenStream {
             let or_where_fn = format_ident!("or_where_{}", snake);
 
             quote! {
-                impl crate::Builder {
-                    pub fn #where_fn<C>(&mut self, column: C) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent,
-                    {
-                        self.where_unary_expr(
-                            crate::expr::Conjunction::And,
-                            column.into_scalar_ident().0,
-                            #enum_name::#var,
-                        )
-                    }
+                pub fn #where_fn<C>(&mut self, column: C) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent,
+                {
+                    self.where_unary_expr(
+                        crate::expr::Conjunction::And,
+                        column.into_scalar_ident().0,
+                        #enum_name::#var,
+                    )
+                }
 
-                    pub fn #or_where_fn<C>(&mut self, column: C) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent
-                    {
-                        self.where_unary_expr(
-                            crate::expr::Conjunction::Or,
-                            column.into_scalar_ident().0,
-                            #enum_name::#var,
-                        )
-                    }
+                pub fn #or_where_fn<C>(&mut self, column: C) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent
+                {
+                    self.where_unary_expr(
+                        crate::expr::Conjunction::Or,
+                        column.into_scalar_ident().0,
+                        #enum_name::#var,
+                    )
                 }
             }
         })
         .take_enum()
         .unwrap_or_default();
 
-    quote! { #(#methods)* }.into()
+    quote! {
+        impl crate::Builder {
+            #(#methods)*
+        }
+    }
+        .into()
 }

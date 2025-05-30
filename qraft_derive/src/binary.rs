@@ -33,32 +33,30 @@ pub fn operator_methods_impl(input: TokenStream) -> TokenStream {
             let or_where_fn = format_ident!("or_where_{}", snake);
 
             quote! {
-                impl crate::Builder {
-                    pub fn #where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent,
-                        V: crate::IntoScalar,
-                    {
-                        self.where_binary_expr(
-                            crate::expr::Conjunction::And,
-                            column.into_scalar_ident().0,
-                            #enum_name::#var_name,
-                            value.into_scalar().0,
-                        )
-                    }
+                pub fn #where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent,
+                    V: crate::IntoScalar,
+                {
+                    self.where_binary_expr(
+                        crate::expr::Conjunction::And,
+                        column.into_scalar_ident().0,
+                        #enum_name::#var_name,
+                        value.into_scalar().0,
+                    )
+                }
 
-                    pub fn #or_where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent,
-                        V: crate::IntoScalar,
-                    {
-                        self.where_binary_expr(
-                            crate::expr::Conjunction::Or,
-                            column.into_scalar_ident().0,
-                            #enum_name::#var_name,
-                            value.into_scalar().0,
-                        )
-                    }
+                pub fn #or_where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent,
+                    V: crate::IntoScalar,
+                {
+                    self.where_binary_expr(
+                        crate::expr::Conjunction::Or,
+                        column.into_scalar_ident().0,
+                        #enum_name::#var_name,
+                        value.into_scalar().0,
+                    )
                 }
             }
         })
@@ -66,7 +64,9 @@ pub fn operator_methods_impl(input: TokenStream) -> TokenStream {
         .unwrap_or_default();
 
     quote! {
-        #(#methods)*
+        impl crate::Builder {
+            #(#methods)*
+        }
     }
     .into()
 }

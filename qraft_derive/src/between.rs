@@ -31,40 +31,44 @@ pub fn between_operator_methods_impl(input: TokenStream) -> TokenStream {
             let where_fn = format_ident!("where_{}", snake);
             let or_where_fn = format_ident!("or_where_{}", snake);
             quote! {
-                impl crate::Builder {
-                    pub fn #where_fn<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent,
-                        L: crate::IntoScalar,
-                        H: crate::IntoScalar,
-                    {
-                        self.where_between_expr(
-                            crate::expr::Conjunction::And,
-                            lhs.into_scalar_ident().0,
-                            low.into_scalar().0,
-                            high.into_scalar().0,
-                            #enum_name::#var,
-                        )
-                    }
+                pub fn #where_fn<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent,
+                    L: crate::IntoScalar,
+                    H: crate::IntoScalar,
+                {
+                    self.where_between_expr(
+                        crate::expr::Conjunction::And,
+                        lhs.into_scalar_ident().0,
+                        low.into_scalar().0,
+                        high.into_scalar().0,
+                        #enum_name::#var,
+                    )
+                }
 
-                    pub fn #or_where_fn<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-                    where
-                        C: crate::IntoScalarIdent,
-                        L: crate::IntoScalar,
-                        H: crate::IntoScalar,
-                    {
-                        self.where_between_expr(
-                            crate::expr::Conjunction::Or,
-                            lhs.into_scalar_ident().0,
-                            low.into_scalar().0,
-                            high.into_scalar().0,
-                            #enum_name::#var,
-                        )
-                    }
+                pub fn #or_where_fn<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+                where
+                    C: crate::IntoScalarIdent,
+                    L: crate::IntoScalar,
+                    H: crate::IntoScalar,
+                {
+                    self.where_between_expr(
+                        crate::expr::Conjunction::Or,
+                        lhs.into_scalar_ident().0,
+                        low.into_scalar().0,
+                        high.into_scalar().0,
+                        #enum_name::#var,
+                    )
                 }
             }
         })
         .take_enum()
         .unwrap_or_default();
-    quote!(#(#methods)*).into()
+
+    quote! {
+        impl crate::Builder {
+            #(#methods)*
+        }
+    }
+        .into()
 }

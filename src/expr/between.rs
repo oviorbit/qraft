@@ -1,8 +1,9 @@
 use std::fmt::Write;
 
 use crate::{scalar::ScalarExpr, writer::{FormatContext, FormatWriter}};
+pub use qraft_derive::BetweenOperator;
 
-#[derive(Debug, Clone, Copy, qraft_derive::BetweenOperator)]
+#[derive(Debug, Clone, Copy, BetweenOperator)]
 pub enum BetweenOperator {
     Between,
     NotBetween,

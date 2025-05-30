@@ -10,6 +10,7 @@ pub(crate) mod unary;
 pub(crate) mod binary;
 pub(crate) mod group;
 pub(crate) mod between;
+pub(crate) mod r#in;
 
 pub use cond::Conjunction;
 
