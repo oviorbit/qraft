@@ -112,12 +112,11 @@ impl Builder {
 
             let group = Group {
                 conditions: inner_conds,
-                conjunction,
             };
             let kind = ConditionKind::Group(group);
 
             let ws = self.maybe_where.get_or_insert_default();
-            ws.push(Condition::new(Conjunction::And, kind));
+            ws.push(Condition::new(conjunction, kind));
         }
 
         self

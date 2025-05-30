@@ -1,4 +1,4 @@
-use cond::{Conditions, Conjunction};
+use cond::Conditions;
 
 use crate::{dialect::Dialect, operator::Operator, scalar::ScalarExpr, writer::FormatWriter};
 
@@ -20,7 +20,6 @@ pub enum ConditionKind {
 #[derive(Debug, Clone)]
 pub struct Group {
     pub(crate) conditions: Conditions,
-    pub(crate) conjunction: Conjunction,
 }
 
 impl FormatWriter for Group {
