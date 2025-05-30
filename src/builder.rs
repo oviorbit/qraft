@@ -3,8 +3,7 @@ use crate::{
     col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
     expr::{
-        Binary, ConditionKind,
-        cond::{Condition, Conditions, LogicalOperator},
+        cond::{Condition, Conditions, Conjunction}, Binary, ConditionKind, Group
     },
     ident::TableIdent,
     operator::Operator,
@@ -78,7 +77,7 @@ impl Builder {
     #[inline]
     pub fn where_binary_expr(
         &mut self,
-        logical: LogicalOperator,
+        conjunction: Conjunction,
         mut lhs: ScalarExpr,
         operator: Operator,
         mut rhs: ScalarExpr,
@@ -88,26 +87,38 @@ impl Builder {
 
         let binary = Binary { lhs, operator, rhs };
         let expr = ConditionKind::Binary(binary);
-        let condition = Condition::new(logical, expr);
+        let condition = Condition::new(conjunction, expr);
         let ws = self.maybe_where.get_or_insert_default();
         ws.push(condition);
 
         self
     }
 
-    pub fn where_group<F>(&mut self, closure: F) -> &mut Self
+    pub fn where_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
     {
         // with a type of where, we should ignore most actions
-        let mut builder = Self {
+        let mut inner = Self {
             ty: QueryKind::Where,
             ..Default::default()
         };
         // modify the internal states with wheres
-        closure(&mut builder);
+        closure(&mut inner);
 
-        // apply the internal where group with an expression
+        let binds = inner.take_bindings();
+        if let Some(inner_conds) = inner.maybe_where {
+            self.binds.append(binds);
+
+            let group = Group {
+                conditions: inner_conds,
+                conjunction,
+            };
+            let kind = ConditionKind::Group(group);
+
+            let ws = self.maybe_where.get_or_insert_default();
+            ws.push(Condition::new(Conjunction::And, kind));
+        }
 
         self
     }
@@ -307,7 +318,7 @@ mod tests {
     fn test_scalar_where() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             "id".into_scalar_ident().0,
             Operator::Eq,
             sub(|builder| {
@@ -326,25 +337,25 @@ mod tests {
     fn test_scalar_and_conds() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             "username".into_scalar_ident().0,
             Operator::Like,
             3.into_scalar().0,
         );
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             "id".into_scalar_ident().0,
             Operator::Eq,
             3.into_scalar().0,
         );
         builder.where_binary_expr(
-            LogicalOperator::Or,
+            Conjunction::Or,
             "name".into_scalar_ident().0,
             Operator::Eq,
             3.into_scalar().0,
         );
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             "foo".into_scalar_ident().0,
             Operator::Eq,
             sub(|builder| {
@@ -363,7 +374,7 @@ mod tests {
     fn test_scalar_value_column() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             sub(|builder| {
                 builder.select("foo").from("bar");
             }).into_scalar_ident().0,
@@ -380,13 +391,27 @@ mod tests {
     fn test_scalar_like() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
-            LogicalOperator::And,
+            Conjunction::And,
             "username".into_scalar_ident().0,
             Operator::Like,
             3.into_scalar().0,
         );
         assert_eq!(
             "select * from \"users\" where \"username\"::text like $1",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_where_group_expr() {
+        let mut builder = Builder::table("users");
+        builder.where_group_expr(Conjunction::And, |builder| {
+            builder
+                .where_binary_expr(Conjunction::And, "foo".into_scalar_ident().0, Operator::Eq, 3.into_scalar().0)
+                .where_binary_expr(Conjunction::Or, "bar".into_scalar_ident().0, Operator::Like, "bob".into_scalar_ident().0);
+        });
+        assert_eq!(
+            "select * from \"users\" where (\"foo\" = $1 or \"bar\"::text like \"bob\")",
             builder.to_sql::<Postgres>()
         );
     }

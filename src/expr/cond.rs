@@ -1,23 +1,23 @@
 use crate::{expr::ConditionKind, writer::FormatWriter};
 
 #[derive(Debug, Clone, Copy)]
-pub enum LogicalOperator {
+pub enum Conjunction {
     And,
     Or,
 }
 
-impl FormatWriter for LogicalOperator {
+impl FormatWriter for Conjunction {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         match self {
-            LogicalOperator::And => context.writer.write_str("and"),
-            LogicalOperator::Or => context.writer.write_str("or"),
+            Conjunction::And => context.writer.write_str("and"),
+            Conjunction::Or => context.writer.write_str("or"),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Condition {
-    logic: LogicalOperator,
+    conjunction: Conjunction,
     kind: ConditionKind,
 }
 
@@ -28,9 +28,9 @@ impl FormatWriter for Condition {
 }
 
 impl Condition {
-    pub fn new(logic: LogicalOperator, kind: ConditionKind) -> Self {
+    pub fn new(conjunction: Conjunction, kind: ConditionKind) -> Self {
         Self {
-            logic,
+            conjunction,
             kind,
         }
     }
@@ -50,7 +50,7 @@ impl FormatWriter for Conditions {
         for (index, condition) in self.0.iter().enumerate() {
             if index > 0 {
                 context.writer.write_char(' ')?;
-                condition.logic.format_writer(context)?;
+                condition.conjunction.format_writer(context)?;
                 context.writer.write_char(' ')?;
             }
             condition.format_writer(context)?;
