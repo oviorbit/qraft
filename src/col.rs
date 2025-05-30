@@ -213,7 +213,7 @@ impl<T: ColumnSchema> IntoColumns for T {
 
 #[cfg(test)]
 mod tests {
-    use crate::{col, dialect::Dialect, ident_static, raw_static, tests::format_writer};
+    use crate::{dialect::Dialect, column_static, raw_static, tests::format_writer};
 
     use super::*;
 
@@ -230,7 +230,7 @@ mod tests {
         select(String::from("hello"));
         select(Ident::new("test?"));
         select(["hello"]);
-        select([ident_static("bob").into_table(), raw_static("test").into_table()]);
+        select([column_static("bob").into_table(), raw_static("test").into_table()]);
     }
 
     #[test]

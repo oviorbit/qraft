@@ -1,6 +1,6 @@
-use crate::{bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter }};
+use crate::{bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, scalar::{IntoScalar, IntoScalarIdent}, sub::Subquery, writer::{FormatContext, FormatWriter }};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Builder {
     query: String,
     distinct: bool,
@@ -33,7 +33,23 @@ impl Builder {
         }
     }
 
-    // todo: add raw bindings required for select raw variant
+    pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self
+    {
+        self.maybe_table = Some(table.into_table());
+        self
+    }
+
+    // where stuff
+    pub fn where_eq<C, S>(&mut self, column: C, scalar: S) -> &mut Self
+    where
+        C: IntoScalarIdent,
+        S: IntoScalar
+    {
+        self
+    }
+
+    // select stuff
+
     pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
         let raw = value.into_raw();
         self.columns = Columns::One(TableIdent::Raw(raw));
@@ -73,6 +89,8 @@ impl Builder {
         self
     }
 
+    // building the builder
+
     pub fn to_sql<Database: HasDialect>(&mut self) -> &str {
         let size_hint = 64;
         let mut str = String::with_capacity(size_hint);
@@ -100,7 +118,7 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{bind::{self, Bind}, col::ColumnSchema, dialect::Postgres, ident_static};
+    use crate::{bind::{self, Bind}, col::ColumnSchema, column_static, dialect::Postgres, sub};
 
     use super::*;
 
@@ -133,7 +151,7 @@ mod tests {
     // generated ?
     impl ColumnSchema for User {
         fn columns() -> Columns {
-            [ident_static("id"), ident_static("admin")].into_columns()
+            [column_static("id"), column_static("admin")].into_columns()
         }
     }
 
@@ -163,5 +181,14 @@ mod tests {
             bind::Array::Many(_) => panic!("wrong size"),
         };
         assert!(matches!(value, Bind::I32(5)));
+    }
+
+    #[test]
+    fn test_scalar_where() {
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", |builder: &mut Builder| {
+            builder.select("id").from("roles");
+        });
+        assert_eq!("select * from \"users\" where \"id\" = $1", builder.to_sql::<Postgres>());
     }
 }

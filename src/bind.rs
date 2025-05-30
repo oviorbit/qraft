@@ -19,6 +19,19 @@ pub enum Bind {
     U64(u64),
 }
 
+impl Bind {
+    pub fn new<V>(value: V) -> Bind
+    where
+        V: IntoBind,
+    {
+        value.into_bind()
+    }
+
+    pub fn new_static_str(value: &'static str) -> Bind {
+        Bind::StaticString(value)
+    }
+}
+
 pub type Binds = Array<Bind>;
 
 impl IntoBinds for Binds {
@@ -27,14 +40,8 @@ impl IntoBinds for Binds {
     }
 }
 
-impl IntoBinds for () {
-    fn into_binds(self) -> Binds {
-        Binds::None
-    }
-}
-
 // if T <= 32 bytes we are good and it's a free data structure.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub enum Array<T> {
     #[default]
     None,

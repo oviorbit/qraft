@@ -8,7 +8,9 @@ mod raw;
 mod builder;
 mod col;
 mod bind;
+mod scalar;
 
+use bind::Bind;
 pub use col::TableSchema;
 pub use col::ColumnSchema;
 pub use col::Columns;
@@ -25,12 +27,20 @@ pub use raw::Raw;
 
 pub use builder::Builder;
 
-pub fn ident_static(value: &'static str) -> Ident {
+pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)
 }
 
-pub fn ident(value: &str) -> Ident {
+pub fn column(value: &str) -> Ident {
     Ident::new(value)
+}
+
+pub fn value_static(value: &'static str) -> Bind {
+    Bind::new_static_str(value)
+}
+
+pub fn value<V: IntoBind>(value: V) -> Bind {
+    Bind::new(value)
 }
 
 pub fn raw_static(value: &'static str) -> Raw {
@@ -39,6 +49,15 @@ pub fn raw_static(value: &'static str) -> Raw {
 
 pub fn raw(value: &str) -> Raw {
     Raw::new(value)
+}
+
+pub fn sub<F>(query: F) -> Builder
+where
+    F: FnOnce(&mut Builder),
+{
+    let mut builder = Builder::default();
+    query(&mut builder);
+    builder
 }
 
 #[cfg(test)]
