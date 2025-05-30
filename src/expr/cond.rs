@@ -4,6 +4,8 @@ use crate::{expr::ConditionKind, writer::FormatWriter};
 pub enum Conjunction {
     And,
     Or,
+    AndNot,
+    OrNot,
 }
 
 impl FormatWriter for Conjunction {
@@ -14,6 +16,8 @@ impl FormatWriter for Conjunction {
         match self {
             Conjunction::And => context.writer.write_str("and"),
             Conjunction::Or => context.writer.write_str("or"),
+            Conjunction::AndNot => context.writer.write_str("and not"),
+            Conjunction::OrNot => context.writer.write_str("or not"),
         }
     }
 }

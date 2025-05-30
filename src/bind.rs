@@ -131,6 +131,37 @@ impl<'a, T> IntoIterator for &'a mut Array<T> {
     }
 }
 
+pub enum ArrayIntoIter<T> {
+    None,
+    One(Option<T>),
+    Many(std::vec::IntoIter<T>),
+}
+
+
+impl<T> Iterator for ArrayIntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ArrayIntoIter::None => None,
+            ArrayIntoIter::One(opt) => opt.take(),
+            ArrayIntoIter::Many(iter) => iter.next(),
+        }
+    }
+}
+
+impl<T> IntoIterator for Array<T> {
+    type Item = T;
+    type IntoIter = ArrayIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Array::None       => ArrayIntoIter::None,
+            Array::One(val)   => ArrayIntoIter::One(Some(val)),
+            Array::Many(vec)  => ArrayIntoIter::Many(vec.into_iter()),
+        }
+    }
+}
+
 impl<T> Array<T> {
     pub fn iter(&self) -> ArrayIter<'_, T> {
         match self {

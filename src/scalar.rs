@@ -44,11 +44,11 @@ impl FormatWriter for ScalarExpr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct ScalarIdent(pub(crate) ScalarExpr);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct Scalar(pub(crate) ScalarExpr);
 

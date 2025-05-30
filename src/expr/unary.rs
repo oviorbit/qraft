@@ -4,9 +4,8 @@ use crate::{
     scalar::ScalarExpr,
     writer::{FormatContext, FormatWriter},
 };
-use qraft_derive::UnaryOperator;
 
-#[derive(Debug, Clone, Copy, UnaryOperator)]
+#[derive(Debug, Clone, Copy)]
 pub enum UnaryOperator {
     Null,
     NotNull,

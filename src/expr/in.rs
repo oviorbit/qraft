@@ -1,5 +1,3 @@
-use qraft_derive::InOperator;
-
 use crate::{scalar::ScalarExpr, set::SetExpr, writer::FormatWriter};
 
 #[derive(Debug, Clone)]
@@ -9,7 +7,7 @@ pub struct InCondition {
     pub(crate) rhs: SetExpr,
 }
 
-#[derive(Debug, Clone, Copy, InOperator)]
+#[derive(Debug, Clone, Copy)]
 pub enum InOperator {
     In,
     NotIn,

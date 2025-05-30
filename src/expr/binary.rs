@@ -1,5 +1,3 @@
-use qraft_derive::BinaryOperator;
-
 use crate::{dialect::Dialect, scalar::ScalarExpr, writer::FormatWriter};
 
 #[derive(Debug, Clone)]
@@ -29,17 +27,13 @@ impl FormatWriter for BinaryCondition {
     }
 }
 
-#[derive(Debug, Clone, Copy, BinaryOperator)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operator {
     Eq,
     NotEq,
-    #[binary(ignore)]
     Lt,
-    #[binary(ignore)]
     Lte,
-    #[binary(ignore)]
     Gt,
-    #[binary(ignore)]
     Gte,
     Like,
     NotLike,

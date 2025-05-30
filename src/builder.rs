@@ -1,5 +1,5 @@
 use crate::{
-    Raw,
+    IntoSet, Raw,
     bind::{Binds, IntoBinds},
     col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
@@ -42,6 +42,157 @@ pub struct Builder {
     columns: Columns,
     binds: Binds,
     maybe_where: Option<Conditions>,
+}
+macro_rules! define_binary {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<C, V>(&mut self, column: C, value: V) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            V: IntoScalar,
+        {
+            self.where_binary_expr(
+                Conjunction::And,
+                column.into_scalar_ident().0,
+                $operator,
+                value.into_scalar().0,
+            )
+        }
+        pub fn $or_method<C, V>(&mut self, column: C, value: V) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            V: IntoScalar,
+        {
+            self.where_binary_expr(
+                Conjunction::Or,
+                column.into_scalar_ident().0,
+                $operator,
+                value.into_scalar().0,
+            )
+        }
+    };
+}
+
+macro_rules! define_between {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            L: IntoScalar,
+            H: IntoScalar,
+        {
+            self.where_between_expr(
+                Conjunction::And,
+                lhs.into_scalar_ident().0,
+                low.into_scalar().0,
+                high.into_scalar().0,
+                $operator,
+            )
+        }
+
+        pub fn $or_method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            L: IntoScalar,
+            H: IntoScalar,
+        {
+            self.where_between_expr(
+                Conjunction::Or,
+                lhs.into_scalar_ident().0,
+                low.into_scalar().0,
+                high.into_scalar().0,
+                $operator,
+            )
+        }
+    };
+}
+
+macro_rules! define_in {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
+        where
+            L: IntoScalarIdent,
+            R: IntoSet,
+        {
+            self.where_in_expr(
+                Conjunction::And,
+                lhs.into_scalar_ident().0,
+                rhs.into_set(),
+                $operator,
+            )
+        }
+
+        pub fn $or_method<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
+        where
+            L: IntoScalarIdent,
+            R: IntoSet,
+        {
+            self.where_in_expr(
+                Conjunction::Or,
+                lhs.into_scalar_ident().0,
+                rhs.into_set(),
+                $operator,
+            )
+        }
+    };
+}
+
+macro_rules! define_exists {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<Q>(&mut self, sub: Q) -> &mut Self
+        where
+            Q: FnOnce(&mut Self),
+        {
+            let mut inner = Self::default();
+            sub(&mut inner);
+            self.where_exists_expr(Conjunction::And, $operator, inner)
+        }
+
+        pub fn $or_method<Q>(&mut self, sub: Q) -> &mut Self
+        where
+            Q: FnOnce(&mut crate::Builder),
+        {
+            let mut inner = crate::Builder::default();
+            sub(&mut inner);
+            self.where_exists_expr(Conjunction::Or, $operator, inner)
+        }
+    };
+}
+
+macro_rules! define_unary {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<C>(&mut self, column: C) -> &mut Self
+        where
+            C: IntoScalarIdent,
+        {
+            self.where_unary_expr(Conjunction::And, column.into_scalar_ident().0, $operator)
+        }
+
+        pub fn $or_method<C>(&mut self, column: C) -> &mut Self
+        where
+            C: IntoScalarIdent,
+        {
+            self.where_unary_expr(Conjunction::Or, column.into_scalar_ident().0, $operator)
+        }
+    };
+}
+
+macro_rules! define_filter {
+    ($method:ident, $c1:expr, $c2:expr) => {
+        pub fn $method<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
+        where
+            C: IntoColumns,
+            O: IntoOperator,
+            V: IntoScalar,
+        {
+            self.where_grouped_expr(
+                $c1,
+                $c2,
+                columns.into_columns(),
+                rhs.into_scalar().0,
+                operator.into_operator(),
+            )
+        }
+    };
 }
 
 impl Builder {
@@ -101,12 +252,13 @@ impl Builder {
     }
 
     // where stuff
+
     pub fn reset_where(&mut self) -> &mut Self {
         self.maybe_where = None;
         self
     }
 
-    pub fn where_operator<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    pub fn r#where<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoScalarIdent,
         O: IntoOperator,
@@ -120,7 +272,7 @@ impl Builder {
         )
     }
 
-    pub fn or_where_operator<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    pub fn or_where<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoScalarIdent,
         O: IntoOperator,
@@ -178,7 +330,12 @@ impl Builder {
         )
     }
 
-    pub fn or_where_column<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
+    pub fn or_where_column<C, O, CC>(
+        &mut self,
+        column: C,
+        operator: O,
+        other_column: CC,
+    ) -> &mut Self
     where
         C: IntoScalarIdent,
         O: IntoOperator,
@@ -192,7 +349,60 @@ impl Builder {
         )
     }
 
+    define_unary!(where_null, or_where_null, UnaryOperator::Null);
+    define_unary!(where_false, or_where_false, UnaryOperator::False);
+    define_unary!(where_true, or_where_true, UnaryOperator::True);
+    define_unary!(where_not_null, or_where_not_null, UnaryOperator::NotNull);
+
+    define_binary!(where_eq, or_where_eq, Operator::Eq);
+    define_binary!(where_like, or_where_like, Operator::Like);
+    define_binary!(where_not_like, or_where_not_like, Operator::NotLike);
+    define_binary!(where_ilike, or_where_ilike, Operator::Ilike);
+    define_binary!(where_not_ilike, or_where_not_ilike, Operator::NotIlike);
+
+    define_between!(where_between, or_where_between, BetweenOperator::Between);
+    define_between!(
+        where_not_between,
+        or_where_not_between,
+        BetweenOperator::NotBetween
+    );
+
+    define_exists!(where_exists, or_where_exists, ExistsOperator::Exists);
+    define_exists!(
+        where_not_exists,
+        or_where_not_exists,
+        ExistsOperator::NotExists
+    );
+
+    define_in!(where_in, or_where_in, InOperator::In);
+    define_in!(where_not_in, or_where_not_in, InOperator::NotIn);
+
+    define_filter!(where_all, Conjunction::And, Conjunction::And);
+    define_filter!(where_any, Conjunction::And, Conjunction::Or);
+    define_filter!(where_none, Conjunction::AndNot, Conjunction::And);
+    define_filter!(or_where_all, Conjunction::Or, Conjunction::And);
+    define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
+    define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
+
     // start of inline impl
+
+    #[inline]
+    pub(crate) fn where_grouped_expr(
+        &mut self,
+        group_conj: Conjunction,
+        conj: Conjunction,
+        columns: Columns,
+        value: ScalarExpr,
+        operator: Operator,
+    ) -> &mut Self {
+        self.where_group_expr(group_conj, |builder| {
+            for col in columns {
+                // todo: instead of cloning, i can put the same placeholder value and refer to the same
+                builder.where_binary_expr(conj, ScalarExpr::Ident(col), operator, value.clone());
+            }
+        });
+        self
+    }
 
     #[inline]
     pub(crate) fn where_exists_expr(

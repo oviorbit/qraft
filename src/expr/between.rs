@@ -4,9 +4,8 @@ use crate::{
     scalar::ScalarExpr,
     writer::{FormatContext, FormatWriter},
 };
-pub use qraft_derive::BetweenOperator;
 
-#[derive(Debug, Clone, Copy, BetweenOperator)]
+#[derive(Debug, Clone, Copy)]
 pub enum BetweenOperator {
     Between,
     NotBetween,

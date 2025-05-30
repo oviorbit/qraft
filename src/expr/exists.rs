@@ -17,7 +17,7 @@ impl ExistsCondition {
     }
 }
 
-#[derive(Debug, Clone, Copy, qraft_derive::ExistsOperator)]
+#[derive(Debug, Clone, Copy)]
 pub enum ExistsOperator {
     Exists,
     NotExists,
