@@ -3,14 +3,14 @@ use binary::BinaryCondition;
 use group::GroupCondition;
 use unary::UnaryCondition;
 
-use crate::{writer::FormatWriter, Raw};
+use crate::{Raw, writer::FormatWriter};
 
-pub(crate) mod cond;
-pub(crate) mod unary;
-pub(crate) mod binary;
-pub(crate) mod group;
 pub(crate) mod between;
+pub(crate) mod binary;
+pub(crate) mod cond;
+pub(crate) mod group;
 pub(crate) mod r#in;
+pub(crate) mod unary;
 
 pub use cond::Conjunction;
 
@@ -24,7 +24,10 @@ pub enum ConditionKind {
 }
 
 impl FormatWriter for ConditionKind {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             ConditionKind::Binary(binary) => binary.format_writer(context),
             ConditionKind::Group(group) => group.format_writer(context),

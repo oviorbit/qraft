@@ -1,4 +1,9 @@
-use crate::{bind::{Array, Bind}, expr::binary::Operator, writer::FormatWriter, Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent};
+use crate::{
+    Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent,
+    bind::{Array, Bind},
+    expr::binary::Operator,
+    writer::FormatWriter,
+};
 
 // scalar should be <= 32 bytes
 #[derive(Debug, Clone)]
@@ -17,13 +22,16 @@ impl TakeBindings for ScalarExpr {
         match self {
             ScalarExpr::Bind(bind) => Array::One(std::mem::replace(bind, Bind::Consumed)),
             ScalarExpr::Ident(ident) => ident.take_bindings(),
-            ScalarExpr::Subquery(builder) => builder.take_bindings()
+            ScalarExpr::Subquery(builder) => builder.take_bindings(),
         }
     }
 }
 
 impl FormatWriter for ScalarExpr {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             ScalarExpr::Bind(_) => context.write_placeholder(),
             ScalarExpr::Ident(ident) => ident.format_writer(context),
@@ -65,7 +73,7 @@ impl IntoOperator for Operator {
 // maybe prevent the column-like identifier for blanket impl
 impl<T> IntoScalar for T
 where
-    T: IntoBind
+    T: IntoBind,
 {
     fn into_scalar(self) -> Scalar {
         Scalar(ScalarExpr::Bind(self.into_bind()))
@@ -93,7 +101,7 @@ impl IntoScalar for Ident {
 // impl for into scalar ident
 impl<T> IntoScalarIdent for T
 where
-    T: IntoTable
+    T: IntoTable,
 {
     fn into_scalar_ident(self) -> ScalarIdent {
         ScalarIdent(ScalarExpr::Ident(self.into_table()))

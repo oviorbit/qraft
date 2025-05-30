@@ -1,11 +1,19 @@
 use std::fmt;
 
-use crate::{bind::Array, ident::{Ident, TableIdent}, writer::FormatWriter, Raw};
+use crate::{
+    Raw,
+    bind::Array,
+    ident::{Ident, TableIdent},
+    writer::FormatWriter,
+};
 
 pub type Columns = Array<TableIdent>;
 
 impl FormatWriter for Columns {
-    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> fmt::Result {
+    fn format_writer<W: fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> fmt::Result {
         match self {
             Columns::None => context.writer.write_char('*')?,
             Columns::One(ident) => ident.format_writer(context)?,
@@ -111,8 +119,7 @@ impl<const N: usize> IntoColumns for [&str; N] {
         if N == 1 {
             Columns::One(self[0].into_table())
         } else {
-            let vec: Vec<TableIdent> =
-                self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
     }
@@ -120,8 +127,7 @@ impl<const N: usize> IntoColumns for [&str; N] {
 
 impl<const N: usize> IntoColumns for [String; N] {
     fn into_columns(self) -> Columns {
-        let vec: Vec<TableIdent> =
-            self.map(|t| t.into_table()).to_vec();
+        let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
         Columns::Many(vec)
     }
 }
@@ -132,8 +138,7 @@ impl<const N: usize> IntoColumns for [Ident; N] {
         if N == 1 {
             Columns::One(self[0].clone().into_table())
         } else {
-            let vec: Vec<TableIdent> =
-                self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
     }
@@ -145,8 +150,7 @@ impl<const N: usize> IntoColumns for [Raw; N] {
         if N == 1 {
             Columns::One(self[0].clone().into_table())
         } else {
-            let vec: Vec<TableIdent> =
-                self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
             Columns::Many(vec)
         }
     }
@@ -213,13 +217,13 @@ impl<T: ColumnSchema> IntoColumns for T {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dialect::Dialect, column_static, raw_static, tests::format_writer};
+    use crate::{column_static, dialect::Dialect, raw_static, tests::format_writer};
 
     use super::*;
 
     fn select<T>(value: T) -> Columns
     where
-        T: IntoColumns
+        T: IntoColumns,
     {
         value.into_columns()
     }
@@ -230,7 +234,10 @@ mod tests {
         select(String::from("hello"));
         select(Ident::new("test?"));
         select(["hello"]);
-        select([column_static("bob").into_table(), raw_static("test").into_table()]);
+        select([
+            column_static("bob").into_table(),
+            raw_static("test").into_table(),
+        ]);
     }
 
     #[test]
@@ -249,7 +256,11 @@ mod tests {
 
     #[test]
     fn test_multi_column() {
-        let s = select(["id".into_table(), raw_static("count(*)").into_table(), "username".into_table()]);
+        let s = select([
+            "id".into_table(),
+            raw_static("count(*)").into_table(),
+            "username".into_table(),
+        ]);
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("\"id\", count(*), \"username\"", wildcard);
     }

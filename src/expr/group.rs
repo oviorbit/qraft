@@ -8,11 +8,13 @@ pub struct GroupCondition {
 }
 
 impl FormatWriter for GroupCondition {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         context.writer.write_char('(')?;
         self.conditions.format_writer(context)?;
         context.writer.write_char(')')?;
         Ok(())
     }
 }
-

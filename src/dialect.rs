@@ -2,7 +2,7 @@
 pub enum Dialect {
     Postgres,
     MySql,
-    Sqlite
+    Sqlite,
 }
 
 pub trait HasDialect {

@@ -1,6 +1,9 @@
 use std::fmt::Write;
 
-use crate::{scalar::ScalarExpr, writer::{FormatContext, FormatWriter}};
+use crate::{
+    scalar::ScalarExpr,
+    writer::{FormatContext, FormatWriter},
+};
 use qraft_derive::UnaryOperator;
 
 #[derive(Debug, Clone, Copy, UnaryOperator)]
@@ -18,7 +21,10 @@ pub struct UnaryCondition {
 }
 
 impl FormatWriter for UnaryCondition {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         self.lhs.format_writer(context)?;
         context.writer.write_char(' ')?;
         self.operator.format_writer(context)
@@ -36,4 +42,3 @@ impl FormatWriter for UnaryOperator {
         }
     }
 }
-

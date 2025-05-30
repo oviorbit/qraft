@@ -1,12 +1,16 @@
 use smol_str::SmolStr;
 
-use crate::{bind::Array, raw::Raw, scalar::TakeBindings, writer::{self, FormatWriter}};
+use crate::{
+    bind::Array,
+    raw::Raw,
+    scalar::TakeBindings,
+    writer::{self, FormatWriter},
+};
 
 #[derive(Debug, Clone)]
 pub enum TableIdent {
     Ident(Ident),
     Raw(Raw),
-
     // maybe subquery with alias but not supported yet
 }
 
@@ -26,14 +30,14 @@ impl TableIdent {
 
     pub fn ident<T>(value: T) -> Self
     where
-        T: Into<SmolStr>
+        T: Into<SmolStr>,
     {
         Self::Ident(Ident::new(value))
     }
 
     pub fn raw<T>(value: T) -> Self
     where
-        T: Into<SmolStr>
+        T: Into<SmolStr>,
     {
         Self::Raw(Raw::new(value))
     }
@@ -44,10 +48,13 @@ impl TableIdent {
 }
 
 impl FormatWriter for TableIdent {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             TableIdent::Ident(ident) => ident.format_writer(context),
-            TableIdent::Raw(raw) => raw.format_writer(context)
+            TableIdent::Raw(raw) => raw.format_writer(context),
         }
     }
 }
@@ -59,7 +66,7 @@ impl Ident {
     #[inline]
     pub fn new<T>(value: T) -> Self
     where
-        T: Into<SmolStr>
+        T: Into<SmolStr>,
     {
         Self(value.into())
     }
@@ -71,7 +78,10 @@ impl Ident {
 }
 
 impl FormatWriter for Ident {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         let table = self.0.as_str();
         if let Some(index) = find_as(table.as_bytes()) {
             let (lhs, rhs) = table.split_at(index);

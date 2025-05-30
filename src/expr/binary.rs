@@ -20,7 +20,7 @@ impl FormatWriter for BinaryCondition {
             Operator::Like | Operator::Ilike | Operator::NotLike | Operator::NotIlike,
         ) = (context.dialect, self.operator)
         {
-           context.writer.write_str("::text")?;
+            context.writer.write_str("::text")?;
         };
         context.writer.write_char(' ')?;
         self.operator.format_writer(context)?;
@@ -28,7 +28,6 @@ impl FormatWriter for BinaryCondition {
         self.rhs.format_writer(context)
     }
 }
-
 
 #[derive(Debug, Clone, Copy, BinaryOperator)]
 pub enum Operator {
@@ -45,7 +44,10 @@ pub enum Operator {
 }
 
 impl FormatWriter for Operator {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             Operator::Eq => context.writer.write_char('='),
             Operator::NotEq => context.writer.write_str("!="),

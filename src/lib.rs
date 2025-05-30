@@ -1,37 +1,37 @@
 #![allow(dead_code)]
 
-mod dialect;
-mod writer;
-mod ident;
-mod raw;
-mod set;
+mod bind;
 mod builder;
 mod col;
-mod bind;
-mod scalar;
+mod dialect;
 pub mod expr;
+mod ident;
+mod raw;
+mod scalar;
+mod set;
+mod writer;
 
 use bind::Bind;
-pub use col::TableSchema;
 pub use col::ColumnSchema;
 pub use col::Columns;
 pub use col::IntoColumns;
 pub use col::IntoTable;
+pub use col::TableSchema;
 
 pub use bind::Binds;
 pub use bind::IntoBind;
 pub use bind::IntoBinds;
 
-pub use ident::TableIdent;
 pub use ident::Ident;
-pub use raw::Raw;
+pub use ident::TableIdent;
 pub use raw::IntoRaw;
+pub use raw::Raw;
 
 pub use builder::Builder;
 
+pub use scalar::IntoOperator;
 pub use scalar::IntoScalar;
 pub use scalar::IntoScalarIdent;
-pub use scalar::IntoOperator;
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)
@@ -70,7 +70,10 @@ where
 pub(crate) mod tests {
     use crate::{dialect, writer};
 
-    pub(crate) fn format_writer<W: writer::FormatWriter>(writer: W, dialect: dialect::Dialect) -> String {
+    pub(crate) fn format_writer<W: writer::FormatWriter>(
+        writer: W,
+        dialect: dialect::Dialect,
+    ) -> String {
         let mut str = String::new();
         let mut context = writer::FormatContext::new(&mut str, dialect);
         writer.format_writer(&mut context).unwrap();

@@ -1,6 +1,9 @@
 use smol_str::SmolStr;
 
-use crate::{dialect::Dialect, writer::{self, FormatWriter}};
+use crate::{
+    dialect::Dialect,
+    writer::{self, FormatWriter},
+};
 
 #[derive(Debug, Clone)]
 pub struct Raw(SmolStr);
@@ -165,7 +168,6 @@ impl FormatWriter for Raw {
                         }
                     }
 
-
                     context.writer.write_str(&sql[tag_start..tag_end])?;
                     span_start = tag_end;
                 }
@@ -186,7 +188,7 @@ pub trait IntoRaw {
 
 impl<T> IntoRaw for T
 where
-    T: Into<SmolStr>
+    T: Into<SmolStr>,
 {
     fn into_raw(self) -> Raw {
         Raw::new(self.into())
@@ -288,6 +290,9 @@ mod tests {
     fn test_full_query() {
         let value = Raw::new_static("select * from users where \"userna?me\" = ? and \"id\" = ?");
         let raw = format_writer(value, Dialect::Postgres);
-        assert_eq!("select * from users where \"userna?me\" = $1 and \"id\" = $2", raw);
+        assert_eq!(
+            "select * from users where \"userna?me\" = $1 and \"id\" = $2",
+            raw
+        );
     }
 }

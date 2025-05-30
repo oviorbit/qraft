@@ -7,7 +7,10 @@ pub enum Conjunction {
 }
 
 impl FormatWriter for Conjunction {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             Conjunction::And => context.writer.write_str("and"),
             Conjunction::Or => context.writer.write_str("or"),
@@ -22,17 +25,17 @@ pub struct Condition {
 }
 
 impl FormatWriter for Condition {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         self.kind.format_writer(context)
     }
 }
 
 impl Condition {
     pub fn new(conjunction: Conjunction, kind: ConditionKind) -> Self {
-        Self {
-            conjunction,
-            kind,
-        }
+        Self { conjunction, kind }
     }
 }
 
@@ -46,7 +49,10 @@ impl Conditions {
 }
 
 impl FormatWriter for Conditions {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         for (index, condition) in self.0.iter().enumerate() {
             if index > 0 {
                 context.writer.write_char(' ')?;

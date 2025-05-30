@@ -1,4 +1,4 @@
-use crate::{scalar::TakeBindings, writer::FormatWriter, Binds, Builder, IntoBinds};
+use crate::{Binds, Builder, IntoBinds, scalar::TakeBindings, writer::FormatWriter};
 
 pub enum SetExpr {
     Binds(Binds),
@@ -26,7 +26,7 @@ impl IntoSet for Builder {
 
 impl<T> IntoSet for T
 where
-    T: IntoBinds
+    T: IntoBinds,
 {
     fn into_set(self) -> SetExpr {
         SetExpr::Binds(self.into_binds())
@@ -34,7 +34,10 @@ where
 }
 
 impl FormatWriter for SetExpr {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             SetExpr::Binds(array) => array.format_writer(context),
             SetExpr::Subquery(builder) => todo!(),

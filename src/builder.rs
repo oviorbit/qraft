@@ -1,7 +1,20 @@
 use crate::{
-    bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, Conditions, Conjunction}, group::GroupCondition, unary::{UnaryCondition, UnaryOperator}, ConditionKind
-    }, ident::TableIdent, raw::IntoRaw, scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings}, writer::{FormatContext, FormatWriter}, Raw
+    Raw,
+    bind::{Binds, IntoBinds},
+    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
+    dialect::HasDialect,
+    expr::{
+        ConditionKind,
+        between::{BetweenCondition, BetweenOperator},
+        binary::{BinaryCondition, Operator},
+        cond::{Condition, Conditions, Conjunction},
+        group::GroupCondition,
+        unary::{UnaryCondition, UnaryOperator},
+    },
+    ident::TableIdent,
+    raw::IntoRaw,
+    scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

@@ -1,6 +1,9 @@
 use std::fmt::Write;
 
-use crate::{scalar::ScalarExpr, writer::{FormatContext, FormatWriter}};
+use crate::{
+    scalar::ScalarExpr,
+    writer::{FormatContext, FormatWriter},
+};
 pub use qraft_derive::BetweenOperator;
 
 #[derive(Debug, Clone, Copy, BetweenOperator)]
