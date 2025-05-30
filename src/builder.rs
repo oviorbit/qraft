@@ -321,6 +321,20 @@ impl Builder {
         )
     }
 
+    pub fn where_not_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.where_group_expr(Conjunction::AndNot, sub)
+    }
+
+    pub fn or_where_not_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.where_group_expr(Conjunction::OrNot, sub)
+    }
+
     pub fn where_group<F>(&mut self, sub: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
