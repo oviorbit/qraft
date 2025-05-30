@@ -450,33 +450,14 @@ mod tests {
     #[test]
     fn test_scalar_and_conds() {
         let mut builder = Builder::table("users");
-        builder.where_binary_expr(
-            Conjunction::And,
-            "username".into_scalar_ident().0,
-            Operator::Like,
-            3.into_scalar().0,
-        );
-        builder.where_binary_expr(
-            Conjunction::And,
-            "id".into_scalar_ident().0,
-            Operator::Eq,
-            3.into_scalar().0,
-        );
-        builder.where_binary_expr(
-            Conjunction::Or,
-            "name".into_scalar_ident().0,
-            Operator::Eq,
-            3.into_scalar().0,
-        );
-        builder.where_binary_expr(
-            Conjunction::And,
-            "foo".into_scalar_ident().0,
-            Operator::Eq,
+        builder.where_like("username", 3);
+        builder.where_eq("id", 1);
+        builder.or_where_eq("name", 3);
+        builder.where_eq(
+            "foo",
             sub(|builder| {
                 builder.select("id").from("bar");
-            })
-            .into_scalar()
-            .0,
+            }),
         );
         assert_eq!(
             "select * from \"users\" where \"username\"::text like $1 and \"id\" = $2 or \"name\" = $3 and \"foo\" = (select \"id\" from \"bar\")",
@@ -487,15 +468,11 @@ mod tests {
     #[test]
     fn test_scalar_value_column() {
         let mut builder = Builder::table("users");
-        builder.where_binary_expr(
-            Conjunction::And,
+        builder.where_like(
             sub(|builder| {
                 builder.select("foo").from("bar");
-            })
-            .into_scalar_ident()
-            .0,
-            Operator::Like,
-            3.into_scalar().0,
+            }),
+            3,
         );
         assert_eq!(
             "select * from \"users\" where (select \"foo\" from \"bar\")::text like $1",
@@ -506,12 +483,7 @@ mod tests {
     #[test]
     fn test_scalar_like() {
         let mut builder = Builder::table("users");
-        builder.where_binary_expr(
-            Conjunction::And,
-            "username".into_scalar_ident().0,
-            Operator::Like,
-            3.into_scalar().0,
-        );
+        builder.where_like("username", 3);
         assert_eq!(
             "select * from \"users\" where \"username\"::text like $1",
             builder.to_sql::<Postgres>()
@@ -523,21 +495,11 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.where_group(|builder| {
             builder
-                .where_binary_expr(
-                    Conjunction::And,
-                    "foo".into_scalar_ident().0,
-                    Operator::Eq,
-                    3.into_scalar().0,
-                )
-                .where_binary_expr(
-                    Conjunction::Or,
-                    "bar".into_scalar_ident().0,
-                    Operator::Like,
-                    "bob".into_scalar_ident().0,
-                );
+                .where_eq("foo", 3)
+                .or_where_like("foo", column_static("bar"));
         });
         assert_eq!(
-            "select * from \"users\" where (\"foo\" = $1 or \"bar\"::text like \"bob\")",
+            "select * from \"users\" where (\"foo\" = $1 or \"foo\"::text like \"bar\")",
             builder.to_sql::<Postgres>()
         );
     }

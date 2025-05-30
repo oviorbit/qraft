@@ -53,7 +53,7 @@ pub fn operator_methods_impl(input: TokenStream) -> TokenStream {
                         V: crate::IntoScalar,
                     {
                         self.where_binary_expr(
-                            crate::expr::Conjunction::And,
+                            crate::expr::Conjunction::Or,
                             column.into_scalar_ident().0,
                             #enum_name::#var_name,
                             value.into_scalar().0,
