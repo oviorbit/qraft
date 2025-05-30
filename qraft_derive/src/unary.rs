@@ -40,7 +40,7 @@ pub fn unary_operator_methods_impl(input: TokenStream) -> TokenStream {
                     {
                         self.where_unary_expr(
                             crate::expr::Conjunction::And,
-                            column.into_scalar_ident(),
+                            column.into_scalar_ident().0,
                             #enum_name::#var,
                         )
                     }
@@ -51,7 +51,7 @@ pub fn unary_operator_methods_impl(input: TokenStream) -> TokenStream {
                     {
                         self.where_unary_expr(
                             crate::expr::Conjunction::And,
-                            column.into_scalar_ident(),
+                            column.into_scalar_ident().0,
                             #enum_name::#var,
                         )
                     }
