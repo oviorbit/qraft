@@ -1,6 +1,9 @@
 use std::fmt::Write;
 
-use crate::{writer::{FormatContext, FormatWriter}, Builder};
+use crate::{
+    Builder,
+    writer::{FormatContext, FormatWriter},
+};
 
 #[derive(Debug, Clone)]
 pub struct ExistsCondition {

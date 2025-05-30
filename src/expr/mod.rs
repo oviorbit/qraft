@@ -10,10 +10,10 @@ use crate::{Raw, writer::FormatWriter};
 pub(crate) mod between;
 pub(crate) mod binary;
 pub(crate) mod cond;
+pub(crate) mod exists;
 pub(crate) mod group;
 pub(crate) mod r#in;
 pub(crate) mod unary;
-pub(crate) mod exists;
 
 pub use cond::Conjunction;
 
