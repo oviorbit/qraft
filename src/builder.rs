@@ -360,6 +360,23 @@ mod tests {
     }
 
     #[test]
+    fn test_scalar_value_column() {
+        let mut builder = Builder::table("users");
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            sub(|builder| {
+                builder.select("foo").from("bar");
+            }).into_scalar_ident().0,
+            Operator::Like,
+            3.into_scalar().0,
+        );
+        assert_eq!(
+            "select * from \"users\" where (select \"foo\" from \"bar\")::text like $1",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
     fn test_scalar_like() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
