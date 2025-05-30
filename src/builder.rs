@@ -107,6 +107,40 @@ macro_rules! define_between {
     };
 }
 
+macro_rules! define_between_columns {
+    ($method:ident, $or_method:ident, $operator:expr) => {
+        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            L: IntoScalarIdent,
+            H: IntoScalarIdent,
+        {
+            self.where_between_expr(
+                Conjunction::And,
+                lhs.into_scalar_ident().0,
+                low.into_scalar_ident().0,
+                high.into_scalar_ident().0,
+                $operator,
+            )
+        }
+
+        pub fn $or_method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+        where
+            C: IntoScalarIdent,
+            L: IntoScalarIdent,
+            H: IntoScalarIdent,
+        {
+            self.where_between_expr(
+                Conjunction::Or,
+                lhs.into_scalar_ident().0,
+                low.into_scalar_ident().0,
+                high.into_scalar_ident().0,
+                $operator,
+            )
+        }
+    };
+}
+
 macro_rules! define_in {
     ($method:ident, $or_method:ident, $operator:expr) => {
         pub fn $method<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
@@ -365,6 +399,13 @@ impl Builder {
     define_between!(
         where_not_between,
         or_where_not_between,
+        BetweenOperator::NotBetween
+    );
+
+    define_between_columns!(where_between_columns, or_where_between_columns, BetweenOperator::Between);
+    define_between_columns!(
+        where_not_between_columns,
+        or_where_not_between_columns,
         BetweenOperator::NotBetween
     );
 
