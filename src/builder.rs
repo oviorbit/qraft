@@ -911,4 +911,18 @@ mod tests {
             builder.to_sql::<Postgres>()
         );
     }
+
+    #[test]
+    fn test_where_not_group() {
+        let mut builder = Builder::table("users");
+        builder.where_eq("value", "bar");
+        builder.where_not_group(|builder| {
+            builder.where_eq("foo", "bar").select("id").where_like("bar", "foo");
+        });
+        builder.where_eq("baz", "bar");
+        assert_eq!(
+            "select * from \"users\" where \"value\" = $1 and not (\"foo\" = $2 and \"bar\"::text like $3) and \"baz\" = $4",
+            builder.to_sql::<Postgres>()
+        );
+    }
 }
