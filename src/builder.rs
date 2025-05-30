@@ -536,6 +536,7 @@ impl Builder {
 
     define_binary!(where_eq, or_where_eq, Operator::Eq);
     define_binary!(where_like, or_where_like, Operator::Like);
+    define_binary!(where_not_eq, or_where_not_eq, Operator::NotEq);
     define_binary!(where_not_like, or_where_not_like, Operator::NotLike);
     define_binary!(where_ilike, or_where_ilike, Operator::Ilike);
     define_binary!(where_not_ilike, or_where_not_ilike, Operator::NotIlike);
