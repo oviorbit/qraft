@@ -11,27 +11,6 @@ pub enum QueryKind {
     Where,
 }
 
-pub trait IntoBuilder {
-    fn into_builder(self) -> Builder;
-}
-
-impl IntoBuilder for Builder {
-    fn into_builder(self) -> Builder {
-        self
-    }
-}
-
-impl<F> IntoBuilder for F
-where
-    F: FnOnce(&mut Builder),
-{
-    fn into_builder(self) -> Builder {
-        let mut inner = Builder::default();
-        self(&mut inner);
-        inner
-    }
-}
-
 impl TakeBindings for Builder {
     fn take_bindings(&mut self) -> Binds {
         std::mem::take(&mut self.binds)
@@ -407,12 +386,7 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind},
-        col::ColumnSchema,
-        column_static,
-        dialect::Postgres,
-        scalar::{IntoScalar, IntoScalarIdent},
-        sub,
+        bind::{self, Bind}, col::ColumnSchema, column_static, dialect::Postgres, raw, scalar::{IntoScalar, IntoScalarIdent}, sub
     };
 
     use super::*;
@@ -597,6 +571,19 @@ mod tests {
         builder.where_eq("foo", 1);
         assert_eq!(
             "select * from \"users\" where \"id\" in ($1, $2, $3) and \"foo\" = $4",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_exists_expr() {
+        let mut builder = Builder::table("users");
+        builder.where_exists(|builder| {
+            builder.select(raw("1")).from("users").where_eq("id", 1);
+        });
+        builder.where_eq("foo", 2);
+        assert_eq!(
+            "select * from \"users\" where exists (select 1 from \"users\" where id = $1) and \"foo\" = $2",
             builder.to_sql::<Postgres>()
         );
     }

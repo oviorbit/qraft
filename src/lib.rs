@@ -32,7 +32,6 @@ pub use builder::Builder;
 pub use scalar::IntoOperator;
 pub use scalar::IntoScalar;
 pub use scalar::IntoScalarIdent;
-pub use builder::IntoBuilder;
 
 pub use set::IntoSet;
 

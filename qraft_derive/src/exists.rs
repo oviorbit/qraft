@@ -31,25 +31,29 @@ pub fn exists_operator_methods_impl(input: TokenStream) -> TokenStream {
             let where_fn = format_ident!("where_{}", snake);
             let or_where_fn = format_ident!("or_where_{}", snake);
             quote! {
-                pub fn #where_fn<Q>(&mut self, rhs: Q) -> &mut Self
+                pub fn #where_fn<Q>(&mut self, sub: Q) -> &mut Self
                 where
-                    Q: crate::IntoBuilder
+                    Q: FnOnce(&mut crate::Builder),
                 {
+                    let mut inner = crate::Builder::default();
+                    sub(&mut inner);
                     self.where_exists_expr(
                         crate::expr::Conjunction::And,
                         #enum_name::#var,
-                        rhs.into_builder(),
+                        inner,
                     )
                 }
 
-                pub fn #or_where_fn<Q>(&mut self, rhs: Q) -> &mut Self
+                pub fn #or_where_fn<Q>(&mut self, sub: Q) -> &mut Self
                 where
-                    Q: crate::IntoBuilder
+                    Q: FnOnce(&mut crate::Builder),
                 {
+                    let mut inner = crate::Builder::default();
+                    sub(&mut inner);
                     self.where_exists_expr(
                         crate::expr::Conjunction::Or,
                         #enum_name::#var,
-                        rhs.into_builder(),
+                        inner,
                     )
                 }
             }
