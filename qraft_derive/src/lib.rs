@@ -6,7 +6,7 @@ mod between;
 mod exists;
 mod r#in;
 
-#[proc_macro_derive(BinaryOperator)]
+#[proc_macro_derive(BinaryOperator, attributes(binary))]
 pub fn operator_methods(input: TokenStream) -> TokenStream {
     binary::operator_methods_impl(input)
 }

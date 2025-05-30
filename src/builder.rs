@@ -1,7 +1,23 @@
 use crate::{
-    bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, unary::{UnaryCondition, UnaryOperator}, ConditionKind
-    }, ident::TableIdent, raw::IntoRaw, scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings}, set::SetExpr, writer::{FormatContext, FormatWriter}, Raw
+    Raw,
+    bind::{Binds, IntoBinds},
+    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
+    dialect::HasDialect,
+    expr::{
+        ConditionKind,
+        between::{BetweenCondition, BetweenOperator},
+        binary::{BinaryCondition, Operator},
+        cond::{Condition, Conditions, Conjunction},
+        exists::{ExistsCondition, ExistsOperator},
+        group::GroupCondition,
+        r#in::{InCondition, InOperator},
+        unary::{UnaryCondition, UnaryOperator},
+    },
+    ident::TableIdent,
+    raw::IntoRaw,
+    scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
+    set::SetExpr,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -148,11 +164,42 @@ impl Builder {
         self.where_raw_expr(Conjunction::Or, raw.into_raw(), binds.into_binds())
     }
 
+    pub fn where_column<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
+    where
+        C: IntoScalarIdent,
+        O: IntoOperator,
+        CC: IntoScalarIdent,
+    {
+        self.where_binary_expr(
+            Conjunction::And,
+            column.into_scalar_ident().0,
+            operator.into_operator(),
+            other_column.into_scalar_ident().0,
+        )
+    }
+
+    pub fn or_where_column<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
+    where
+        C: IntoScalarIdent,
+        O: IntoOperator,
+        CC: IntoScalarIdent,
+    {
+        self.where_binary_expr(
+            Conjunction::Or,
+            column.into_scalar_ident().0,
+            operator.into_operator(),
+            other_column.into_scalar_ident().0,
+        )
+    }
+
+    // start of inline impl
+
+    #[inline]
     pub(crate) fn where_exists_expr(
         &mut self,
         conj: Conjunction,
         operator: ExistsOperator,
-        mut rhs: Builder
+        mut rhs: Builder,
     ) -> &mut Self {
         let expr = self.maybe_where.get_or_insert_default();
         self.binds.append(rhs.take_bindings());
@@ -177,11 +224,7 @@ impl Builder {
         let expr = self.maybe_where.get_or_insert_default();
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
-        let cond = InCondition {
-            operator,
-            lhs,
-            rhs,
-        };
+        let cond = InCondition { operator, lhs, rhs };
         let kind = ConditionKind::In(cond);
         let cond = Condition::new(conj, kind);
         expr.push(cond);
@@ -395,7 +438,13 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind}, col::ColumnSchema, column_static, dialect::Postgres, raw, scalar::{IntoScalar, IntoScalarIdent}, sub
+        bind::{self, Bind},
+        col::ColumnSchema,
+        column_static,
+        dialect::Postgres,
+        raw,
+        scalar::{IntoScalar, IntoScalarIdent},
+        sub,
     };
 
     use super::*;

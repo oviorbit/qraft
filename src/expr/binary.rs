@@ -33,9 +33,13 @@ impl FormatWriter for BinaryCondition {
 pub enum Operator {
     Eq,
     NotEq,
+    #[binary(ignore)]
     Lt,
+    #[binary(ignore)]
     Lte,
+    #[binary(ignore)]
     Gt,
+    #[binary(ignore)]
     Gte,
     Like,
     NotLike,
