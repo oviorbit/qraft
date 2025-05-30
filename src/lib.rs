@@ -25,6 +25,7 @@ pub use bind::IntoBinds;
 pub use ident::TableIdent;
 pub use ident::Ident;
 pub use raw::Raw;
+pub use raw::IntoRaw;
 
 pub use builder::Builder;
 
