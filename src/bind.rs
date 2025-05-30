@@ -137,7 +137,6 @@ pub enum ArrayIntoIter<T> {
     Many(std::vec::IntoIter<T>),
 }
 
-
 impl<T> Iterator for ArrayIntoIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
@@ -155,9 +154,9 @@ impl<T> IntoIterator for Array<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Array::None       => ArrayIntoIter::None,
-            Array::One(val)   => ArrayIntoIter::One(Some(val)),
-            Array::Many(vec)  => ArrayIntoIter::Many(vec.into_iter()),
+            Array::None => ArrayIntoIter::None,
+            Array::One(val) => ArrayIntoIter::One(Some(val)),
+            Array::Many(vec) => ArrayIntoIter::Many(vec.into_iter()),
         }
     }
 }
@@ -293,4 +292,3 @@ impl IntoBind for &str {
         Bind::String(self.into())
     }
 }
-
