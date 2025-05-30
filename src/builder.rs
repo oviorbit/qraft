@@ -416,7 +416,11 @@ impl Builder {
         BetweenOperator::NotBetween
     );
 
-    define_between_columns!(where_between_columns, or_where_between_columns, BetweenOperator::Between);
+    define_between_columns!(
+        where_between_columns,
+        or_where_between_columns,
+        BetweenOperator::Between
+    );
     define_between_columns!(
         where_not_between_columns,
         or_where_not_between_columns,
@@ -917,7 +921,10 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.where_eq("value", "bar");
         builder.where_not_group(|builder| {
-            builder.where_eq("foo", "bar").select("id").where_like("bar", "foo");
+            builder
+                .where_eq("foo", "bar")
+                .select("id")
+                .where_like("bar", "foo");
         });
         builder.where_eq("baz", "bar");
         assert_eq!(
