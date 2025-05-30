@@ -9,7 +9,7 @@ mod builder;
 mod col;
 mod bind;
 mod scalar;
-mod expr;
+pub mod expr;
 
 use bind::Bind;
 pub use col::TableSchema;
@@ -28,6 +28,10 @@ pub use raw::Raw;
 pub use raw::IntoRaw;
 
 pub use builder::Builder;
+
+pub use scalar::IntoScalar;
+pub use scalar::IntoScalarIdent;
+pub use scalar::IntoOperator;
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)

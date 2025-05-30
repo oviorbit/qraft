@@ -1,15 +1,20 @@
 use crate::{
+    Raw,
     bind::{Binds, IntoBinds},
     col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
     expr::{
-        cond::{Condition, Conditions, Conjunction}, BinaryCondition, ConditionKind, GroupCondition
+        ConditionKind,
+        binary::BinaryCondition,
+        cond::{Condition, Conditions, Conjunction},
+        group::GroupCondition,
+        unary::{UnaryCondition, UnaryOperator},
     },
     ident::TableIdent,
     operator::Operator,
     raw::IntoRaw,
     scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
-    writer::{FormatContext, FormatWriter}, Raw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -96,10 +101,24 @@ impl Builder {
     where
         C: IntoScalarIdent,
         O: IntoOperator,
-        V: IntoScalar
+        V: IntoScalar,
     {
         self.where_binary_expr(
             Conjunction::And,
+            column.into_scalar_ident().0,
+            operator.into_operator(),
+            value.into_scalar().0,
+        )
+    }
+
+    pub fn or_where_operator<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    where
+        C: IntoScalarIdent,
+        O: IntoOperator,
+        V: IntoScalar,
+    {
+        self.where_binary_expr(
+            Conjunction::Or,
             column.into_scalar_ident().0,
             operator.into_operator(),
             value.into_scalar().0,
@@ -123,7 +142,7 @@ impl Builder {
     pub fn where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
     where
         R: IntoRaw,
-        B: IntoBinds
+        B: IntoBinds,
     {
         self.where_raw_expr(Conjunction::And, raw.into_raw(), binds.into_binds())
     }
@@ -131,14 +150,36 @@ impl Builder {
     pub fn or_where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
     where
         R: IntoRaw,
-        B: IntoBinds
+        B: IntoBinds,
     {
         self.where_raw_expr(Conjunction::Or, raw.into_raw(), binds.into_binds())
     }
 
     // where stuff
+
     #[inline]
-    pub(crate) fn where_raw_expr(&mut self, conj: Conjunction, rhs: Raw, binds: Binds) -> &mut Self {
+    pub(crate) fn where_unary_expr(
+        &mut self,
+        conj: Conjunction,
+        mut lhs: ScalarExpr,
+        operator: UnaryOperator,
+    ) -> &mut Self {
+        self.binds.append(lhs.take_bindings());
+        let expr = self.maybe_where.get_or_insert_default();
+        let cond = UnaryCondition { lhs, operator };
+        let kind = ConditionKind::Unary(cond);
+        let cond = Condition::new(conj, kind);
+        expr.push(cond);
+        self
+    }
+
+    #[inline]
+    pub(crate) fn where_raw_expr(
+        &mut self,
+        conj: Conjunction,
+        rhs: Raw,
+        binds: Binds,
+    ) -> &mut Self {
         let expr = self.maybe_where.get_or_insert_default();
         self.binds.append(binds);
         let cond = ConditionKind::Raw(rhs);
@@ -450,7 +491,9 @@ mod tests {
             Conjunction::And,
             sub(|builder| {
                 builder.select("foo").from("bar");
-            }).into_scalar_ident().0,
+            })
+            .into_scalar_ident()
+            .0,
             Operator::Like,
             3.into_scalar().0,
         );
@@ -480,8 +523,18 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.where_group(|builder| {
             builder
-                .where_binary_expr(Conjunction::And, "foo".into_scalar_ident().0, Operator::Eq, 3.into_scalar().0)
-                .where_binary_expr(Conjunction::Or, "bar".into_scalar_ident().0, Operator::Like, "bob".into_scalar_ident().0);
+                .where_binary_expr(
+                    Conjunction::And,
+                    "foo".into_scalar_ident().0,
+                    Operator::Eq,
+                    3.into_scalar().0,
+                )
+                .where_binary_expr(
+                    Conjunction::Or,
+                    "bar".into_scalar_ident().0,
+                    Operator::Like,
+                    "bob".into_scalar_ident().0,
+                );
         });
         assert_eq!(
             "select * from \"users\" where (\"foo\" = $1 or \"bar\"::text like \"bob\")",
