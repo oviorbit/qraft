@@ -2,7 +2,10 @@ use crate::{
     bind::{Binds, IntoBinds},
     col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
-    expr::{cond::{Condition, Conditions, LogicalOperator}, Binary, ConditionKind},
+    expr::{
+        Binary, ConditionKind,
+        cond::{Condition, Conditions, LogicalOperator},
+    },
     ident::TableIdent,
     operator::Operator,
     raw::IntoRaw,
@@ -71,6 +74,7 @@ impl Builder {
     }
 
     // where stuff
+
     #[inline]
     pub fn where_binary_expr(
         &mut self,
@@ -79,7 +83,6 @@ impl Builder {
         operator: Operator,
         mut rhs: ScalarExpr,
     ) -> &mut Self {
-        // grab bindings
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
 
@@ -87,7 +90,7 @@ impl Builder {
         let expr = ConditionKind::Binary(binary);
         let condition = Condition::new(logical, expr);
         let ws = self.maybe_where.get_or_insert_default();
-        ws.0.push(condition);
+        ws.push(condition);
 
         self
     }
@@ -198,7 +201,7 @@ impl FormatWriter for Builder {
 
         if let Some(ref w) = self.maybe_where {
             // if we are not in a group and in select query
-            if ! w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
+            if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
                 context.writer.write_str(" where ")?;
             }
             w.format_writer(context)?;
@@ -320,13 +323,50 @@ mod tests {
     }
 
     #[test]
+    fn test_scalar_and_conds() {
+        let mut builder = Builder::table("users");
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            "username".into_scalar_ident().0,
+            Operator::Like,
+            3.into_scalar().0,
+        );
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            "id".into_scalar_ident().0,
+            Operator::Eq,
+            3.into_scalar().0,
+        );
+        builder.where_binary_expr(
+            LogicalOperator::Or,
+            "name".into_scalar_ident().0,
+            Operator::Eq,
+            3.into_scalar().0,
+        );
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            "foo".into_scalar_ident().0,
+            Operator::Eq,
+            sub(|builder| {
+                builder.select("id").from("bar");
+            })
+            .into_scalar()
+            .0,
+        );
+        assert_eq!(
+            "select * from \"users\" where \"username\"::text like $1 and \"id\" = $2 or \"name\" = $3 and \"foo\" = (select \"id\" from \"bar\")",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
     fn test_scalar_like() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
             LogicalOperator::And,
             "username".into_scalar_ident().0,
             Operator::Like,
-            3.into_scalar().0
+            3.into_scalar().0,
         );
         assert_eq!(
             "select * from \"users\" where \"username\"::text like $1",

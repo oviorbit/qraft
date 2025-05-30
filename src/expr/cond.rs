@@ -39,6 +39,12 @@ impl Condition {
 #[derive(Debug, Default, Clone)]
 pub struct Conditions(pub(crate) Vec<Condition>);
 
+impl Conditions {
+    pub fn push(&mut self, other: Condition) {
+        self.0.push(other);
+    }
+}
+
 impl FormatWriter for Conditions {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         for (index, condition) in self.0.iter().enumerate() {
