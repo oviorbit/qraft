@@ -250,3 +250,16 @@ impl IntoBind for i32 {
         Bind::I32(self)
     }
 }
+
+impl IntoBind for String {
+    fn into_bind(self) -> Bind {
+        Bind::String(self)
+    }
+}
+
+impl IntoBind for &str {
+    fn into_bind(self) -> Bind {
+        Bind::String(self.into())
+    }
+}
+

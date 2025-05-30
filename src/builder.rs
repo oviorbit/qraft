@@ -590,7 +590,7 @@ mod tests {
         builder.where_exists(|builder| {
             builder.select(raw("1")).from("users").where_eq("id", 1);
         });
-        builder.where_eq("foo", 2);
+        builder.where_eq("foo", "bar");
         assert_eq!(
             "select * from \"users\" where exists (select 1 from \"users\" where \"id\" = $1) and \"foo\" = $2",
             builder.to_sql::<Postgres>()
