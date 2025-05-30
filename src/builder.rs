@@ -231,6 +231,30 @@ macro_rules! define_filter {
 }
 
 impl Builder {
+    /// Creates a new `select` query for the table defined by the
+    /// [`TableSchema`] implementor `T`.
+    ///
+    /// This is equivalent to calling [`Builder::table`] with
+    /// `T::table()`.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `T`: A type that implements the [`TableSchema`] trait, which
+    ///   provides the static table name.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::{Builder, TableSchema};
+    ///
+    /// #[derive(TableSchema)]
+    /// struct UserId {
+    ///     id: i64,
+    /// }
+    ///
+    /// // builds: select "id" from "users"
+    /// let builder = QueryBuilder::table_as::<UserId>();
+    /// ```
     pub fn table_as<T: TableSchema>() -> Self {
         Self {
             query: String::new(),
@@ -243,6 +267,25 @@ impl Builder {
         }
     }
 
+    /// Creates a new `select` query for the given table.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `T`: A type that implements the [`IntoTable`] trait, which
+    ///   provides conversion into a [`TableIdent`].
+    ///
+    /// # Parameters
+    ///
+    /// - `table`: Anything convertible into a table via [`IntoTable`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::{Builder, IntoTable};
+    ///
+    /// // builds: select * from "users"
+    /// let builder = QueryBuilder::table("users");
+    /// ```
     pub fn table<T>(table: T) -> Self
     where
         T: IntoTable,
@@ -258,6 +301,25 @@ impl Builder {
         }
     }
 
+    /// Sets or replaces the `from` clause of the current query.
+    ///
+    /// # Parameters
+    ///
+    /// - `table`: Anything convertible into a table via [`IntoTable`].
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to `self`, for further chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::Builder;
+    ///
+    /// let mut builder = Builder::table("users");
+    /// // now: select * from "posts"
+    /// builder.from("posts");
+    /// ```
     pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self {
         if matches!(self.ty, QueryKind::Where) {
             return self;
@@ -266,6 +328,31 @@ impl Builder {
         self
     }
 
+    // conditionnals
+
+    /// Conditionally applies a builder callback if `condition` is `true`.
+    ///
+    /// # Parameters
+    ///
+    /// - `condition`: If `true`, invokes the `builder` closure.
+    /// - `builder`: A closure that receives `&mut Self` and mutates the builder.
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` for further chaining, regardless of `condition`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::Builder;
+    ///
+    /// let mut builder = Builder::table("users");
+    /// let include_deleted = false;
+    ///
+    /// builder.when(include_deleted, |b| {
+    ///     b.r#where("deleted_at", "!=", None);
+    /// });
+    /// ```
     pub fn when<F>(&mut self, condition: bool, builder: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
@@ -276,6 +363,33 @@ impl Builder {
         self
     }
 
+    /// Conditionally applies a builder callback when `maybe_value` is `Some`.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `T`: The inner type of the `Option`.
+    ///
+    /// # Parameters
+    ///
+    /// - `maybe_value`: An `Option<T>`; the closure runs if this is `Some`.
+    /// - `builder`: A closure taking `(&mut Self, T)`.
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` for further chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::Builder;
+    ///
+    /// let mut builder = Builder::table("users");
+    /// let name_filter = Some("Alice");
+    ///
+    /// builder.when_some(name_filter, |b, name| {
+    ///     b.where_eq("name", name);
+    /// });
+    /// ```
     pub fn when_some<T, F>(&mut self, maybe_value: Option<T>, builder: F) -> &mut Self
     where
         F: FnOnce(&mut Self, T),
@@ -288,6 +402,23 @@ impl Builder {
 
     // where stuff
 
+    /// Clears all existing `where` clauses from the query.
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` for rebuilding the `where` portion.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use qraft::Builder;
+    ///
+    /// let mut builder = Builder::table("users")
+    ///     .r#where("age", ">", 30);
+    ///
+    /// // select * from users
+    /// builder.reset_where();
+    /// ```
     pub fn reset_where(&mut self) -> &mut Self {
         self.maybe_where = None;
         self
