@@ -43,6 +43,7 @@ pub struct Builder {
     binds: Binds,
     maybe_where: Option<Conditions>,
 }
+
 macro_rules! define_binary {
     ($method:ident, $or_method:ident, $operator:expr) => {
         pub fn $method<C, V>(&mut self, column: C, value: V) -> &mut Self
