@@ -32,6 +32,9 @@ pub use builder::Builder;
 pub use scalar::IntoOperator;
 pub use scalar::IntoScalar;
 pub use scalar::IntoScalarIdent;
+pub use builder::IntoBuilder;
+
+pub use set::IntoSet;
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)

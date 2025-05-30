@@ -1,5 +1,6 @@
 use crate::{Binds, Builder, IntoBinds, scalar::TakeBindings, writer::FormatWriter};
 
+#[derive(Debug, Clone)]
 pub enum SetExpr {
     Binds(Binds),
     Subquery(Box<Builder>),
@@ -40,7 +41,7 @@ impl FormatWriter for SetExpr {
     ) -> std::fmt::Result {
         match self {
             SetExpr::Binds(array) => array.format_writer(context),
-            SetExpr::Subquery(builder) => todo!(),
+            SetExpr::Subquery(builder) => builder.format_writer(context),
         }
     }
 }

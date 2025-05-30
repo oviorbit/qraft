@@ -31,32 +31,35 @@ pub fn exists_operator_methods_impl(input: TokenStream) -> TokenStream {
             let where_fn = format_ident!("where_{}", snake);
             let or_where_fn = format_ident!("or_where_{}", snake);
             quote! {
-                impl crate::Builder {
-                    pub fn #where_fn<Q>(&mut self, rhs: Q) -> &mut Self
-                    where
-                        Q: Into<Builder>
-                    {
-                        self.where_exists_expr(
-                            crate::expr::Conjunction::And,
-                            #enum_name::#var,
-                            rhs.into(),
-                        )
-                    }
+                pub fn #where_fn<Q>(&mut self, rhs: Q) -> &mut Self
+                where
+                    Q: crate::IntoBuilder
+                {
+                    self.where_exists_expr(
+                        crate::expr::Conjunction::And,
+                        #enum_name::#var,
+                        rhs.into_builder(),
+                    )
+                }
 
-                    pub fn #or_where_fn<Q>(&mut self, rhs: Q) -> &mut Self
-                    where
-                        Q: Into<Builder>
-                    {
-                        self.where_exists_expr(
-                            crate::expr::Conjunction::Or,
-                            #enum_name::#var,
-                            rhs.into(),
-                        )
-                    }
+                pub fn #or_where_fn<Q>(&mut self, rhs: Q) -> &mut Self
+                where
+                    Q: crate::IntoBuilder
+                {
+                    self.where_exists_expr(
+                        crate::expr::Conjunction::Or,
+                        #enum_name::#var,
+                        rhs.into_builder(),
+                    )
                 }
             }
         })
         .take_enum()
         .unwrap_or_default();
-    quote!(#(#methods)*).into()
+
+    quote! {
+        impl crate::Builder {
+            #(#methods)*
+        }
+    }.into()
 }

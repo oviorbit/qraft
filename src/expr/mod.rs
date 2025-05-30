@@ -1,6 +1,8 @@
 use between::BetweenCondition;
 use binary::BinaryCondition;
+use exists::ExistsCondition;
 use group::GroupCondition;
+use r#in::InCondition;
 use unary::UnaryCondition;
 
 use crate::{Raw, writer::FormatWriter};
@@ -11,6 +13,7 @@ pub(crate) mod cond;
 pub(crate) mod group;
 pub(crate) mod r#in;
 pub(crate) mod unary;
+pub(crate) mod exists;
 
 pub use cond::Conjunction;
 
@@ -21,6 +24,8 @@ pub enum ConditionKind {
     Raw(Raw),
     Unary(UnaryCondition),
     Between(BetweenCondition),
+    In(InCondition),
+    Exists(ExistsCondition),
 }
 
 impl FormatWriter for ConditionKind {
@@ -34,6 +39,8 @@ impl FormatWriter for ConditionKind {
             ConditionKind::Raw(raw) => raw.format_writer(context),
             ConditionKind::Unary(unary) => unary.format_writer(context),
             ConditionKind::Between(between) => between.format_writer(context),
+            ConditionKind::In(inc) => inc.format_writer(context),
+            ConditionKind::Exists(exists) => exists.format_writer(context),
         }
     }
 }

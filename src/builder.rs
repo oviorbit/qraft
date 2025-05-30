@@ -1,20 +1,7 @@
 use crate::{
-    Raw,
-    bind::{Binds, IntoBinds},
-    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
-    dialect::HasDialect,
-    expr::{
-        ConditionKind,
-        between::{BetweenCondition, BetweenOperator},
-        binary::{BinaryCondition, Operator},
-        cond::{Condition, Conditions, Conjunction},
-        group::GroupCondition,
-        unary::{UnaryCondition, UnaryOperator},
-    },
-    ident::TableIdent,
-    raw::IntoRaw,
-    scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, expr::{
+        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, Conditions, Conjunction}, exists::ExistsOperator, group::GroupCondition, r#in::{InCondition, InOperator}, unary::{UnaryCondition, UnaryOperator}, ConditionKind
+    }, ident::TableIdent, raw::IntoRaw, scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings}, set::SetExpr, writer::{FormatContext, FormatWriter}, Raw
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +9,27 @@ pub enum QueryKind {
     #[default]
     Select,
     Where,
+}
+
+pub trait IntoBuilder {
+    fn into_builder(self) -> Builder;
+}
+
+impl IntoBuilder for Builder {
+    fn into_builder(self) -> Builder {
+        self
+    }
+}
+
+impl<F> IntoBuilder for F
+where
+    F: FnOnce(&mut Builder),
+{
+    fn into_builder(self) -> Builder {
+        let mut inner = Builder::default();
+        self(&mut inner);
+        inner
+    }
 }
 
 impl TakeBindings for Builder {
@@ -97,6 +105,12 @@ impl Builder {
         self
     }
 
+    // where stuff
+    pub fn reset_where(&mut self) -> &mut Self {
+        self.maybe_where = None;
+        self
+    }
+
     pub fn where_operator<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoScalarIdent,
@@ -155,7 +169,36 @@ impl Builder {
         self.where_raw_expr(Conjunction::Or, raw.into_raw(), binds.into_binds())
     }
 
-    // where stuff
+    pub(crate) fn where_exists_expr(
+        &mut self,
+        conj: Conjunction,
+        operator: ExistsOperator,
+        mut rhs: Builder
+    ) -> &mut Self {
+        self
+    }
+
+    #[inline]
+    pub(crate) fn where_in_expr(
+        &mut self,
+        conj: Conjunction,
+        mut lhs: ScalarExpr,
+        mut rhs: SetExpr,
+        operator: InOperator,
+    ) -> &mut Self {
+        let expr = self.maybe_where.get_or_insert_default();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+        let cond = InCondition {
+            operator,
+            lhs,
+            rhs,
+        };
+        let kind = ConditionKind::In(cond);
+        let cond = Condition::new(conj, kind);
+        expr.push(cond);
+        self
+    }
 
     #[inline]
     pub(crate) fn where_between_expr(
@@ -525,6 +568,35 @@ mod tests {
         });
         assert_eq!(
             "select * from \"users\" where (\"foo\" = $1 or \"foo\"::text like \"bar\")",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_in_expr() {
+        let mut builder = Builder::table("users");
+        builder.where_in("id", 3);
+        assert_eq!(
+            "select * from \"users\" where \"id\" in ($1)",
+            builder.to_sql::<Postgres>()
+        );
+        builder.reset_where();
+        builder.where_in("id", [1, 2, 3]);
+        assert_eq!(
+            "select * from \"users\" where \"id\" in ($1, $2, $3)",
+            builder.to_sql::<Postgres>()
+        );
+        builder.reset_where();
+        builder.where_in("id", [1, 2, 3]);
+        assert_eq!(
+            "select * from \"users\" where \"id\" in ($1, $2, $3)",
+            builder.to_sql::<Postgres>()
+        );
+        builder.reset_where();
+        builder.where_in("id", [1, 2, 3]);
+        builder.where_eq("foo", 1);
+        assert_eq!(
+            "select * from \"users\" where \"id\" in ($1, $2, $3) and \"foo\" = $4",
             builder.to_sql::<Postgres>()
         );
     }
