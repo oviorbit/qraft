@@ -36,8 +36,8 @@ pub fn operator_methods_impl(input: TokenStream) -> TokenStream {
                 impl crate::Builder {
                     pub fn #where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
                     where
-                        C: IntoScalarIdent,
-                        V: IntoScalar,
+                        C: crate::IntoScalarIdent,
+                        V: crate::IntoScalar,
                     {
                         self.where_binary_expr(
                             crate::expr::Conjunction::And,
@@ -49,8 +49,8 @@ pub fn operator_methods_impl(input: TokenStream) -> TokenStream {
 
                     pub fn #or_where_fn<C, V>(&mut self, column: C, value: V) -> &mut Self
                     where
-                        C: IntoScalarIdent,
-                        V: IntoScalar,
+                        C: crate::IntoScalarIdent,
+                        V: crate::IntoScalar,
                     {
                         self.where_binary_expr(
                             crate::expr::Conjunction::And,

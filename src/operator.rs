@@ -1,6 +1,8 @@
+use qraft_derive::BinaryOperator;
+
 use crate::{dialect::Dialect, writer::FormatWriter};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, BinaryOperator)]
 pub enum Operator {
     Eq,
     NotEq,
