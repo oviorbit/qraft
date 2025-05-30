@@ -1,6 +1,6 @@
 use crate::{dialect::Dialect, writer::FormatWriter};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operator {
     Eq,
     NotEq,

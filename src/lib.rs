@@ -9,6 +9,7 @@ mod builder;
 mod col;
 mod bind;
 mod scalar;
+mod expr;
 
 use bind::Bind;
 pub use col::TableSchema;

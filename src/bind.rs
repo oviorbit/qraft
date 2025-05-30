@@ -2,6 +2,7 @@
 #[derive(Debug, Clone)]
 pub enum Bind {
     Null,
+    Consumed,
     String(String),
     StaticString(&'static str),
     Bool(bool),
@@ -49,7 +50,77 @@ pub enum Array<T> {
     Many(Vec<T>)
 }
 
+pub enum ArrayIter<'a, T> {
+    None,
+    One(Option<&'a T>),
+    Many(std::slice::Iter<'a, T>),
+}
+
+impl<'a, T> Iterator for ArrayIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ArrayIter::None => None,
+            ArrayIter::One(o) => o.take(),
+            ArrayIter::Many(i) => i.next(),
+        }
+    }
+}
+
+pub enum ArrayIterMut<'a, T> {
+    None,
+    One(Option<&'a mut T>),
+    Many(std::slice::IterMut<'a, T>),
+}
+
+impl<'a, T> Iterator for ArrayIterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ArrayIterMut::None            => None,
+            ArrayIterMut::One(o)  => o.take(),
+            ArrayIterMut::Many(i) => i.next(),
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Array<T> {
+    type Item = &'a T;
+    type IntoIter = ArrayIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Array<T> {
+    type Item = &'a mut T;
+    type IntoIter = ArrayIterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 impl<T> Array<T> {
+    pub fn iter(&self) -> ArrayIter<'_, T> {
+        match self {
+            Array::None      => ArrayIter::None,
+            Array::One(x)    => ArrayIter::One(Some(x)),
+            Array::Many(xs)  => ArrayIter::Many(xs.iter()),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> ArrayIterMut<'_, T> {
+        match self {
+            Array::None      => ArrayIterMut::None,
+            Array::One(x)    => ArrayIterMut::One(Some(x)),
+            Array::Many(xs)  => ArrayIterMut::Many(xs.iter_mut()),
+        }
+    }
+
     pub fn append(&mut self, other: Self) {
         let combined = match (std::mem::replace(self, Self::None), other) {
             (Self::None, cols) | (cols, Self::None) => cols,

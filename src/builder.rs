@@ -1,12 +1,37 @@
-use crate::{bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, ident::TableIdent, raw::IntoRaw, scalar::{IntoScalar, IntoScalarIdent}, sub::Subquery, writer::{FormatContext, FormatWriter }};
+use crate::{
+    bind::{Binds, IntoBinds},
+    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
+    dialect::HasDialect,
+    expr::{cond::{Condition, Conditions, LogicalOperator}, Binary, ConditionKind},
+    ident::TableIdent,
+    operator::Operator,
+    raw::IntoRaw,
+    scalar::{ScalarExpr, TakeBindings},
+    writer::{FormatContext, FormatWriter},
+};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum QueryKind {
+    #[default]
+    Select,
+    Where,
+}
+
+impl TakeBindings for Builder {
+    fn take_bindings(&mut self) -> Binds {
+        std::mem::take(&mut self.binds)
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct Builder {
     query: String,
+    ty: QueryKind,
     distinct: bool,
     maybe_table: Option<TableIdent>,
     columns: Columns,
     binds: Binds,
+    maybe_where: Option<Conditions>,
 }
 
 impl Builder {
@@ -17,12 +42,14 @@ impl Builder {
             maybe_table: Some(T::table()),
             columns: Columns::None,
             binds: Binds::None,
+            ty: QueryKind::Select,
+            maybe_where: None,
         }
     }
 
     pub fn table<T>(table: T) -> Self
     where
-        T: IntoTable
+        T: IntoTable,
     {
         Self {
             query: String::new(),
@@ -30,27 +57,64 @@ impl Builder {
             maybe_table: Some(table.into_table()),
             columns: Columns::None,
             binds: Binds::None,
+            ty: QueryKind::Select,
+            maybe_where: None,
         }
     }
 
-    pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self
-    {
+    pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         self.maybe_table = Some(table.into_table());
         self
     }
 
     // where stuff
-    pub fn where_eq<C, S>(&mut self, column: C, scalar: S) -> &mut Self
+    #[inline]
+    pub fn where_binary_expr(
+        &mut self,
+        logical: LogicalOperator,
+        mut lhs: ScalarExpr,
+        operator: Operator,
+        mut rhs: ScalarExpr,
+    ) -> &mut Self {
+        // grab bindings
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+
+        let binary = Binary { lhs, operator, rhs };
+        let expr = ConditionKind::Binary(binary);
+        let condition = Condition::new(logical, expr);
+        let ws = self.maybe_where.get_or_insert_default();
+        ws.0.push(condition);
+
+        self
+    }
+
+    pub fn where_group<F>(&mut self, closure: F) -> &mut Self
     where
-        C: IntoScalarIdent,
-        S: IntoScalar
+        F: FnOnce(&mut Self),
     {
+        // with a type of where, we should ignore most actions
+        let mut builder = Self {
+            ty: QueryKind::Where,
+            ..Default::default()
+        };
+        // modify the internal states with wheres
+        closure(&mut builder);
+
+        // apply the internal where group with an expression
+
         self
     }
 
     // select stuff
 
     pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         let raw = value.into_raw();
         self.columns = Columns::One(TableIdent::Raw(raw));
         self.binds.append(binds.into_binds());
@@ -58,33 +122,48 @@ impl Builder {
     }
 
     pub fn select_as<T: ColumnSchema>(&mut self) -> &mut Self {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         self.columns = T::columns();
         self
     }
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoColumns
+        T: IntoColumns,
     {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         self.columns = cols.into_columns();
         self
     }
 
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoColumns
+        T: IntoColumns,
     {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         let other = cols.into_columns();
         self.columns.append(other);
         self
     }
 
     pub fn reset_select(&mut self) -> &mut Self {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         self.columns.reset();
         self
     }
 
     pub fn distinct(&mut self) -> &mut Self {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
         self.distinct = true;
         self
     }
@@ -95,14 +174,18 @@ impl Builder {
         let size_hint = 64;
         let mut str = String::with_capacity(size_hint);
         let mut context = FormatContext::new(&mut str, Database::DIALECT);
-        self.format_writer(&mut context).expect("should not fail on a string writer");
+        self.format_writer(&mut context)
+            .expect("should not fail on a string writer");
         self.query = str;
         self.query.as_str()
     }
 }
 
 impl FormatWriter for Builder {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         context.writer.write_str("select ")?;
         if self.distinct {
             context.writer.write_str(" distinct ")?;
@@ -112,13 +195,29 @@ impl FormatWriter for Builder {
             context.writer.write_str(" from ")?;
             table.format_writer(context)?;
         }
+
+        if let Some(ref w) = self.maybe_where {
+            // if we are not in a group and in select query
+            if ! w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
+                context.writer.write_str(" where ")?;
+            }
+            w.format_writer(context)?;
+        }
+
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{bind::{self, Bind}, col::ColumnSchema, column_static, dialect::Postgres, sub};
+    use crate::{
+        bind::{self, Bind},
+        col::ColumnSchema,
+        column_static,
+        dialect::Postgres,
+        scalar::{IntoScalar, IntoScalarIdent},
+        sub,
+    };
 
     use super::*;
 
@@ -126,11 +225,20 @@ mod tests {
     fn test_basic_select() {
         let mut builder = Builder::table("users");
         builder.select("i\"d");
-        assert_eq!("select \"i\"\"d\" from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select \"i\"\"d\" from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
         builder.select("username");
-        assert_eq!("select \"username\" from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select \"username\" from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
         builder.add_select("id");
-        assert_eq!("select \"username\", \"id\" from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select \"username\", \"id\" from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
         builder.reset_select();
         assert_eq!("select * from \"users\"", builder.to_sql::<Postgres>());
     }
@@ -159,21 +267,30 @@ mod tests {
     fn test_select_into_ident() {
         let mut builder = Builder::table_as::<User>();
         builder.select_as::<User>();
-        assert_eq!("select \"id\", \"admin\" from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select \"id\", \"admin\" from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
     }
 
     #[test]
     fn test_select_raw() {
         let mut builder = Builder::table("users");
         builder.select_raw("id, count(*)", Binds::None);
-        assert_eq!("select id, count(*) from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select id, count(*) from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
     }
 
     #[test]
     fn test_select_raw_bound() {
         let mut builder = Builder::table("users");
         builder.select_raw("price + ? as fee", [5]);
-        assert_eq!("select price + $1 as fee from \"users\"", builder.to_sql::<Postgres>());
+        assert_eq!(
+            "select price + $1 as fee from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
         assert_eq!(1, builder.binds.len());
         let value = match builder.binds {
             bind::Array::None => panic!("should have one value"),
@@ -186,9 +303,34 @@ mod tests {
     #[test]
     fn test_scalar_where() {
         let mut builder = Builder::table("users");
-        builder.where_eq("id", |builder: &mut Builder| {
-            builder.select("id").from("roles");
-        });
-        assert_eq!("select * from \"users\" where \"id\" = $1", builder.to_sql::<Postgres>());
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            "id".into_scalar_ident().0,
+            Operator::Eq,
+            sub(|builder| {
+                builder.select("id").from("roles");
+            })
+            .into_scalar()
+            .0,
+        );
+        assert_eq!(
+            "select * from \"users\" where \"id\" = (select \"id\" from \"roles\")",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_scalar_like() {
+        let mut builder = Builder::table("users");
+        builder.where_binary_expr(
+            LogicalOperator::And,
+            "username".into_scalar_ident().0,
+            Operator::Like,
+            3.into_scalar().0
+        );
+        assert_eq!(
+            "select * from \"users\" where \"username\"::text like $1",
+            builder.to_sql::<Postgres>()
+        );
     }
 }

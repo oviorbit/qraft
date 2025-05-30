@@ -1,11 +1,22 @@
 use smol_str::SmolStr;
 
-use crate::{raw::Raw, writer::{self, FormatWriter}};
+use crate::{bind::Array, raw::Raw, scalar::TakeBindings, writer::{self, FormatWriter}};
 
 #[derive(Debug, Clone)]
 pub enum TableIdent {
     Ident(Ident),
     Raw(Raw),
+
+    // maybe subquery with alias but not supported yet
+}
+
+impl TakeBindings for TableIdent {
+    fn take_bindings(&mut self) -> crate::Binds {
+        match self {
+            TableIdent::Ident(_) => Array::None,
+            TableIdent::Raw(_) => Array::None,
+        }
+    }
 }
 
 impl TableIdent {
