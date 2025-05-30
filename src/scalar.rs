@@ -1,4 +1,4 @@
-use crate::{bind::{Array, Bind}, writer::FormatWriter, Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent};
+use crate::{bind::{Array, Bind}, operator::Operator, writer::FormatWriter, Binds, Builder, Ident, IntoBind, IntoTable, Raw, TableIdent};
 
 // scalar should be <= 32 bytes
 #[derive(Debug, Clone)]
@@ -50,6 +50,16 @@ pub trait IntoScalar {
 
 pub trait IntoScalarIdent {
     fn into_scalar_ident(self) -> ScalarIdent;
+}
+
+pub trait IntoOperator {
+    fn into_operator(self) -> Operator;
+}
+
+impl IntoOperator for Operator {
+    fn into_operator(self) -> Operator {
+        self
+    }
 }
 
 // maybe prevent the column-like identifier for blanket impl

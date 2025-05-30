@@ -8,7 +8,7 @@ use crate::{
     ident::TableIdent,
     operator::Operator,
     raw::IntoRaw,
-    scalar::{ScalarExpr, TakeBindings},
+    scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
     writer::{FormatContext, FormatWriter}, Raw,
 };
 
@@ -70,6 +70,40 @@ impl Builder {
         }
         self.maybe_table = Some(table.into_table());
         self
+    }
+
+    pub fn when<F>(&mut self, condition: bool, builder: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        if condition {
+            builder(self);
+        }
+        self
+    }
+
+    pub fn when_some<T, F>(&mut self, maybe_value: Option<T>, builder: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self, T),
+    {
+        if let Some(value) = maybe_value {
+            builder(self, value);
+        }
+        self
+    }
+
+    pub fn where_operator<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    where
+        C: IntoScalarIdent,
+        O: IntoOperator,
+        V: IntoScalar
+    {
+        self.where_binary_expr(
+            Conjunction::And,
+            column.into_scalar_ident().0,
+            operator.into_operator(),
+            value.into_scalar().0,
+        )
     }
 
     pub fn where_group<F>(&mut self, sub: F) -> &mut Self
