@@ -1,3 +1,4 @@
+use between::BetweenCondition;
 use binary::BinaryCondition;
 use group::GroupCondition;
 use unary::UnaryCondition;
@@ -8,6 +9,7 @@ pub(crate) mod cond;
 pub(crate) mod unary;
 pub(crate) mod binary;
 pub(crate) mod group;
+pub(crate) mod between;
 
 pub use cond::Conjunction;
 
@@ -17,6 +19,7 @@ pub enum ConditionKind {
     Group(GroupCondition),
     Raw(Raw),
     Unary(UnaryCondition),
+    Between(BetweenCondition),
 }
 
 impl FormatWriter for ConditionKind {
@@ -26,6 +29,7 @@ impl FormatWriter for ConditionKind {
             ConditionKind::Group(group) => group.format_writer(context),
             ConditionKind::Raw(raw) => raw.format_writer(context),
             ConditionKind::Unary(unary) => unary.format_writer(context),
+            ConditionKind::Between(between) => between.format_writer(context),
         }
     }
 }

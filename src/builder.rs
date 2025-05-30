@@ -1,20 +1,7 @@
 use crate::{
-    Raw,
-    bind::{Binds, IntoBinds},
-    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
-    dialect::HasDialect,
-    expr::{
-        ConditionKind,
-        binary::BinaryCondition,
-        cond::{Condition, Conditions, Conjunction},
-        group::GroupCondition,
-        unary::{UnaryCondition, UnaryOperator},
-    },
-    ident::TableIdent,
-    operator::Operator,
-    raw::IntoRaw,
-    scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings},
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, expr::{
+        between::{BetweenCondition, BetweenOperator}, binary::BinaryCondition, cond::{Condition, Conditions, Conjunction}, group::GroupCondition, unary::{UnaryCondition, UnaryOperator}, ConditionKind
+    }, ident::TableIdent, operator::Operator, raw::IntoRaw, scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings}, writer::{FormatContext, FormatWriter}, Raw
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -156,6 +143,29 @@ impl Builder {
     }
 
     // where stuff
+
+    #[inline]
+    pub(crate) fn where_between_expr(
+        &mut self,
+        conj: Conjunction,
+        mut lhs: ScalarExpr,
+        mut low: ScalarExpr,
+        mut high: ScalarExpr,
+        operator: BetweenOperator,
+    ) -> &mut Self {
+        let expr = self.maybe_where.get_or_insert_default();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(low.take_bindings());
+        self.binds.append(high.take_bindings());
+        let cond = BetweenCondition {
+            lhs,
+            low,
+            high,
+            operator,
+        };
+        let kind = ConditionKind::Between(cond);
+        self
+    }
 
     #[inline]
     pub(crate) fn where_unary_expr(
