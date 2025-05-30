@@ -1,6 +1,6 @@
 use crate::{
     bind::{Binds, IntoBinds}, col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, Conditions, Conjunction}, exists::ExistsOperator, group::GroupCondition, r#in::{InCondition, InOperator}, unary::{UnaryCondition, UnaryOperator}, ConditionKind
+        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, unary::{UnaryCondition, UnaryOperator}, ConditionKind
     }, ident::TableIdent, raw::IntoRaw, scalar::{IntoOperator, IntoScalar, IntoScalarIdent, ScalarExpr, TakeBindings}, set::SetExpr, writer::{FormatContext, FormatWriter}, Raw
 };
 
@@ -154,6 +154,15 @@ impl Builder {
         operator: ExistsOperator,
         mut rhs: Builder
     ) -> &mut Self {
+        let expr = self.maybe_where.get_or_insert_default();
+        self.binds.append(rhs.take_bindings());
+        let cond = ExistsCondition {
+            operator,
+            subquery: Box::new(rhs),
+        };
+        let kind = ConditionKind::Exists(cond);
+        let cond = Condition::new(conj, kind);
+        expr.push(cond);
         self
     }
 
@@ -583,7 +592,7 @@ mod tests {
         });
         builder.where_eq("foo", 2);
         assert_eq!(
-            "select * from \"users\" where exists (select 1 from \"users\" where id = $1) and \"foo\" = $2",
+            "select * from \"users\" where exists (select 1 from \"users\" where \"id\" = $1) and \"foo\" = $2",
             builder.to_sql::<Postgres>()
         );
     }

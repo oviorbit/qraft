@@ -4,8 +4,8 @@ use crate::{writer::{FormatContext, FormatWriter}, Builder};
 
 #[derive(Debug, Clone)]
 pub struct ExistsCondition {
-    operator: ExistsOperator,
-    subquery: Box<Builder>,
+    pub(crate) operator: ExistsOperator,
+    pub(crate) subquery: Box<Builder>,
 }
 
 impl ExistsCondition {
