@@ -3,13 +3,13 @@ use crate::{
     col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
     expr::{
-        cond::{Condition, Conditions, Conjunction}, Binary, ConditionKind, Group
+        cond::{Condition, Conditions, Conjunction}, BinaryCondition, ConditionKind, GroupCondition
     },
     ident::TableIdent,
     operator::Operator,
     raw::IntoRaw,
     scalar::{ScalarExpr, TakeBindings},
-    writer::{FormatContext, FormatWriter},
+    writer::{FormatContext, FormatWriter}, Raw,
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -72,10 +72,49 @@ impl Builder {
         self
     }
 
+    pub fn where_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.where_group_expr(Conjunction::And, sub)
+    }
+
+    pub fn or_where_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.where_group_expr(Conjunction::Or, sub)
+    }
+
+    pub fn where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
+    where
+        R: IntoRaw,
+        B: IntoBinds
+    {
+        self.where_raw_expr(Conjunction::And, raw.into_raw(), binds.into_binds())
+    }
+
+    pub fn or_where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
+    where
+        R: IntoRaw,
+        B: IntoBinds
+    {
+        self.where_raw_expr(Conjunction::Or, raw.into_raw(), binds.into_binds())
+    }
+
     // where stuff
+    #[inline]
+    pub(crate) fn where_raw_expr(&mut self, conj: Conjunction, rhs: Raw, binds: Binds) -> &mut Self {
+        let expr = self.maybe_where.get_or_insert_default();
+        self.binds.append(binds);
+        let cond = ConditionKind::Raw(rhs);
+        let cond = Condition::new(conj, cond);
+        expr.push(cond);
+        self
+    }
 
     #[inline]
-    pub fn where_binary_expr(
+    pub(crate) fn where_binary_expr(
         &mut self,
         conjunction: Conjunction,
         mut lhs: ScalarExpr,
@@ -85,7 +124,7 @@ impl Builder {
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
 
-        let binary = Binary { lhs, operator, rhs };
+        let binary = BinaryCondition { lhs, operator, rhs };
         let expr = ConditionKind::Binary(binary);
         let condition = Condition::new(conjunction, expr);
         let ws = self.maybe_where.get_or_insert_default();
@@ -94,7 +133,8 @@ impl Builder {
         self
     }
 
-    pub fn where_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
+    #[inline]
+    pub(crate) fn where_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
     {
@@ -110,7 +150,7 @@ impl Builder {
         if let Some(inner_conds) = inner.maybe_where {
             self.binds.append(binds);
 
-            let group = Group {
+            let group = GroupCondition {
                 conditions: inner_conds,
             };
             let kind = ConditionKind::Group(group);
@@ -404,7 +444,7 @@ mod tests {
     #[test]
     fn test_where_group_expr() {
         let mut builder = Builder::table("users");
-        builder.where_group_expr(Conjunction::And, |builder| {
+        builder.where_group(|builder| {
             builder
                 .where_binary_expr(Conjunction::And, "foo".into_scalar_ident().0, Operator::Eq, 3.into_scalar().0)
                 .where_binary_expr(Conjunction::Or, "bar".into_scalar_ident().0, Operator::Like, "bob".into_scalar_ident().0);

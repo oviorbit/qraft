@@ -1,11 +1,11 @@
 use cond::Conditions;
 
-use crate::{dialect::Dialect, operator::Operator, scalar::ScalarExpr, writer::FormatWriter};
+use crate::{dialect::Dialect, operator::Operator, scalar::ScalarExpr, writer::FormatWriter, Raw};
 
 pub mod cond;
 
 #[derive(Debug, Clone)]
-pub struct Binary {
+pub struct BinaryCondition {
     pub(crate) lhs: ScalarExpr,
     pub(crate) operator: Operator,
     pub(crate) rhs: ScalarExpr,
@@ -13,16 +13,17 @@ pub struct Binary {
 
 #[derive(Debug, Clone)]
 pub enum ConditionKind {
-    Binary(Binary),
-    Group(Group),
+    Binary(BinaryCondition),
+    Group(GroupCondition),
+    Raw(Raw),
 }
 
 #[derive(Debug, Clone)]
-pub struct Group {
+pub struct GroupCondition {
     pub(crate) conditions: Conditions,
 }
 
-impl FormatWriter for Group {
+impl FormatWriter for GroupCondition {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         context.writer.write_char('(')?;
         self.conditions.format_writer(context)?;
@@ -31,7 +32,7 @@ impl FormatWriter for Group {
     }
 }
 
-impl FormatWriter for Binary {
+impl FormatWriter for BinaryCondition {
     fn format_writer<W: std::fmt::Write>(
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
@@ -56,6 +57,7 @@ impl FormatWriter for ConditionKind {
         match self {
             ConditionKind::Binary(binary) => binary.format_writer(context),
             ConditionKind::Group(group) => group.format_writer(context),
+            ConditionKind::Raw(raw) => raw.format_writer(context),
         }
     }
 }
