@@ -1,4 +1,4 @@
-use crate::{scalar::TakeBindings, writer::FormatWriter};
+use crate::{expr::TakeBindings, writer::FormatWriter};
 
 // max size is 32 bytes
 #[derive(Debug, Clone)]

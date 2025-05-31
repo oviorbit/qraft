@@ -1,10 +1,12 @@
-use crate::{scalar::Expr, set::SetExpr, writer::FormatWriter};
+use crate::writer::FormatWriter;
+
+use super::{list::InList, Expr};
 
 #[derive(Debug, Clone)]
 pub struct InCondition {
     pub(crate) operator: InOperator,
     pub(crate) lhs: Expr,
-    pub(crate) rhs: SetExpr,
+    pub(crate) rhs: InList,
 }
 
 #[derive(Debug, Clone, Copy)]

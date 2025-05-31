@@ -1,11 +1,4 @@
-use between::BetweenCondition;
-use binary::BinaryCondition;
-use exists::ExistsCondition;
-use group::GroupCondition;
-use r#in::InCondition;
-use unary::UnaryCondition;
-
-use crate::{Raw, writer::FormatWriter};
+use crate::{writer::FormatWriter, Raw};
 
 pub(crate) mod between;
 pub(crate) mod binary;
@@ -14,33 +7,138 @@ pub(crate) mod exists;
 pub(crate) mod group;
 pub(crate) mod r#in;
 pub(crate) mod unary;
+pub(crate) mod list;
 
 pub use cond::Conjunction;
 
+use crate::{
+    Binds, Builder, Ident, IntoBind, IntoTable, TableIdent,
+    bind::{Array, Bind},
+    expr::binary::Operator,
+};
+
+// expr should be <= 32 bytes
 #[derive(Debug, Clone)]
-pub enum ConditionKind {
-    Binary(BinaryCondition),
-    Group(GroupCondition),
-    Raw(Raw),
-    Unary(UnaryCondition),
-    Between(BetweenCondition),
-    In(InCondition),
-    Exists(ExistsCondition),
+pub enum Expr {
+    Bind(Bind),
+    Ident(TableIdent),
+    Subquery(Box<Builder>),
 }
 
-impl FormatWriter for ConditionKind {
+pub trait TakeBindings {
+    fn take_bindings(&mut self) -> Binds;
+}
+
+impl TakeBindings for Expr {
+    fn take_bindings(&mut self) -> Binds {
+        match self {
+            Expr::Bind(bind) => Array::One(std::mem::replace(bind, Bind::Consumed)),
+            Expr::Ident(ident) => ident.take_bindings(),
+            Expr::Subquery(builder) => builder.take_bindings(),
+        }
+    }
+}
+
+impl FormatWriter for Expr {
     fn format_writer<W: std::fmt::Write>(
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
         match self {
-            ConditionKind::Binary(binary) => binary.format_writer(context),
-            ConditionKind::Group(group) => group.format_writer(context),
-            ConditionKind::Raw(raw) => raw.format_writer(context),
-            ConditionKind::Unary(unary) => unary.format_writer(context),
-            ConditionKind::Between(between) => between.format_writer(context),
-            ConditionKind::In(inc) => inc.format_writer(context),
-            ConditionKind::Exists(exists) => exists.format_writer(context),
+            Expr::Bind(_) => context.write_placeholder(),
+            Expr::Ident(ident) => ident.format_writer(context),
+            Expr::Subquery(builder) => {
+                context.writer.write_char('(')?;
+                builder.format_writer(context)?;
+                context.writer.write_char(')')
+            }
         }
     }
 }
+
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub struct LhsExpr(pub(crate) Expr);
+
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub struct RhsExpr(pub(crate) Expr);
+
+pub trait IntoRhsExpr {
+    fn into_rhs_expr(self) -> RhsExpr;
+}
+
+pub trait IntoLhsExpr {
+    fn into_lhs_expr(self) -> LhsExpr;
+}
+
+pub trait IntoExpr {
+    fn into_expr(self) -> Expr;
+}
+
+impl IntoExpr for LhsExpr {
+    fn into_expr(self) -> Expr {
+        self.0
+    }
+}
+
+impl IntoExpr for RhsExpr {
+    fn into_expr(self) -> Expr {
+        self.0
+    }
+}
+
+pub trait IntoOperator {
+    fn into_operator(self) -> Operator;
+}
+
+impl IntoOperator for Operator {
+    fn into_operator(self) -> Operator {
+        self
+    }
+}
+
+// maybe prevent the column-like identifier for blanket impl
+impl<T> IntoRhsExpr for T
+where
+    T: IntoBind,
+{
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Bind(self.into_bind()))
+    }
+}
+
+impl IntoRhsExpr for Builder {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Subquery(Box::new(self)))
+    }
+}
+
+impl IntoRhsExpr for Raw {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Ident(TableIdent::Raw(self)))
+    }
+}
+
+impl IntoRhsExpr for Ident {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Ident(TableIdent::Ident(self)))
+    }
+}
+
+// impl for into scalar ident
+impl<T> IntoLhsExpr for T
+where
+    T: IntoTable,
+{
+    fn into_lhs_expr(self) -> LhsExpr {
+        LhsExpr(Expr::Ident(self.into_table()))
+    }
+}
+
+impl IntoLhsExpr for Builder {
+    fn into_lhs_expr(self) -> LhsExpr {
+        LhsExpr(Expr::Subquery(Box::new(self)))
+    }
+}
+

@@ -1,4 +1,6 @@
-use crate::{dialect::Dialect, scalar::Expr, writer::FormatWriter};
+use crate::{dialect::Dialect, writer::FormatWriter};
+
+use super::Expr;
 
 #[derive(Debug, Clone)]
 pub struct BinaryCondition {

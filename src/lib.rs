@@ -7,8 +7,6 @@ mod dialect;
 pub mod expr;
 mod ident;
 mod raw;
-mod scalar;
-mod set;
 mod writer;
 
 use bind::Bind;
@@ -29,11 +27,11 @@ pub use raw::Raw;
 
 pub use builder::Builder;
 
-pub use scalar::IntoOperator;
-pub use scalar::IntoRhsExpr;
-pub use scalar::IntoLhsExpr;
+pub use expr::IntoOperator;
+pub use expr::IntoRhsExpr;
+pub use expr::IntoLhsExpr;
 
-pub use set::IntoSet;
+pub use expr::list::IntoInList;
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)

@@ -1,24 +1,7 @@
 use crate::{
-    IntoSet, Raw,
-    bind::{Binds, IntoBinds},
-    col::{ColumnSchema, IntoColumns, IntoTable, Projections, TableSchema},
-    dialect::HasDialect,
-    expr::{
-        ConditionKind,
-        between::{BetweenCondition, BetweenOperator},
-        binary::{BinaryCondition, Operator},
-        cond::{Condition, Conditions, Conjunction},
-        exists::{ExistsCondition, ExistsOperator},
-        group::GroupCondition,
-        r#in::{InCondition, InOperator},
-        unary::{UnaryCondition, UnaryOperator},
-    },
-    ident::TableIdent,
-    raw::IntoRaw,
-    scalar::IntoExpr,
-    scalar::{Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings},
-    set::SetExpr,
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{ColumnSchema, IntoColumns, IntoTable, Projections, TableSchema}, dialect::HasDialect, expr::{
+        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, Raw
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -147,12 +130,12 @@ macro_rules! define_in {
         pub fn $method<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
         where
             L: IntoLhsExpr,
-            R: IntoSet,
+            R: IntoInList,
         {
             self.where_in_expr(
                 Conjunction::And,
                 lhs.into_lhs_expr().into_expr(),
-                rhs.into_set(),
+                rhs.into_in_list(),
                 $operator,
             )
         }
@@ -160,12 +143,12 @@ macro_rules! define_in {
         pub fn $or_method<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
         where
             L: IntoLhsExpr,
-            R: IntoSet,
+            R: IntoInList,
         {
             self.where_in_expr(
                 Conjunction::Or,
                 lhs.into_lhs_expr().into_expr(),
-                rhs.into_set(),
+                rhs.into_in_list(),
                 $operator,
             )
         }
@@ -505,7 +488,7 @@ impl Builder {
         &mut self,
         conj: Conjunction,
         mut lhs: Expr,
-        mut rhs: SetExpr,
+        mut rhs: InList,
         operator: InOperator,
     ) -> &mut Self {
         let expr = self.maybe_where.get_or_insert_default();
@@ -730,7 +713,7 @@ mod tests {
         column_static,
         dialect::Postgres,
         raw,
-        scalar::{IntoLhsExpr, IntoRhsExpr},
+        expr::{IntoLhsExpr, IntoRhsExpr},
         sub,
     };
 
@@ -816,7 +799,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_where() {
+    fn test_expr_where() {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
             Conjunction::And,
@@ -835,7 +818,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_and_conds() {
+    fn test_expr_and_conds() {
         let mut builder = Builder::table("users");
         builder.where_like("username", 3);
         builder.where_eq("id", 1);
@@ -853,7 +836,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_value_column() {
+    fn test_expr_value_column() {
         let mut builder = Builder::table("users");
         builder.where_like(
             sub(|builder| {
@@ -868,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_like() {
+    fn test_expr_like() {
         let mut builder = Builder::table("users");
         builder.where_like("username", 3);
         assert_eq!(

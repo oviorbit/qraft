@@ -1,9 +1,8 @@
 use std::fmt::Write;
 
-use crate::{
-    scalar::Expr,
-    writer::{FormatContext, FormatWriter},
-};
+use crate::writer::{FormatContext, FormatWriter};
+
+use super::Expr;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BetweenOperator {

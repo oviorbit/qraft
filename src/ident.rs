@@ -1,10 +1,7 @@
 use smol_str::SmolStr;
 
 use crate::{
-    bind::Array,
-    raw::Raw,
-    scalar::TakeBindings,
-    writer::{self, FormatWriter},
+    bind::Array, expr::TakeBindings, raw::Raw, writer::{self, FormatWriter}
 };
 
 #[derive(Debug, Clone)]
