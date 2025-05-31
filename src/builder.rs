@@ -38,7 +38,7 @@ pub struct Builder {
     ty: QueryKind,
     distinct: bool,
     maybe_table: Option<TableRef>,
-    columns: Projections,
+    projections: Projections,
     binds: Binds,
     maybe_where: Option<Conditions>,
     maybe_limit: Option<usize>,
@@ -252,7 +252,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(table.into_table()),
-            columns: Projections::None,
+            projections: Projections::None,
             binds: Binds::None,
             ty: QueryKind::Select,
             maybe_where: None,
@@ -491,15 +491,15 @@ impl Builder {
         &mut self,
         group_conj: Conjunction,
         conj: Conjunction,
-        columns: Projections,
+        projections: Projections,
         value: Expr,
         operator: Operator,
     ) -> &mut Self {
         self.where_group_expr(group_conj, |builder| {
-            for col in columns {
+            for proj in projections {
                 // todo: instead of cloning, i could put the same placeholder value (in pg and
                 // sqlite) and refer to the same.
-                builder.where_binary_expr(conj, Expr::Ident(col), operator, value.clone());
+                builder.where_binary_expr(conj, Expr::Ident(proj), operator, value.clone());
             }
         });
         self
@@ -651,13 +651,13 @@ impl Builder {
 
     pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
         let raw = value.into_raw();
-        self.columns = Projections::One(TableRef::Raw(raw));
+        self.projections = Projections::One(TableRef::Raw(raw));
         self.binds.append(binds.into_binds());
         self
     }
 
     pub fn select_as<T: ProjectionSchema>(&mut self) -> &mut Self {
-        self.columns = T::projections();
+        self.projections = T::projections();
         self
     }
 
@@ -665,7 +665,7 @@ impl Builder {
     where
         T: IntoProjections,
     {
-        self.columns = cols.into_projections();
+        self.projections = cols.into_projections();
         self
     }
 
@@ -674,12 +674,12 @@ impl Builder {
         T: IntoProjections,
     {
         let other = cols.into_projections();
-        self.columns.append(other);
+        self.projections.append(other);
         self
     }
 
     pub fn reset_select(&mut self) -> &mut Self {
-        self.columns.reset();
+        self.projections.reset();
         self
     }
 
@@ -715,7 +715,7 @@ impl FormatWriter for Builder {
         if self.distinct {
             context.writer.write_str(" distinct ")?;
         }
-        self.columns.format_writer(context)?;
+        self.projections.format_writer(context)?;
         if let Some(ref table) = self.maybe_table {
             context.writer.write_str(" from ")?;
             table.format_writer(context)?;

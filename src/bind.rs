@@ -292,3 +292,5 @@ impl IntoBind for &str {
         Bind::String(self.into())
     }
 }
+
+// todo: add more into bind
