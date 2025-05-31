@@ -26,6 +26,7 @@ pub struct Builder {
     projections: Projections,
     binds: Binds,
     maybe_where: Option<Conditions>,
+    maybe_having: Option<Conditions>,
     maybe_limit: Option<usize>,
     maybe_offset: Option<usize>,
     maybe_order: Option<Order>,
@@ -245,6 +246,7 @@ impl Builder {
             maybe_limit: None,
             maybe_offset: None,
             maybe_order: None,
+            maybe_having: None,
         }
     }
 
