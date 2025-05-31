@@ -62,6 +62,10 @@ impl Order {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.projections.is_empty()
+    }
+
     pub fn push_proj(&mut self, ident: TableRef, ordering: Ordering) {
         let order_expr = OrderExpr::Column(ident, ordering);
         self.projections.push(order_expr);

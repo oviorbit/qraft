@@ -997,18 +997,32 @@ impl FormatWriter for Builder {
 
         if let Some(ref w) = self.maybe_where {
             // if we are not in a where group
-            if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
-                context.writer.write_str(" where ")?;
+            if ! w.is_empty() {
+                if matches!(self.ty, QueryKind::Select) {
+                    context.writer.write_str(" where ")?;
+                }
+                w.format_writer(context)?;
             }
-            w.format_writer(context)?;
         }
 
-        if let Some(ref w) = self.maybe_having {
+        // group by
+
+        if let Some(ref h) = self.maybe_having {
             // if we are not in a having group
-            if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
-                context.writer.write_str(" having ")?;
+            if ! h.is_empty() {
+                if matches!(self.ty, QueryKind::Select) {
+                    context.writer.write_str(" having ")?;
+                }
+                h.format_writer(context)?;
             }
-            w.format_writer(context)?;
+        }
+
+        // order by
+        if let Some(ref order) = self.maybe_order {
+            if ! order.is_empty() {
+                context.writer.write_str(" order by ")?;
+                order.format_writer(context)?;
+            }
         }
 
         if let Some(limit) = self.maybe_limit {

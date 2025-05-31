@@ -80,6 +80,10 @@ impl Conditions {
     pub fn push(&mut self, other: Condition) {
         self.0.push(other);
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl FormatWriter for Conditions {

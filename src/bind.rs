@@ -210,6 +210,10 @@ impl<T> Array<T> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn reset(&mut self) {
         *self = Self::None;
     }
