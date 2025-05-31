@@ -1,5 +1,3 @@
-use smol_str::SmolStr;
-
 use crate::{
     IntoInList, Raw,
     bind::{Binds, IntoBinds},
@@ -43,6 +41,8 @@ pub struct Builder {
     columns: Projections,
     binds: Binds,
     maybe_where: Option<Conditions>,
+    maybe_limit: Option<usize>,
+    maybe_offset: Option<usize>,
 }
 
 macro_rules! define_binary {
@@ -241,15 +241,7 @@ macro_rules! define_filter {
 
 impl Builder {
     pub fn table_as<T: TableSchema>() -> Self {
-        Self {
-            query: String::new(),
-            distinct: false,
-            maybe_table: Some(T::table()),
-            columns: Projections::None,
-            binds: Binds::None,
-            ty: QueryKind::Select,
-            maybe_where: None,
-        }
+        Self::table(T::table())
     }
 
     pub fn table<T>(table: T) -> Self
@@ -264,6 +256,8 @@ impl Builder {
             binds: Binds::None,
             ty: QueryKind::Select,
             maybe_where: None,
+            maybe_limit: None,
+            maybe_offset: None,
         }
     }
 
@@ -473,6 +467,28 @@ impl Builder {
     define_filter!(or_where_all, Conjunction::Or, Conjunction::And);
     define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
     define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
+
+    // pagination stuff
+
+    pub fn limit(&mut self, limit: usize) -> &mut Self {
+        self.maybe_limit = Some(limit);
+        self
+    }
+
+    pub fn reset_limit(&mut self) -> &mut Self {
+        self.maybe_limit = None;
+        self
+    }
+
+    pub fn offset(&mut self, offset: usize) -> &mut Self {
+        self.maybe_offset = Some(offset);
+        self
+    }
+
+    pub fn reset_offset(&mut self) -> &mut Self {
+        self.maybe_offset = None;
+        self
+    }
 
     // start of inline impl
 
@@ -725,11 +741,19 @@ impl FormatWriter for Builder {
         }
 
         if let Some(ref w) = self.maybe_where {
-            // if we are not in a group and in select query
+            // if we are not in a where group
             if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
                 context.writer.write_str(" where ")?;
             }
             w.format_writer(context)?;
+        }
+
+        if let Some(limit) = self.maybe_limit {
+            write!(context.writer, " limit {}", limit)?;
+        }
+
+        if let Some(offset) = self.maybe_offset {
+            write!(context.writer, " offset {}", offset)?;
         }
 
         Ok(())
@@ -971,6 +995,27 @@ mod tests {
         });
         assert_eq!(
             "select * from (select * from \"bar\" where \"username\" = $1) as \"foo\"",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_limit_clause() {
+        let mut builder = Builder::table("users");
+        builder.limit(42);
+        builder.limit(1);
+        assert_eq!(
+            "select * from \"users\" limit 1",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_offset_clause() {
+        let mut builder = Builder::table("users");
+        builder.offset(42);
+        assert_eq!(
+            "select * from \"users\" offset 42",
             builder.to_sql::<Postgres>()
         );
     }
