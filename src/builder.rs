@@ -48,36 +48,73 @@ pub struct Builder {
     maybe_order: Option<Order>,
 }
 
-macro_rules! define_binary {
-    ($method:ident, $or_method:ident, $field:ident, $operator:expr) => {
+macro_rules! binary_condition {
+    ($conjunction:expr, $method:ident, $field:ident, $operator:expr) => {
         pub fn $method<C, V>(&mut self, column: C, value: V) -> &mut Self
         where
             C: IntoLhsExpr,
             V: IntoRhsExpr,
         {
-            Builder::push_binary_expr(
+            Self::push_binary_expr(
                 &mut self.binds,
                 self.$field.get_or_insert_default(),
-                Conjunction::And,
+                $conjunction,
                 column.into_lhs_expr(),
                 $operator,
                 value.into_rhs_expr(),
             );
             self
         }
+    };
+}
 
-        pub fn $or_method<C, V>(&mut self, column: C, value: V) -> &mut Self
+macro_rules! define_binary {
+    ($method:ident, $or_method:ident, $having_method:ident, $or_having_method:ident, $operator:expr) => {
+        binary_condition!(Conjunction::And, $method, maybe_where, $operator);
+        binary_condition!(Conjunction::Or, $or_method, maybe_where, $operator);
+        binary_condition!(Conjunction::And, $having_method, maybe_having, $operator);
+        binary_condition!(Conjunction::Or, $or_having_method, maybe_having, $operator);
+    };
+}
+
+macro_rules! between_condition {
+    ($conjunction:expr, $method:ident, $field:ident, $operator:expr) => {
+        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
         where
             C: IntoLhsExpr,
-            V: IntoRhsExpr,
+            L: IntoRhsExpr,
+            H: IntoRhsExpr,
         {
-            Builder::push_binary_expr(
+            Self::push_between_expr(
                 &mut self.binds,
                 self.$field.get_or_insert_default(),
-                Conjunction::Or,
-                column.into_lhs_expr(),
+                $conjunction,
+                lhs.into_lhs_expr(),
+                low.into_rhs_expr(),
+                high.into_rhs_expr(),
                 $operator,
-                value.into_rhs_expr(),
+            );
+            self
+        }
+    };
+}
+
+macro_rules! between_columns_condition {
+    ($conjunction:expr, $method:ident, $field:ident, $operator:expr) => {
+        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+        where
+            C: IntoLhsExpr,
+            L: IntoLhsExpr,
+            H: IntoLhsExpr,
+        {
+            Self::push_between_expr(
+                &mut self.binds,
+                self.$field.get_or_insert_default(),
+                $conjunction,
+                lhs.into_lhs_expr(),
+                low.into_lhs_expr(),
+                high.into_lhs_expr(),
+                $operator,
             );
             self
         }
@@ -85,70 +122,20 @@ macro_rules! define_binary {
 }
 
 macro_rules! define_between {
-    ($method:ident, $or_method:ident, $operator:expr) => {
-        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-        where
-            C: IntoLhsExpr,
-            L: IntoRhsExpr,
-            H: IntoRhsExpr,
-        {
-            self.where_between_expr(
-                Conjunction::And,
-                lhs.into_lhs_expr(),
-                low.into_rhs_expr(),
-                high.into_rhs_expr(),
-                $operator,
-            )
-        }
-
-        pub fn $or_method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-        where
-            C: IntoLhsExpr,
-            L: IntoRhsExpr,
-            H: IntoRhsExpr,
-        {
-            self.where_between_expr(
-                Conjunction::Or,
-                lhs.into_lhs_expr(),
-                low.into_rhs_expr(),
-                high.into_rhs_expr(),
-                $operator,
-            )
-        }
+    ($method:ident, $or_method:ident, $having_method:ident, $or_having_method:ident, $operator:expr) => {
+        between_condition!(Conjunction::And, $method, maybe_where, $operator);
+        between_condition!(Conjunction::Or, $or_method, maybe_where, $operator);
+        between_condition!(Conjunction::And, $having_method, maybe_having, $operator);
+        between_condition!(Conjunction::Or, $or_having_method, maybe_having, $operator);
     };
 }
 
 macro_rules! define_between_columns {
-    ($method:ident, $or_method:ident, $operator:expr) => {
-        pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-        where
-            C: IntoLhsExpr,
-            L: IntoLhsExpr,
-            H: IntoLhsExpr,
-        {
-            self.where_between_expr(
-                Conjunction::And,
-                lhs.into_lhs_expr(),
-                low.into_lhs_expr(),
-                high.into_lhs_expr(),
-                $operator,
-            )
-        }
-
-        pub fn $or_method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
-        where
-            C: IntoLhsExpr,
-            L: IntoLhsExpr,
-            H: IntoLhsExpr,
-        {
-            self.where_between_expr(
-                Conjunction::Or,
-                lhs.into_lhs_expr(),
-                low.into_lhs_expr(),
-                high.into_lhs_expr(),
-                $operator,
-            )
-        }
+    ($method:ident, $or_method:ident, $having_method:ident, $or_having_method:ident, $operator:expr) => {
+        between_columns_condition!(Conjunction::And, $method, maybe_where, $operator);
+        between_columns_condition!(Conjunction::Or, $or_method, maybe_where, $operator);
+        between_columns_condition!(Conjunction::And, $having_method, maybe_having, $operator);
+        between_columns_condition!(Conjunction::Or, $or_having_method, maybe_having, $operator);
     };
 }
 
@@ -204,21 +191,29 @@ macro_rules! define_exists {
     };
 }
 
-macro_rules! define_unary {
-    ($method:ident, $or_method:ident, $operator:expr) => {
+macro_rules! unary_condition {
+    ($conjunction:expr, $method:ident, $field:ident, $operator:expr) => {
         pub fn $method<C>(&mut self, column: C) -> &mut Self
         where
             C: IntoLhsExpr,
         {
-            self.where_unary_expr(Conjunction::And, column.into_lhs_expr(), $operator)
+            Self::push_unary_expr(
+                &mut self.binds,
+                self.$field.get_or_insert_default(),
+                $conjunction,
+                column.into_lhs_expr(),
+                $operator,
+            );
+            self
         }
-
-        pub fn $or_method<C>(&mut self, column: C) -> &mut Self
-        where
-            C: IntoLhsExpr,
-        {
-            self.where_unary_expr(Conjunction::Or, column.into_lhs_expr(), $operator)
-        }
+    }
+}
+macro_rules! define_unary {
+    ($method:ident, $or_method:ident, $having_method:ident, $or_having_method:ident, $operator:expr) => {
+        unary_condition!(Conjunction::And, $method, maybe_where, $operator);
+        unary_condition!(Conjunction::Or, $or_method, maybe_where, $operator);
+        unary_condition!(Conjunction::And, $having_method, maybe_having, $operator);
+        unary_condition!(Conjunction::Or, $or_having_method, maybe_having, $operator);
     };
 }
 
@@ -427,49 +422,106 @@ impl Builder {
         self
     }
 
-    define_unary!(where_null, or_where_null, UnaryOperator::Null);
-    define_unary!(where_false, or_where_false, UnaryOperator::False);
-    define_unary!(where_true, or_where_true, UnaryOperator::True);
-    define_unary!(where_not_null, or_where_not_null, UnaryOperator::NotNull);
+    define_unary!(where_null, or_where_null, having_null, or_having_null, UnaryOperator::Null);
+    define_unary!(
+        where_false,
+        or_where_false,
+        having_false,
+        or_having_false,
+        UnaryOperator::False
+    );
+    define_unary!(where_true, or_where_true, having_true, or_having_true, UnaryOperator::True);
+    define_unary!(
+        where_not_null,
+        or_where_not_null,
+        having_not_null,
+        or_having_not_null,
+        UnaryOperator::NotNull
+    );
 
-    define_binary!(where_eq, or_where_eq, maybe_where, Operator::Eq);
-    define_binary!(where_gt, or_where_gt, maybe_where, Operator::Gt);
-    define_binary!(where_gte, or_where_gte, maybe_where, Operator::Gte);
-    define_binary!(where_lt, or_where_lt, maybe_where, Operator::Lt);
-    define_binary!(where_lte, or_where_lte, maybe_where, Operator::Lte);
-    define_binary!(where_like, or_where_like, maybe_where, Operator::Like);
-    define_binary!(where_not_eq, or_where_not_eq, maybe_where, Operator::NotEq);
+    define_binary!(where_eq, or_where_eq, having_eq, or_having_eq, Operator::Eq);
+    define_binary!(where_gt, or_where_gt, having_gt, or_having_gt, Operator::Gt);
+    define_binary!(
+        where_gte,
+        or_where_gte,
+        having_gte,
+        or_having_gte,
+        Operator::Gte
+    );
+    define_binary!(where_lt, or_where_lt, having_lt, or_having_lt, Operator::Lt);
+    define_binary!(
+        where_lte,
+        or_where_lte,
+        having_lte,
+        or_having_lte,
+        Operator::Lte
+    );
+    define_binary!(
+        where_like,
+        or_where_like,
+        having_like,
+        or_having_like,
+        Operator::Like
+    );
+    define_binary!(
+        where_not_eq,
+        or_where_not_eq,
+        having_not_eq,
+        or_having_not_eq,
+        Operator::NotEq
+    );
     define_binary!(
         where_not_like,
         or_where_not_like,
-        maybe_where,
+        having_not_like,
+        or_having_not_like,
         Operator::NotLike
     );
-    define_binary!(where_ilike, or_where_ilike, maybe_where, Operator::Ilike);
+    define_binary!(
+        where_ilike,
+        or_where_ilike,
+        having_ilike,
+        or_having_ilike,
+        Operator::Ilike
+    );
     define_binary!(
         where_not_ilike,
         or_where_not_ilike,
-        maybe_where,
+        having_not_ilike,
+        or_having_not_ilike,
         Operator::NotIlike
     );
 
-    define_between!(where_between, or_where_between, BetweenOperator::Between);
+    define_between!(
+        where_between,
+        or_where_between,
+        having_between,
+        or_having_between,
+        BetweenOperator::Between
+    );
     define_between!(
         where_not_between,
         or_where_not_between,
+        having_not_between,
+        or_having_not_between,
         BetweenOperator::NotBetween
     );
-
     define_between_columns!(
         where_between_columns,
         or_where_between_columns,
+        having_between_columns,
+        or_having_between_columns,
         BetweenOperator::Between
     );
     define_between_columns!(
         where_not_between_columns,
         or_where_not_between_columns,
+        having_not_between_columns,
+        or_having_not_between_columns,
         BetweenOperator::NotBetween
     );
+
+    // here
 
     define_exists!(where_exists, or_where_exists, ExistsOperator::Exists);
     define_exists!(
@@ -489,32 +541,44 @@ impl Builder {
     define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
 
     // havings here
+    pub fn reset_having(&mut self) -> &mut Self {
+        self.maybe_having = None;
+        self
+    }
 
-    define_binary!(having_eq, or_having_eq, maybe_having, Operator::Eq);
-    define_binary!(having_gt, or_having_gt, maybe_having, Operator::Gt);
-    define_binary!(having_gte, or_having_gte, maybe_having, Operator::Gte);
-    define_binary!(having_lt, or_having_lt, maybe_having, Operator::Lt);
-    define_binary!(having_lte, or_having_lte, maybe_having, Operator::Lte);
-    define_binary!(having_like, or_having_like, maybe_having, Operator::Like);
-    define_binary!(
-        having_not_eq,
-        or_having_not_eq,
-        maybe_having,
-        Operator::NotEq
-    );
-    define_binary!(
-        having_not_like,
-        or_having_not_like,
-        maybe_having,
-        Operator::NotLike
-    );
-    define_binary!(having_ilike, or_having_ilike, maybe_having, Operator::Ilike);
-    define_binary!(
-        having_not_ilike,
-        or_having_not_ilike,
-        maybe_having,
-        Operator::NotIlike
-    );
+    pub fn having<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        O: IntoOperator,
+        V: IntoRhsExpr,
+    {
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_having.get_or_insert_default(),
+            Conjunction::And,
+            column.into_lhs_expr(),
+            operator.into_operator(),
+            value.into_rhs_expr(),
+        );
+        self
+    }
+
+    pub fn or_having<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        O: IntoOperator,
+        V: IntoRhsExpr,
+    {
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_having.get_or_insert_default(),
+            Conjunction::Or,
+            column.into_lhs_expr(),
+            operator.into_operator(),
+            value.into_rhs_expr(),
+        );
+        self
+    }
 
     #[inline]
     pub(crate) fn where_grouped_expr(
@@ -580,18 +644,18 @@ impl Builder {
     }
 
     #[inline]
-    pub(crate) fn where_between_expr(
-        &mut self,
+    pub(crate) fn push_between_expr(
+        binds: &mut Binds,
+        target: &mut Conditions,
         conj: Conjunction,
         mut lhs: Expr,
         mut low: Expr,
         mut high: Expr,
         operator: BetweenOperator,
-    ) -> &mut Self {
-        let expr = self.maybe_where.get_or_insert_default();
-        self.binds.append(lhs.take_bindings());
-        self.binds.append(low.take_bindings());
-        self.binds.append(high.take_bindings());
+    ) {
+        binds.append(lhs.take_bindings());
+        binds.append(low.take_bindings());
+        binds.append(high.take_bindings());
         let cond = BetweenCondition {
             lhs,
             low,
@@ -600,24 +664,7 @@ impl Builder {
         };
         let kind = ConditionKind::Between(cond);
         let cond = Condition::new(conj, kind);
-        expr.push(cond);
-        self
-    }
-
-    #[inline]
-    pub(crate) fn where_unary_expr(
-        &mut self,
-        conj: Conjunction,
-        mut lhs: Expr,
-        operator: UnaryOperator,
-    ) -> &mut Self {
-        self.binds.append(lhs.take_bindings());
-        let expr = self.maybe_where.get_or_insert_default();
-        let cond = UnaryCondition { lhs, operator };
-        let kind = ConditionKind::Unary(cond);
-        let cond = Condition::new(conj, kind);
-        expr.push(cond);
-        self
+        target.push(cond);
     }
 
     #[inline]
@@ -633,6 +680,21 @@ impl Builder {
         let cond = Condition::new(conj, cond);
         expr.push(cond);
         self
+    }
+
+    #[inline]
+    pub(crate) fn push_unary_expr(
+        binds: &mut Binds,
+        target: &mut Conditions,
+        conj: Conjunction,
+        mut lhs: Expr,
+        operator: UnaryOperator,
+    ) {
+        binds.append(lhs.take_bindings());
+        let cond = UnaryCondition { lhs, operator };
+        let kind = ConditionKind::Unary(cond);
+        let cond = Condition::new(conj, kind);
+        target.push(cond);
     }
 
     #[inline]
@@ -849,7 +911,6 @@ mod tests {
         col::ProjectionSchema,
         column_static,
         dialect::Postgres,
-        expr::{IntoLhsExpr, IntoRhsExpr},
         raw, sub,
     };
 
