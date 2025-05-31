@@ -25,6 +25,7 @@ pub enum QueryKind {
     #[default]
     Select,
     Where,
+    Having,
 }
 
 impl TakeBindings for Builder {
@@ -442,6 +443,7 @@ impl Builder {
 
     column_condition!(Conjunction::And, where_column, maybe_where);
     column_condition!(Conjunction::Or, or_where_column, maybe_where);
+
     column_condition!(Conjunction::And, having_column, maybe_having);
     column_condition!(Conjunction::Or, or_having_column, maybe_having);
 
@@ -832,7 +834,7 @@ impl Builder {
     {
         // with a type of where, we should ignore most actions
         let mut inner = Self {
-            ty: QueryKind::Where,
+            ty: QueryKind::Having,
             ..Default::default()
         };
         // modify the internal states with wheres
@@ -999,6 +1001,14 @@ impl FormatWriter for Builder {
             // if we are not in a where group
             if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
                 context.writer.write_str(" where ")?;
+            }
+            w.format_writer(context)?;
+        }
+
+        if let Some(ref w) = self.maybe_having {
+            // if we are not in a having group
+            if !w.0.is_empty() && matches!(self.ty, QueryKind::Select) {
+                context.writer.write_str(" having ")?;
             }
             w.format_writer(context)?;
         }
