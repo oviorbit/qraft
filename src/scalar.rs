@@ -5,9 +5,9 @@ use crate::{
     writer::FormatWriter,
 };
 
-// scalar should be <= 32 bytes
+// expr should be <= 32 bytes
 #[derive(Debug, Clone)]
-pub enum ScalarExpr {
+pub enum Expr {
     Bind(Bind),
     Ident(TableIdent),
     Subquery(Box<Builder>),
@@ -17,25 +17,25 @@ pub trait TakeBindings {
     fn take_bindings(&mut self) -> Binds;
 }
 
-impl TakeBindings for ScalarExpr {
+impl TakeBindings for Expr {
     fn take_bindings(&mut self) -> Binds {
         match self {
-            ScalarExpr::Bind(bind) => Array::One(std::mem::replace(bind, Bind::Consumed)),
-            ScalarExpr::Ident(ident) => ident.take_bindings(),
-            ScalarExpr::Subquery(builder) => builder.take_bindings(),
+            Expr::Bind(bind) => Array::One(std::mem::replace(bind, Bind::Consumed)),
+            Expr::Ident(ident) => ident.take_bindings(),
+            Expr::Subquery(builder) => builder.take_bindings(),
         }
     }
 }
 
-impl FormatWriter for ScalarExpr {
+impl FormatWriter for Expr {
     fn format_writer<W: std::fmt::Write>(
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
         match self {
-            ScalarExpr::Bind(_) => context.write_placeholder(),
-            ScalarExpr::Ident(ident) => ident.format_writer(context),
-            ScalarExpr::Subquery(builder) => {
+            Expr::Bind(_) => context.write_placeholder(),
+            Expr::Ident(ident) => ident.format_writer(context),
+            Expr::Subquery(builder) => {
                 context.writer.write_char('(')?;
                 builder.format_writer(context)?;
                 context.writer.write_char(')')
@@ -46,18 +46,34 @@ impl FormatWriter for ScalarExpr {
 
 #[derive(Debug, Clone)]
 #[repr(transparent)]
-pub struct ScalarIdent(pub(crate) ScalarExpr);
+pub struct LhsExpr(pub(crate) Expr);
 
 #[derive(Debug, Clone)]
 #[repr(transparent)]
-pub struct Scalar(pub(crate) ScalarExpr);
+pub struct RhsExpr(pub(crate) Expr);
 
-pub trait IntoScalar {
-    fn into_scalar(self) -> Scalar;
+pub trait IntoRhsExpr {
+    fn into_rhs_expr(self) -> RhsExpr;
 }
 
-pub trait IntoScalarIdent {
-    fn into_scalar_ident(self) -> ScalarIdent;
+pub trait IntoLhsExpr {
+    fn into_lhs_expr(self) -> LhsExpr;
+}
+
+pub trait IntoExpr {
+    fn into_expr(self) -> Expr;
+}
+
+impl IntoExpr for LhsExpr {
+    fn into_expr(self) -> Expr {
+        self.0
+    }
+}
+
+impl IntoExpr for RhsExpr {
+    fn into_expr(self) -> Expr {
+        self.0
+    }
 }
 
 pub trait IntoOperator {
@@ -71,45 +87,45 @@ impl IntoOperator for Operator {
 }
 
 // maybe prevent the column-like identifier for blanket impl
-impl<T> IntoScalar for T
+impl<T> IntoRhsExpr for T
 where
     T: IntoBind,
 {
-    fn into_scalar(self) -> Scalar {
-        Scalar(ScalarExpr::Bind(self.into_bind()))
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Bind(self.into_bind()))
     }
 }
 
-impl IntoScalar for Builder {
-    fn into_scalar(self) -> Scalar {
-        Scalar(ScalarExpr::Subquery(Box::new(self)))
+impl IntoRhsExpr for Builder {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Subquery(Box::new(self)))
     }
 }
 
-impl IntoScalar for Raw {
-    fn into_scalar(self) -> Scalar {
-        Scalar(ScalarExpr::Ident(TableIdent::Raw(self)))
+impl IntoRhsExpr for Raw {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Ident(TableIdent::Raw(self)))
     }
 }
 
-impl IntoScalar for Ident {
-    fn into_scalar(self) -> Scalar {
-        Scalar(ScalarExpr::Ident(TableIdent::Ident(self)))
+impl IntoRhsExpr for Ident {
+    fn into_rhs_expr(self) -> RhsExpr {
+        RhsExpr(Expr::Ident(TableIdent::Ident(self)))
     }
 }
 
 // impl for into scalar ident
-impl<T> IntoScalarIdent for T
+impl<T> IntoLhsExpr for T
 where
     T: IntoTable,
 {
-    fn into_scalar_ident(self) -> ScalarIdent {
-        ScalarIdent(ScalarExpr::Ident(self.into_table()))
+    fn into_lhs_expr(self) -> LhsExpr {
+        LhsExpr(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoScalarIdent for Builder {
-    fn into_scalar_ident(self) -> ScalarIdent {
-        ScalarIdent(ScalarExpr::Subquery(Box::new(self)))
+impl IntoLhsExpr for Builder {
+    fn into_lhs_expr(self) -> LhsExpr {
+        LhsExpr(Expr::Subquery(Box::new(self)))
     }
 }

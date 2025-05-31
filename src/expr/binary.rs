@@ -1,10 +1,10 @@
-use crate::{dialect::Dialect, scalar::ScalarExpr, writer::FormatWriter};
+use crate::{dialect::Dialect, scalar::Expr, writer::FormatWriter};
 
 #[derive(Debug, Clone)]
 pub struct BinaryCondition {
-    pub(crate) lhs: ScalarExpr,
+    pub(crate) lhs: Expr,
     pub(crate) operator: Operator,
-    pub(crate) rhs: ScalarExpr,
+    pub(crate) rhs: Expr,
 }
 
 impl FormatWriter for BinaryCondition {

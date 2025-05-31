@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use crate::{
-    scalar::ScalarExpr,
+    scalar::Expr,
     writer::{FormatContext, FormatWriter},
 };
 
@@ -15,7 +15,7 @@ pub enum UnaryOperator {
 
 #[derive(Debug, Clone)]
 pub struct UnaryCondition {
-    pub(crate) lhs: ScalarExpr,
+    pub(crate) lhs: Expr,
     pub(crate) operator: UnaryOperator,
 }
 

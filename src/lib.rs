@@ -30,8 +30,8 @@ pub use raw::Raw;
 pub use builder::Builder;
 
 pub use scalar::IntoOperator;
-pub use scalar::IntoScalar;
-pub use scalar::IntoScalarIdent;
+pub use scalar::IntoRhsExpr;
+pub use scalar::IntoLhsExpr;
 
 pub use set::IntoSet;
 

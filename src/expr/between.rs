@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use crate::{
-    scalar::ScalarExpr,
+    scalar::Expr,
     writer::{FormatContext, FormatWriter},
 };
 
@@ -13,9 +13,9 @@ pub enum BetweenOperator {
 
 #[derive(Debug, Clone)]
 pub struct BetweenCondition {
-    pub(crate) lhs: ScalarExpr,
-    pub(crate) low: ScalarExpr,
-    pub(crate) high: ScalarExpr,
+    pub(crate) lhs: Expr,
+    pub(crate) low: Expr,
+    pub(crate) high: Expr,
     pub(crate) operator: BetweenOperator,
 }
 

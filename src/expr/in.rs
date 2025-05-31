@@ -1,9 +1,9 @@
-use crate::{scalar::ScalarExpr, set::SetExpr, writer::FormatWriter};
+use crate::{scalar::Expr, set::SetExpr, writer::FormatWriter};
 
 #[derive(Debug, Clone)]
 pub struct InCondition {
     pub(crate) operator: InOperator,
-    pub(crate) lhs: ScalarExpr,
+    pub(crate) lhs: Expr,
     pub(crate) rhs: SetExpr,
 }
 
