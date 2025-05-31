@@ -33,6 +33,8 @@ pub use expr::IntoLhsExpr;
 
 pub use expr::list::IntoInList;
 
+pub use dialect::*;
+
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)
 }
