@@ -449,49 +449,6 @@ impl Builder {
     define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
     define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
 
-    pub fn order_by_asc<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_expr(column.into_table(), Ordering::Asc)
-    }
-
-    pub fn order_by_desc<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_expr(column.into_table(), Ordering::Desc)
-    }
-
-    pub fn latest<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_desc(column)
-    }
-
-    pub fn oldest<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_asc(column)
-    }
-
-    pub fn reset_order(&mut self) -> &mut Self {
-        self.maybe_order = None;
-        self
-    }
-
-    pub fn order_by_raw<R: IntoRaw>(&mut self, raw: R) -> &mut Self {
-        let o = self.maybe_order.get_or_insert_default();
-        let raw = raw.into_raw();
-        o.push_raw(raw);
-        self
-    }
-
-    pub fn order_by_random(&mut self) -> &mut Self {
-        let o = self.maybe_order.get_or_insert_default();
-        o.push_random();
-        self
-    }
-
-    // start of expr stuff
-
-    #[inline]
-    pub(crate) fn order_by_expr(&mut self, ident: TableRef, order: Ordering) -> &mut Self {
-        let o = self.maybe_order.get_or_insert_default();
-        o.push_proj(ident, order);
-        self
-    }
-
     #[inline]
     pub(crate) fn where_grouped_expr(
         &mut self,
@@ -652,6 +609,52 @@ impl Builder {
 
         self
     }
+
+    // add order by stuff
+
+    pub fn order_by_asc<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_table(), Ordering::Asc)
+    }
+
+    pub fn order_by_desc<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_table(), Ordering::Desc)
+    }
+
+    pub fn latest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_desc(column)
+    }
+
+    pub fn oldest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_asc(column)
+    }
+
+    pub fn reset_order(&mut self) -> &mut Self {
+        self.maybe_order = None;
+        self
+    }
+
+    pub fn order_by_raw<R: IntoRaw>(&mut self, raw: R) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        let raw = raw.into_raw();
+        o.push_raw(raw);
+        self
+    }
+
+    pub fn order_by_random(&mut self) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        o.push_random();
+        self
+    }
+
+    #[inline]
+    pub(crate) fn order_by_expr(&mut self, ident: TableRef, order: Ordering) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        o.push_proj(ident, order);
+        self
+    }
+
+    // start of expr stuff
+
 
     // select stuff
 
