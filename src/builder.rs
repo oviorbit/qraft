@@ -68,6 +68,28 @@ macro_rules! binary_condition {
     };
 }
 
+
+macro_rules! column_condition {
+    ($conjunction:expr, $method:ident, $field:ident) => {
+        pub fn $method<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
+        where
+            C: IntoLhsExpr,
+            O: IntoOperator,
+            CC: IntoLhsExpr,
+        {
+            Builder::push_binary_expr(
+                &mut self.binds,
+                self.$field.get_or_insert_default(),
+                $conjunction,
+                column.into_lhs_expr(),
+                operator.into_operator(),
+                other_column.into_lhs_expr(),
+            );
+            self
+        }
+    };
+}
+
 macro_rules! between_condition {
     ($conjunction:expr, $method:ident, $field:ident, $operator:expr) => {
         pub fn $method<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
@@ -170,15 +192,38 @@ macro_rules! unary_condition {
     };
 }
 
+macro_rules! group_condition {
+    ($conjunction:expr, $method:ident, $method_expr:ident) => {
+        pub fn $method<F>(&mut self, sub: F) -> &mut Self
+        where
+            F: FnOnce(&mut Self),
+        {
+            self.$method_expr($conjunction, sub)
+        }
+    }
+}
+
+macro_rules! define_raw {
+    ($conjunction:expr, $method:ident) => {
+        pub fn $method<R, B>(&mut self, raw: R, binds: B) -> &mut Self
+        where
+            R: IntoRaw,
+            B: IntoBinds,
+        {
+            self.where_raw_expr($conjunction, raw.into_raw(), binds.into_binds())
+        }
+    };
+}
+
 macro_rules! define_filter {
-    ($method:ident, $c1:expr, $c2:expr) => {
+    ($method:ident, $method_expr:ident, $c1:expr, $c2:expr) => {
         pub fn $method<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
         where
             C: IntoProjections,
             O: IntoOperator,
             V: IntoRhsExpr,
         {
-            self.where_grouped_expr(
+            self.$method_expr(
                 $c1,
                 $c2,
                 columns.into_projections(),
@@ -379,88 +424,26 @@ impl Builder {
         self
     }
 
-    pub fn where_not_group<F>(&mut self, sub: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        self.where_group_expr(Conjunction::AndNot, sub)
-    }
+    group_condition!(Conjunction::AndNot, where_not_group, where_group_expr);
+    group_condition!(Conjunction::OrNot, or_where_not_group, where_group_expr);
+    group_condition!(Conjunction::And, where_group, where_group_expr);
+    group_condition!(Conjunction::Or, or_where_group, where_group_expr);
 
-    pub fn or_where_not_group<F>(&mut self, sub: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        self.where_group_expr(Conjunction::OrNot, sub)
-    }
+    group_condition!(Conjunction::AndNot, having_not_group, having_group_expr);
+    group_condition!(Conjunction::OrNot, or_having_not_group, having_group_expr);
+    group_condition!(Conjunction::And, having_group, having_group_expr);
+    group_condition!(Conjunction::Or, or_having_group, having_group_expr);
 
-    pub fn where_group<F>(&mut self, sub: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        self.where_group_expr(Conjunction::And, sub)
-    }
+    define_raw!(Conjunction::And, where_raw);
+    define_raw!(Conjunction::Or, or_where_raw);
 
-    pub fn or_where_group<F>(&mut self, sub: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        self.where_group_expr(Conjunction::Or, sub)
-    }
+    define_raw!(Conjunction::And, having_raw);
+    define_raw!(Conjunction::Or, or_having_raw);
 
-    pub fn where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
-    where
-        R: IntoRaw,
-        B: IntoBinds,
-    {
-        self.where_raw_expr(Conjunction::And, raw.into_raw(), binds.into_binds())
-    }
-
-    pub fn or_where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
-    where
-        R: IntoRaw,
-        B: IntoBinds,
-    {
-        self.where_raw_expr(Conjunction::Or, raw.into_raw(), binds.into_binds())
-    }
-
-    pub fn where_column<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
-    where
-        C: IntoLhsExpr,
-        O: IntoOperator,
-        CC: IntoLhsExpr,
-    {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            other_column.into_lhs_expr(),
-        );
-        self
-    }
-
-    pub fn or_where_column<C, O, CC>(
-        &mut self,
-        column: C,
-        operator: O,
-        other_column: CC,
-    ) -> &mut Self
-    where
-        C: IntoLhsExpr,
-        O: IntoOperator,
-        CC: IntoLhsExpr,
-    {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::Or,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            other_column.into_lhs_expr(),
-        );
-        self
-    }
+    column_condition!(Conjunction::And, where_column, maybe_where);
+    column_condition!(Conjunction::Or, or_where_column, maybe_where);
+    column_condition!(Conjunction::And, having_column, maybe_having);
+    column_condition!(Conjunction::Or, or_having_column, maybe_having);
 
     define_unary!(
         where_null,
@@ -601,14 +584,19 @@ impl Builder {
         InOperator::NotIn
     );
 
-    // here
+    define_filter!(where_all, where_grouped_expr, Conjunction::And, Conjunction::And);
+    define_filter!(where_any, where_grouped_expr, Conjunction::And, Conjunction::Or);
+    define_filter!(where_none, where_grouped_expr, Conjunction::AndNot, Conjunction::And);
+    define_filter!(or_where_all, where_grouped_expr, Conjunction::Or, Conjunction::And);
+    define_filter!(or_where_any, where_grouped_expr, Conjunction::Or, Conjunction::Or);
+    define_filter!(or_where_none, where_grouped_expr, Conjunction::OrNot, Conjunction::And);
 
-    define_filter!(where_all, Conjunction::And, Conjunction::And);
-    define_filter!(where_any, Conjunction::And, Conjunction::Or);
-    define_filter!(where_none, Conjunction::AndNot, Conjunction::And);
-    define_filter!(or_where_all, Conjunction::Or, Conjunction::And);
-    define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
-    define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
+    define_filter!(having_all, having_grouped_expr, Conjunction::And, Conjunction::And);
+    define_filter!(having_any, having_grouped_expr, Conjunction::And, Conjunction::Or);
+    define_filter!(having_none, having_grouped_expr, Conjunction::AndNot, Conjunction::And);
+    define_filter!(or_having_all, having_grouped_expr, Conjunction::Or, Conjunction::And);
+    define_filter!(or_having_any, having_grouped_expr, Conjunction::Or, Conjunction::Or);
+    define_filter!(or_having_none, having_grouped_expr, Conjunction::OrNot, Conjunction::And);
 
     // havings here
     pub fn reset_having(&mut self) -> &mut Self {
@@ -666,6 +654,32 @@ impl Builder {
                 Builder::push_binary_expr(
                     &mut builder.binds,
                     builder.maybe_where.get_or_insert_default(),
+                    conj,
+                    Expr::Ident(proj),
+                    operator,
+                    value.clone(),
+                );
+            }
+        });
+        self
+    }
+
+    #[inline]
+    pub(crate) fn having_grouped_expr(
+        &mut self,
+        group_conj: Conjunction,
+        conj: Conjunction,
+        projections: Projections,
+        value: Expr,
+        operator: Operator,
+    ) -> &mut Self {
+        self.having_group_expr(group_conj, |builder| {
+            for proj in projections {
+                // todo: instead of cloning, i could put the same placeholder value (in pg and
+                // sqlite) and refer to the same.
+                Builder::push_binary_expr(
+                    &mut builder.binds,
+                    builder.maybe_having.get_or_insert_default(),
                     conj,
                     Expr::Ident(proj),
                     operator,
@@ -805,6 +819,35 @@ impl Builder {
             let kind = ConditionKind::Group(group);
 
             let ws = self.maybe_where.get_or_insert_default();
+            ws.push(Condition::new(conjunction, kind));
+        }
+
+        self
+    }
+
+    #[inline]
+    pub(crate) fn having_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        // with a type of where, we should ignore most actions
+        let mut inner = Self {
+            ty: QueryKind::Where,
+            ..Default::default()
+        };
+        // modify the internal states with wheres
+        closure(&mut inner);
+
+        let binds = inner.take_bindings();
+        if let Some(inner_conds) = inner.maybe_having {
+            self.binds.append(binds);
+
+            let group = GroupCondition {
+                conditions: inner_conds,
+            };
+            let kind = ConditionKind::Group(group);
+
+            let ws = self.maybe_having.get_or_insert_default();
             ws.push(Condition::new(conjunction, kind));
         }
 
