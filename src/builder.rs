@@ -262,9 +262,6 @@ impl Builder {
     }
 
     pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         self.maybe_table = Some(table.into_table());
         self
     }
@@ -274,9 +271,6 @@ impl Builder {
         I: IntoIdent,
         F: FnOnce(&mut Self),
     {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         let mut inner = Self::default();
         table(&mut inner);
         self.maybe_table = Some(TableIdent::AliasedSub(alias.into_ident(), Box::new(inner)));
@@ -656,9 +650,6 @@ impl Builder {
     // select stuff
 
     pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         let raw = value.into_raw();
         self.columns = Projections::One(TableIdent::Raw(raw));
         self.binds.append(binds.into_binds());
@@ -666,9 +657,6 @@ impl Builder {
     }
 
     pub fn select_as<T: ColumnSchema>(&mut self) -> &mut Self {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         self.columns = T::columns();
         self
     }
@@ -677,9 +665,6 @@ impl Builder {
     where
         T: IntoColumns,
     {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         self.columns = cols.into_columns();
         self
     }
@@ -688,26 +673,17 @@ impl Builder {
     where
         T: IntoColumns,
     {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         let other = cols.into_columns();
         self.columns.append(other);
         self
     }
 
     pub fn reset_select(&mut self) -> &mut Self {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         self.columns.reset();
         self
     }
 
     pub fn distinct(&mut self) -> &mut Self {
-        if matches!(self.ty, QueryKind::Where) {
-            return self;
-        }
         self.distinct = true;
         self
     }
