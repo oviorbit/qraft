@@ -1,7 +1,23 @@
 use crate::{
-    bind::{Binds, IntoBinds}, col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, order::{Order, Ordering}, unary::{UnaryCondition, UnaryOperator}, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, Raw
+    IntoInList, Raw,
+    bind::{Binds, IntoBinds},
+    col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema},
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::{BetweenCondition, BetweenOperator},
+        binary::{BinaryCondition, Operator},
+        cond::{Condition, ConditionKind, Conditions, Conjunction},
+        exists::{ExistsCondition, ExistsOperator},
+        group::GroupCondition,
+        r#in::{InCondition, InOperator},
+        list::InList,
+        order::{Order, Ordering},
+        unary::{UnaryCondition, UnaryOperator},
+    },
+    ident::{IntoIdent, TableRef},
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -33,30 +49,37 @@ pub struct Builder {
 }
 
 macro_rules! define_binary {
-    ($method:ident, $or_method:ident, $operator:expr) => {
+    ($method:ident, $or_method:ident, $field:ident, $operator:expr) => {
         pub fn $method<C, V>(&mut self, column: C, value: V) -> &mut Self
         where
             C: IntoLhsExpr,
             V: IntoRhsExpr,
         {
-            self.where_binary_expr(
+            Builder::push_binary_expr(
+                &mut self.binds,
+                self.$field.get_or_insert_default(),
                 Conjunction::And,
                 column.into_lhs_expr(),
                 $operator,
                 value.into_rhs_expr(),
-            )
+            );
+            self
         }
+
         pub fn $or_method<C, V>(&mut self, column: C, value: V) -> &mut Self
         where
             C: IntoLhsExpr,
             V: IntoRhsExpr,
         {
-            self.where_binary_expr(
+            Builder::push_binary_expr(
+                &mut self.binds,
+                self.$field.get_or_insert_default(),
                 Conjunction::Or,
                 column.into_lhs_expr(),
                 $operator,
                 value.into_rhs_expr(),
-            )
+            );
+            self
         }
     };
 }
@@ -187,22 +210,14 @@ macro_rules! define_unary {
         where
             C: IntoLhsExpr,
         {
-            self.where_unary_expr(
-                Conjunction::And,
-                column.into_lhs_expr(),
-                $operator,
-            )
+            self.where_unary_expr(Conjunction::And, column.into_lhs_expr(), $operator)
         }
 
         pub fn $or_method<C>(&mut self, column: C) -> &mut Self
         where
             C: IntoLhsExpr,
         {
-            self.where_unary_expr(
-                Conjunction::Or,
-                column.into_lhs_expr(),
-                $operator,
-            )
+            self.where_unary_expr(Conjunction::Or, column.into_lhs_expr(), $operator)
         }
     };
 }
@@ -301,12 +316,15 @@ impl Builder {
         O: IntoOperator,
         V: IntoRhsExpr,
     {
-        self.where_binary_expr(
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
             Conjunction::And,
             column.into_lhs_expr(),
             operator.into_operator(),
             value.into_rhs_expr(),
-        )
+        );
+        self
     }
 
     pub fn or_where<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
@@ -315,12 +333,15 @@ impl Builder {
         O: IntoOperator,
         V: IntoRhsExpr,
     {
-        self.where_binary_expr(
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
             Conjunction::Or,
             column.into_lhs_expr(),
             operator.into_operator(),
             value.into_rhs_expr(),
-        )
+        );
+        self
     }
 
     pub fn where_not_group<F>(&mut self, sub: F) -> &mut Self
@@ -373,12 +394,15 @@ impl Builder {
         O: IntoOperator,
         CC: IntoLhsExpr,
     {
-        self.where_binary_expr(
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
             Conjunction::And,
             column.into_lhs_expr(),
             operator.into_operator(),
             other_column.into_lhs_expr(),
-        )
+        );
+        self
     }
 
     pub fn or_where_column<C, O, CC>(
@@ -392,12 +416,15 @@ impl Builder {
         O: IntoOperator,
         CC: IntoLhsExpr,
     {
-        self.where_binary_expr(
+        Builder::push_binary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
             Conjunction::Or,
             column.into_lhs_expr(),
             operator.into_operator(),
             other_column.into_lhs_expr(),
-        )
+        );
+        self
     }
 
     define_unary!(where_null, or_where_null, UnaryOperator::Null);
@@ -405,16 +432,26 @@ impl Builder {
     define_unary!(where_true, or_where_true, UnaryOperator::True);
     define_unary!(where_not_null, or_where_not_null, UnaryOperator::NotNull);
 
-    define_binary!(where_eq, or_where_eq, Operator::Eq);
-    define_binary!(where_gt, or_where_gt, Operator::Gt);
-    define_binary!(where_gte, or_where_gte, Operator::Gte);
-    define_binary!(where_lt, or_where_lt, Operator::Lt);
-    define_binary!(where_lte, or_where_lte, Operator::Lte);
-    define_binary!(where_like, or_where_like, Operator::Like);
-    define_binary!(where_not_eq, or_where_not_eq, Operator::NotEq);
-    define_binary!(where_not_like, or_where_not_like, Operator::NotLike);
-    define_binary!(where_ilike, or_where_ilike, Operator::Ilike);
-    define_binary!(where_not_ilike, or_where_not_ilike, Operator::NotIlike);
+    define_binary!(where_eq, or_where_eq, maybe_where, Operator::Eq);
+    define_binary!(where_gt, or_where_gt, maybe_where, Operator::Gt);
+    define_binary!(where_gte, or_where_gte, maybe_where, Operator::Gte);
+    define_binary!(where_lt, or_where_lt, maybe_where, Operator::Lt);
+    define_binary!(where_lte, or_where_lte, maybe_where, Operator::Lte);
+    define_binary!(where_like, or_where_like, maybe_where, Operator::Like);
+    define_binary!(where_not_eq, or_where_not_eq, maybe_where, Operator::NotEq);
+    define_binary!(
+        where_not_like,
+        or_where_not_like,
+        maybe_where,
+        Operator::NotLike
+    );
+    define_binary!(where_ilike, or_where_ilike, maybe_where, Operator::Ilike);
+    define_binary!(
+        where_not_ilike,
+        or_where_not_ilike,
+        maybe_where,
+        Operator::NotIlike
+    );
 
     define_between!(where_between, or_where_between, BetweenOperator::Between);
     define_between!(
@@ -451,6 +488,34 @@ impl Builder {
     define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
     define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
 
+    // havings here
+
+    define_binary!(having_eq, or_having_eq, maybe_having, Operator::Eq);
+    define_binary!(having_gt, or_having_gt, maybe_having, Operator::Gt);
+    define_binary!(having_gte, or_having_gte, maybe_having, Operator::Gte);
+    define_binary!(having_lt, or_having_lt, maybe_having, Operator::Lt);
+    define_binary!(having_lte, or_having_lte, maybe_having, Operator::Lte);
+    define_binary!(having_like, or_having_like, maybe_having, Operator::Like);
+    define_binary!(
+        having_not_eq,
+        or_having_not_eq,
+        maybe_having,
+        Operator::NotEq
+    );
+    define_binary!(
+        having_not_like,
+        or_having_not_like,
+        maybe_having,
+        Operator::NotLike
+    );
+    define_binary!(having_ilike, or_having_ilike, maybe_having, Operator::Ilike);
+    define_binary!(
+        having_not_ilike,
+        or_having_not_ilike,
+        maybe_having,
+        Operator::NotIlike
+    );
+
     #[inline]
     pub(crate) fn where_grouped_expr(
         &mut self,
@@ -464,7 +529,14 @@ impl Builder {
             for proj in projections {
                 // todo: instead of cloning, i could put the same placeholder value (in pg and
                 // sqlite) and refer to the same.
-                builder.where_binary_expr(conj, Expr::Ident(proj), operator, value.clone());
+                Builder::push_binary_expr(
+                    &mut builder.binds,
+                    builder.maybe_where.get_or_insert_default(),
+                    conj,
+                    Expr::Ident(proj),
+                    operator,
+                    value.clone(),
+                );
             }
         });
         self
@@ -564,23 +636,20 @@ impl Builder {
     }
 
     #[inline]
-    pub(crate) fn where_binary_expr(
-        &mut self,
+    pub(crate) fn push_binary_expr(
+        binds: &mut Binds,
+        target: &mut Conditions,
         conjunction: Conjunction,
         mut lhs: Expr,
         operator: Operator,
         mut rhs: Expr,
-    ) -> &mut Self {
-        self.binds.append(lhs.take_bindings());
-        self.binds.append(rhs.take_bindings());
-
+    ) {
+        binds.append(lhs.take_bindings());
+        binds.append(rhs.take_bindings());
         let binary = BinaryCondition { lhs, operator, rhs };
         let expr = ConditionKind::Binary(binary);
         let condition = Condition::new(conjunction, expr);
-        let ws = self.maybe_where.get_or_insert_default();
-        ws.push(condition);
-
-        self
+        target.push(condition);
     }
 
     #[inline]
@@ -656,7 +725,6 @@ impl Builder {
     }
 
     // start of expr stuff
-
 
     // select stuff
 
@@ -869,14 +937,11 @@ mod tests {
     #[test]
     fn test_expr_where() {
         let mut builder = Builder::table("users");
-        builder.where_binary_expr(
-            Conjunction::And,
-            "id".into_lhs_expr(),
-            Operator::Eq,
+        builder.where_eq(
+            "id",
             sub(|builder| {
                 builder.select("id").from("roles");
-            })
-            .into_rhs_expr(),
+            }),
         );
         assert_eq!(
             "select * from \"users\" where \"id\" = (select \"id\" from \"roles\")",
