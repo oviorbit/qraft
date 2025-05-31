@@ -8,7 +8,6 @@ pub mod expr;
 mod ident;
 mod raw;
 mod writer;
-mod paginate;
 
 use bind::Bind;
 pub use col::ProjectionSchema;

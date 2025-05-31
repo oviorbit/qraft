@@ -178,6 +178,10 @@ impl<T> Array<T> {
         }
     }
 
+    pub fn push(&mut self, other: T) {
+        self.append(Array::One(other));
+    }
+
     pub fn append(&mut self, other: Self) {
         let combined = match (std::mem::replace(self, Self::None), other) {
             (Self::None, cols) | (cols, Self::None) => cols,

@@ -1,22 +1,7 @@
 use crate::{
-    IntoInList, Raw,
-    bind::{Binds, IntoBinds},
-    col::{ProjectionSchema, IntoProjections, IntoTable, Projections, TableSchema},
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::{BetweenCondition, BetweenOperator},
-        binary::{BinaryCondition, Operator},
-        cond::{Condition, ConditionKind, Conditions, Conjunction},
-        exists::{ExistsCondition, ExistsOperator},
-        group::GroupCondition,
-        r#in::{InCondition, InOperator},
-        list::InList,
-        unary::{UnaryCondition, UnaryOperator},
-    },
-    ident::{IntoIdent, TableRef},
-    raw::IntoRaw,
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
+        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, order::{Order, Ordering}, unary::{UnaryCondition, UnaryOperator}, Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, Raw
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +28,7 @@ pub struct Builder {
     maybe_where: Option<Conditions>,
     maybe_limit: Option<usize>,
     maybe_offset: Option<usize>,
+    maybe_order: Option<Order>,
 }
 
 macro_rules! define_binary {
@@ -258,6 +244,7 @@ impl Builder {
             maybe_where: None,
             maybe_limit: None,
             maybe_offset: None,
+            maybe_order: None,
         }
     }
 
@@ -462,29 +449,48 @@ impl Builder {
     define_filter!(or_where_any, Conjunction::Or, Conjunction::Or);
     define_filter!(or_where_none, Conjunction::OrNot, Conjunction::And);
 
-    // pagination stuff
+    pub fn order_by_asc<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_table(), Ordering::Asc)
+    }
 
-    pub fn limit(&mut self, limit: usize) -> &mut Self {
-        self.maybe_limit = Some(limit);
+    pub fn order_by_desc<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_table(), Ordering::Desc)
+    }
+
+    pub fn latest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_desc(column)
+    }
+
+    pub fn oldest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+        self.order_by_asc(column)
+    }
+
+    pub fn reset_order(&mut self) -> &mut Self {
+        self.maybe_order = None;
         self
     }
 
-    pub fn reset_limit(&mut self) -> &mut Self {
-        self.maybe_limit = None;
+    pub fn order_by_raw<R: IntoRaw>(&mut self, raw: R) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        let raw = raw.into_raw();
+        o.push_raw(raw);
         self
     }
 
-    pub fn offset(&mut self, offset: usize) -> &mut Self {
-        self.maybe_offset = Some(offset);
+    pub fn order_by_random(&mut self) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        o.push_random();
         self
     }
 
-    pub fn reset_offset(&mut self) -> &mut Self {
-        self.maybe_offset = None;
+    // start of expr stuff
+
+    #[inline]
+    pub(crate) fn order_by_expr(&mut self, ident: TableRef, order: Ordering) -> &mut Self {
+        let o = self.maybe_order.get_or_insert_default();
+        o.push_proj(ident, order);
         self
     }
-
-    // start of inline impl
 
     #[inline]
     pub(crate) fn where_grouped_expr(
@@ -690,6 +696,28 @@ impl Builder {
 
     pub fn reset_distinct(&mut self) -> &mut Self {
         self.distinct = false;
+        self
+    }
+
+    // pagination stuff
+
+    pub fn limit(&mut self, limit: usize) -> &mut Self {
+        self.maybe_limit = Some(limit);
+        self
+    }
+
+    pub fn reset_limit(&mut self) -> &mut Self {
+        self.maybe_limit = None;
+        self
+    }
+
+    pub fn offset(&mut self, offset: usize) -> &mut Self {
+        self.maybe_offset = Some(offset);
+        self
+    }
+
+    pub fn reset_offset(&mut self) -> &mut Self {
+        self.maybe_offset = None;
         self
     }
 
