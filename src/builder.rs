@@ -688,6 +688,11 @@ impl Builder {
         self
     }
 
+    pub fn reset_distinct(&mut self) -> &mut Self {
+        self.distinct = false;
+        self
+    }
+
     // building the builder
 
     pub fn to_sql<Database: HasDialect>(&mut self) -> &str {
