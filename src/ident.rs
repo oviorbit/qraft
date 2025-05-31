@@ -1,14 +1,18 @@
 use smol_str::SmolStr;
 
 use crate::{
-    bind::Array, expr::TakeBindings, raw::Raw, writer::{self, FormatWriter}
+    Builder,
+    bind::Array,
+    expr::TakeBindings,
+    raw::Raw,
+    writer::{self, FormatWriter},
 };
 
 #[derive(Debug, Clone)]
 pub enum TableIdent {
     Ident(Ident),
     Raw(Raw),
-    // maybe subquery with alias but not supported yet
+    AliasedSub(Ident, Box<Builder>),
 }
 
 impl TakeBindings for TableIdent {
@@ -16,6 +20,7 @@ impl TakeBindings for TableIdent {
         match self {
             TableIdent::Ident(_) => Array::None,
             TableIdent::Raw(_) => Array::None,
+            TableIdent::AliasedSub(_, builder) => builder.take_bindings(),
         }
     }
 }
@@ -52,12 +57,32 @@ impl FormatWriter for TableIdent {
         match self {
             TableIdent::Ident(ident) => ident.format_writer(context),
             TableIdent::Raw(raw) => raw.format_writer(context),
+            TableIdent::AliasedSub(ident, builder) => {
+                context.writer.write_char('(')?;
+                builder.format_writer(context)?;
+                context.writer.write_char(')')?;
+                context.writer.write_str(" as ")?;
+                ident.format_writer(context)
+            }
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Ident(SmolStr);
+
+pub trait IntoIdent {
+    fn into_ident(self) -> Ident;
+}
+
+impl<T> IntoIdent for T
+where
+    T: Into<SmolStr>
+{
+    fn into_ident(self) -> Ident {
+        Ident::new(self.into())
+    }
+}
 
 impl Ident {
     #[inline]

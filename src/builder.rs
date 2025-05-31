@@ -1,7 +1,24 @@
+use smol_str::SmolStr;
+
 use crate::{
-    bind::{Binds, IntoBinds}, col::{ColumnSchema, IntoColumns, IntoTable, Projections, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::TableIdent, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, Raw
+    IntoInList, Raw,
+    bind::{Binds, IntoBinds},
+    col::{ColumnSchema, IntoColumns, IntoTable, Projections, TableSchema},
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::{BetweenCondition, BetweenOperator},
+        binary::{BinaryCondition, Operator},
+        cond::{Condition, ConditionKind, Conditions, Conjunction},
+        exists::{ExistsCondition, ExistsOperator},
+        group::GroupCondition,
+        r#in::{InCondition, InOperator},
+        list::InList,
+        unary::{UnaryCondition, UnaryOperator},
+    },
+    ident::{IntoIdent, TableIdent},
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -255,6 +272,20 @@ impl Builder {
             return self;
         }
         self.maybe_table = Some(table.into_table());
+        self
+    }
+
+    pub fn from_sub<I, F>(&mut self, alias: I, table: F) -> &mut Self
+    where
+        I: IntoIdent,
+        F: FnOnce(&mut Self),
+    {
+        if matches!(self.ty, QueryKind::Where) {
+            return self;
+        }
+        let mut inner = Self::default();
+        table(&mut inner);
+        self.maybe_table = Some(TableIdent::AliasedSub(alias.into_ident(), Box::new(inner)));
         self
     }
 
@@ -712,9 +743,8 @@ mod tests {
         col::ColumnSchema,
         column_static,
         dialect::Postgres,
-        raw,
         expr::{IntoLhsExpr, IntoRhsExpr},
-        sub,
+        raw, sub,
     };
 
     use super::*;
@@ -929,6 +959,18 @@ mod tests {
         builder.where_eq("baz", "bar");
         assert_eq!(
             "select * from \"users\" where \"value\" = $1 and not (\"foo\" = $2 and \"bar\"::text like $3) and \"baz\" = $4",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_from_sub() {
+        let mut builder = Builder::table("users");
+        builder.from_sub("foo", |builder| {
+            builder.where_eq("username", "foo").from("bar");
+        });
+        assert_eq!(
+            "select * from (select * from \"bar\" where \"username\" = $1) as \"foo\"",
             builder.to_sql::<Postgres>()
         );
     }
