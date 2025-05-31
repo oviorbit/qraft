@@ -1,6 +1,6 @@
 use crate::{
     bind::{Binds, IntoBinds}, col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
-        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, order::{Order, Ordering}, unary::{UnaryCondition, UnaryOperator}, Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+        between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, cond::{Condition, ConditionKind, Conditions, Conjunction}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, order::{Order, Ordering}, unary::{UnaryCondition, UnaryOperator}, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, Raw
 };
 
@@ -41,9 +41,9 @@ macro_rules! define_binary {
         {
             self.where_binary_expr(
                 Conjunction::And,
-                column.into_lhs_expr().into_expr(),
+                column.into_lhs_expr(),
                 $operator,
-                value.into_rhs_expr().into_expr(),
+                value.into_rhs_expr(),
             )
         }
         pub fn $or_method<C, V>(&mut self, column: C, value: V) -> &mut Self
@@ -53,9 +53,9 @@ macro_rules! define_binary {
         {
             self.where_binary_expr(
                 Conjunction::Or,
-                column.into_lhs_expr().into_expr(),
+                column.into_lhs_expr(),
                 $operator,
-                value.into_rhs_expr().into_expr(),
+                value.into_rhs_expr(),
             )
         }
     };
@@ -71,9 +71,9 @@ macro_rules! define_between {
         {
             self.where_between_expr(
                 Conjunction::And,
-                lhs.into_lhs_expr().into_expr(),
-                low.into_rhs_expr().into_expr(),
-                high.into_rhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
+                low.into_rhs_expr(),
+                high.into_rhs_expr(),
                 $operator,
             )
         }
@@ -86,9 +86,9 @@ macro_rules! define_between {
         {
             self.where_between_expr(
                 Conjunction::Or,
-                lhs.into_lhs_expr().into_expr(),
-                low.into_rhs_expr().into_expr(),
-                high.into_rhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
+                low.into_rhs_expr(),
+                high.into_rhs_expr(),
                 $operator,
             )
         }
@@ -105,9 +105,9 @@ macro_rules! define_between_columns {
         {
             self.where_between_expr(
                 Conjunction::And,
-                lhs.into_lhs_expr().into_expr(),
-                low.into_lhs_expr().into_expr(),
-                high.into_lhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
+                low.into_lhs_expr(),
+                high.into_lhs_expr(),
                 $operator,
             )
         }
@@ -120,9 +120,9 @@ macro_rules! define_between_columns {
         {
             self.where_between_expr(
                 Conjunction::Or,
-                lhs.into_lhs_expr().into_expr(),
-                low.into_lhs_expr().into_expr(),
-                high.into_lhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
+                low.into_lhs_expr(),
+                high.into_lhs_expr(),
                 $operator,
             )
         }
@@ -138,7 +138,7 @@ macro_rules! define_in {
         {
             self.where_in_expr(
                 Conjunction::And,
-                lhs.into_lhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
                 rhs.into_in_list(),
                 $operator,
             )
@@ -151,7 +151,7 @@ macro_rules! define_in {
         {
             self.where_in_expr(
                 Conjunction::Or,
-                lhs.into_lhs_expr().into_expr(),
+                lhs.into_lhs_expr(),
                 rhs.into_in_list(),
                 $operator,
             )
@@ -189,7 +189,7 @@ macro_rules! define_unary {
         {
             self.where_unary_expr(
                 Conjunction::And,
-                column.into_lhs_expr().into_expr(),
+                column.into_lhs_expr(),
                 $operator,
             )
         }
@@ -200,7 +200,7 @@ macro_rules! define_unary {
         {
             self.where_unary_expr(
                 Conjunction::Or,
-                column.into_lhs_expr().into_expr(),
+                column.into_lhs_expr(),
                 $operator,
             )
         }
@@ -219,7 +219,7 @@ macro_rules! define_filter {
                 $c1,
                 $c2,
                 columns.into_projections(),
-                rhs.into_rhs_expr().into_expr(),
+                rhs.into_rhs_expr(),
                 operator.into_operator(),
             )
         }
@@ -303,9 +303,9 @@ impl Builder {
     {
         self.where_binary_expr(
             Conjunction::And,
-            column.into_lhs_expr().0,
+            column.into_lhs_expr(),
             operator.into_operator(),
-            value.into_rhs_expr().0,
+            value.into_rhs_expr(),
         )
     }
 
@@ -317,9 +317,9 @@ impl Builder {
     {
         self.where_binary_expr(
             Conjunction::Or,
-            column.into_lhs_expr().0,
+            column.into_lhs_expr(),
             operator.into_operator(),
-            value.into_rhs_expr().0,
+            value.into_rhs_expr(),
         )
     }
 
@@ -375,9 +375,9 @@ impl Builder {
     {
         self.where_binary_expr(
             Conjunction::And,
-            column.into_lhs_expr().0,
+            column.into_lhs_expr(),
             operator.into_operator(),
-            other_column.into_lhs_expr().0,
+            other_column.into_lhs_expr(),
         )
     }
 
@@ -394,9 +394,9 @@ impl Builder {
     {
         self.where_binary_expr(
             Conjunction::Or,
-            column.into_lhs_expr().0,
+            column.into_lhs_expr(),
             operator.into_operator(),
-            other_column.into_lhs_expr().0,
+            other_column.into_lhs_expr(),
         )
     }
 
@@ -871,13 +871,12 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.where_binary_expr(
             Conjunction::And,
-            "id".into_lhs_expr().0,
+            "id".into_lhs_expr(),
             Operator::Eq,
             sub(|builder| {
                 builder.select("id").from("roles");
             })
-            .into_rhs_expr()
-            .0,
+            .into_rhs_expr(),
         );
         assert_eq!(
             "select * from \"users\" where \"id\" = (select \"id\" from \"roles\")",

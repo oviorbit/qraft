@@ -56,37 +56,21 @@ impl FormatWriter for Expr {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-#[repr(transparent)]
-pub struct LhsExpr(pub(crate) Expr);
-
-#[derive(Debug, Clone)]
-#[repr(transparent)]
-pub struct RhsExpr(pub(crate) Expr);
+//
+//#[derive(Debug, Clone)]
+//#[repr(transparent)]
+//pub struct LhsExpr(pub(crate) Expr);
+//
+//#[derive(Debug, Clone)]
+//#[repr(transparent)]
+//pub struct RhsExpr(pub(crate) Expr);
 
 pub trait IntoRhsExpr {
-    fn into_rhs_expr(self) -> RhsExpr;
+    fn into_rhs_expr(self) -> Expr;
 }
 
 pub trait IntoLhsExpr {
-    fn into_lhs_expr(self) -> LhsExpr;
-}
-
-pub trait IntoExpr {
-    fn into_expr(self) -> Expr;
-}
-
-impl IntoExpr for LhsExpr {
-    fn into_expr(self) -> Expr {
-        self.0
-    }
-}
-
-impl IntoExpr for RhsExpr {
-    fn into_expr(self) -> Expr {
-        self.0
-    }
+    fn into_lhs_expr(self) -> Expr;
 }
 
 pub trait IntoOperator {
@@ -104,26 +88,26 @@ impl<T> IntoRhsExpr for T
 where
     T: IntoBind,
 {
-    fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Bind(self.into_bind()))
+    fn into_rhs_expr(self) -> Expr {
+        Expr::Bind(self.into_bind())
     }
 }
 
 impl IntoRhsExpr for Builder {
-    fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Subquery(Box::new(self)))
+    fn into_rhs_expr(self) -> Expr {
+        Expr::Subquery(Box::new(self))
     }
 }
 
 impl IntoRhsExpr for Raw {
-    fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Ident(TableRef::Raw(self)))
+    fn into_rhs_expr(self) -> Expr {
+        Expr::Ident(TableRef::Raw(self))
     }
 }
 
 impl IntoRhsExpr for Ident {
-    fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Ident(TableRef::Ident(self)))
+    fn into_rhs_expr(self) -> Expr {
+        Expr::Ident(TableRef::Ident(self))
     }
 }
 
@@ -132,14 +116,14 @@ impl<T> IntoLhsExpr for T
 where
     T: IntoTable,
 {
-    fn into_lhs_expr(self) -> LhsExpr {
-        LhsExpr(Expr::Ident(self.into_table()))
+    fn into_lhs_expr(self) -> Expr {
+        Expr::Ident(self.into_table())
     }
 }
 
 impl IntoLhsExpr for Builder {
-    fn into_lhs_expr(self) -> LhsExpr {
-        LhsExpr(Expr::Subquery(Box::new(self)))
+    fn into_lhs_expr(self) -> Expr {
+        Expr::Subquery(Box::new(self))
     }
 }
 
