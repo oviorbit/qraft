@@ -9,23 +9,23 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum TableIdent {
+pub enum TableRef {
     Ident(Ident),
     Raw(Raw),
     AliasedSub(Ident, Box<Builder>),
 }
 
-impl TakeBindings for TableIdent {
+impl TakeBindings for TableRef {
     fn take_bindings(&mut self) -> crate::Binds {
         match self {
-            TableIdent::Ident(_) => Array::None,
-            TableIdent::Raw(_) => Array::None,
-            TableIdent::AliasedSub(_, builder) => builder.take_bindings(),
+            TableRef::Ident(_) => Array::None,
+            TableRef::Raw(_) => Array::None,
+            TableRef::AliasedSub(_, builder) => builder.take_bindings(),
         }
     }
 }
 
-impl TableIdent {
+impl TableRef {
     pub fn ident_static(value: &'static str) -> Self {
         Self::Ident(Ident::new_static(value))
     }
@@ -49,15 +49,15 @@ impl TableIdent {
     }
 }
 
-impl FormatWriter for TableIdent {
+impl FormatWriter for TableRef {
     fn format_writer<W: std::fmt::Write>(
         &self,
         context: &mut writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
         match self {
-            TableIdent::Ident(ident) => ident.format_writer(context),
-            TableIdent::Raw(raw) => raw.format_writer(context),
-            TableIdent::AliasedSub(ident, builder) => {
+            TableRef::Ident(ident) => ident.format_writer(context),
+            TableRef::Raw(raw) => raw.format_writer(context),
+            TableRef::AliasedSub(ident, builder) => {
                 context.writer.write_char('(')?;
                 builder.format_writer(context)?;
                 context.writer.write_char(')')?;

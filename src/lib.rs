@@ -11,9 +11,9 @@ mod writer;
 mod paginate;
 
 use bind::Bind;
-pub use col::ColumnSchema;
+pub use col::ProjectionSchema;
 pub use col::Projections;
-pub use col::IntoColumns;
+pub use col::IntoProjections;
 pub use col::IntoTable;
 pub use col::TableSchema;
 
@@ -22,7 +22,7 @@ pub use bind::IntoBind;
 pub use bind::IntoBinds;
 
 pub use ident::Ident;
-pub use ident::TableIdent;
+pub use ident::TableRef;
 pub use raw::IntoRaw;
 pub use raw::Raw;
 

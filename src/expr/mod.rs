@@ -12,7 +12,7 @@ pub(crate) mod list;
 pub use cond::Conjunction;
 
 use crate::{
-    Binds, Builder, Ident, IntoBind, IntoTable, TableIdent,
+    Binds, Builder, Ident, IntoBind, IntoTable, TableRef,
     bind::{Array, Bind},
     expr::binary::Operator,
 };
@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bind(Bind),
-    Ident(TableIdent),
+    Ident(TableRef),
     Subquery(Box<Builder>),
 }
 
@@ -116,13 +116,13 @@ impl IntoRhsExpr for Builder {
 
 impl IntoRhsExpr for Raw {
     fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Ident(TableIdent::Raw(self)))
+        RhsExpr(Expr::Ident(TableRef::Raw(self)))
     }
 }
 
 impl IntoRhsExpr for Ident {
     fn into_rhs_expr(self) -> RhsExpr {
-        RhsExpr(Expr::Ident(TableIdent::Ident(self)))
+        RhsExpr(Expr::Ident(TableRef::Ident(self)))
     }
 }
 

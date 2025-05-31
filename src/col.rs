@@ -1,10 +1,10 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, ident::{Ident, IntoIdent, TableIdent}, writer::FormatWriter, Raw
+    bind::Array, ident::{Ident, TableRef}, writer::FormatWriter, Raw
 };
 
-pub type Projections = Array<TableIdent>;
+pub type Projections = Array<TableRef>;
 
 impl FormatWriter for Projections {
     fn format_writer<W: fmt::Write>(
@@ -29,186 +29,186 @@ impl FormatWriter for Projections {
 }
 
 pub trait TableSchema {
-    fn table() -> TableIdent;
+    fn table() -> TableRef;
 }
 
-pub trait ColumnSchema {
-    fn columns() -> Projections;
+pub trait ProjectionSchema {
+    fn projections() -> Projections;
 }
 
-pub trait IntoColumns {
-    fn into_columns(self) -> Projections;
+pub trait IntoProjections {
+    fn into_projections(self) -> Projections;
 }
 
 pub trait IntoTable {
-    fn into_table(self) -> TableIdent;
+    fn into_table(self) -> TableRef;
 }
 
 impl IntoTable for &str {
-    fn into_table(self) -> TableIdent {
-        TableIdent::ident(self)
+    fn into_table(self) -> TableRef {
+        TableRef::ident(self)
     }
 }
 
 impl IntoTable for String {
-    fn into_table(self) -> TableIdent {
-        TableIdent::ident(self)
+    fn into_table(self) -> TableRef {
+        TableRef::ident(self)
     }
 }
 
 impl IntoTable for Raw {
-    fn into_table(self) -> TableIdent {
-        TableIdent::Raw(self)
+    fn into_table(self) -> TableRef {
+        TableRef::Raw(self)
     }
 }
 
 impl IntoTable for Ident {
-    fn into_table(self) -> TableIdent {
-        TableIdent::Ident(self)
+    fn into_table(self) -> TableRef {
+        TableRef::Ident(self)
     }
 }
 
-impl IntoTable for TableIdent {
-    fn into_table(self) -> TableIdent {
+impl IntoTable for TableRef {
+    fn into_table(self) -> TableRef {
         self
     }
 }
 
 impl<T: TableSchema> IntoTable for T {
-    fn into_table(self) -> TableIdent {
+    fn into_table(self) -> TableRef {
         T::table()
     }
 }
 
-impl IntoColumns for &str {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for &str {
+    fn into_projections(self) -> Projections {
         Projections::One(self.into_table())
     }
 }
 
-impl IntoColumns for String {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for String {
+    fn into_projections(self) -> Projections {
         Projections::One(self.into_table())
     }
 }
 
-impl IntoColumns for Raw {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Raw {
+    fn into_projections(self) -> Projections {
         Projections::One(self.into_table())
     }
 }
 
-impl IntoColumns for Ident {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Ident {
+    fn into_projections(self) -> Projections {
         Projections::One(self.into_table())
     }
 }
 
-impl IntoColumns for TableIdent {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for TableRef {
+    fn into_projections(self) -> Projections {
         Projections::One(self.into_table())
     }
 }
 
-impl<const N: usize> IntoColumns for [&str; N] {
-    fn into_columns(self) -> Projections {
+impl<const N: usize> IntoProjections for [&str; N] {
+    fn into_projections(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(self[0].into_table())
         } else {
-            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
             Projections::Many(vec)
         }
     }
 }
 
-impl<const N: usize> IntoColumns for [String; N] {
-    fn into_columns(self) -> Projections {
-        let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
+impl<const N: usize> IntoProjections for [String; N] {
+    fn into_projections(self) -> Projections {
+        let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
         Projections::Many(vec)
     }
 }
 
-impl<const N: usize> IntoColumns for [Ident; N] {
-    fn into_columns(self) -> Projections {
+impl<const N: usize> IntoProjections for [Ident; N] {
+    fn into_projections(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(self[0].clone().into_table())
         } else {
-            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
             Projections::Many(vec)
         }
     }
 }
 
-impl<const N: usize> IntoColumns for [Raw; N] {
-    fn into_columns(self) -> Projections {
+impl<const N: usize> IntoProjections for [Raw; N] {
+    fn into_projections(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(self[0].clone().into_table())
         } else {
-            let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
+            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
             Projections::Many(vec)
         }
     }
 }
 
-impl<const N: usize> IntoColumns for [TableIdent; N] {
-    fn into_columns(self) -> Projections {
+impl<const N: usize> IntoProjections for [TableRef; N] {
+    fn into_projections(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(self[0].clone())
         } else {
-            let vec: Vec<TableIdent> = self.to_vec();
+            let vec: Vec<TableRef> = self.to_vec();
             Projections::Many(vec)
         }
     }
 }
 
-impl IntoColumns for Vec<&str> {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Vec<&str> {
+    fn into_projections(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Vec<String> {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Vec<String> {
+    fn into_projections(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Vec<Ident> {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Vec<Ident> {
+    fn into_projections(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Vec<Raw> {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Vec<Raw> {
+    fn into_projections(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Vec<TableIdent> {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Vec<TableRef> {
+    fn into_projections(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
         Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Projections {
-    fn into_columns(self) -> Projections {
+impl IntoProjections for Projections {
+    fn into_projections(self) -> Projections {
         self
     }
 }
 
-impl<T: ColumnSchema> IntoColumns for T {
-    fn into_columns(self) -> Projections {
-        T::columns()
+impl<T: ProjectionSchema> IntoProjections for T {
+    fn into_projections(self) -> Projections {
+        T::projections()
     }
 }
 
@@ -220,9 +220,9 @@ mod tests {
 
     fn select<T>(value: T) -> Projections
     where
-        T: IntoColumns,
+        T: IntoProjections,
     {
-        value.into_columns()
+        value.into_projections()
     }
 
     #[test]

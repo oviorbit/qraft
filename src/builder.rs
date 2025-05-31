@@ -1,7 +1,7 @@
 use crate::{
     IntoInList, Raw,
     bind::{Binds, IntoBinds},
-    col::{ColumnSchema, IntoColumns, IntoTable, Projections, TableSchema},
+    col::{ProjectionSchema, IntoProjections, IntoTable, Projections, TableSchema},
     dialect::HasDialect,
     expr::{
         Expr, IntoExpr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
@@ -14,7 +14,7 @@ use crate::{
         list::InList,
         unary::{UnaryCondition, UnaryOperator},
     },
-    ident::{IntoIdent, TableIdent},
+    ident::{IntoIdent, TableRef},
     raw::IntoRaw,
     writer::{FormatContext, FormatWriter},
 };
@@ -37,7 +37,7 @@ pub struct Builder {
     query: String,
     ty: QueryKind,
     distinct: bool,
-    maybe_table: Option<TableIdent>,
+    maybe_table: Option<TableRef>,
     columns: Projections,
     binds: Binds,
     maybe_where: Option<Conditions>,
@@ -224,14 +224,14 @@ macro_rules! define_filter {
     ($method:ident, $c1:expr, $c2:expr) => {
         pub fn $method<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
         where
-            C: IntoColumns,
+            C: IntoProjections,
             O: IntoOperator,
             V: IntoRhsExpr,
         {
             self.where_grouped_expr(
                 $c1,
                 $c2,
-                columns.into_columns(),
+                columns.into_projections(),
                 rhs.into_rhs_expr().into_expr(),
                 operator.into_operator(),
             )
@@ -273,7 +273,7 @@ impl Builder {
     {
         let mut inner = Self::default();
         table(&mut inner);
-        self.maybe_table = Some(TableIdent::AliasedSub(alias.into_ident(), Box::new(inner)));
+        self.maybe_table = Some(TableRef::AliasedSub(alias.into_ident(), Box::new(inner)));
         self
     }
 
@@ -651,29 +651,29 @@ impl Builder {
 
     pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
         let raw = value.into_raw();
-        self.columns = Projections::One(TableIdent::Raw(raw));
+        self.columns = Projections::One(TableRef::Raw(raw));
         self.binds.append(binds.into_binds());
         self
     }
 
-    pub fn select_as<T: ColumnSchema>(&mut self) -> &mut Self {
-        self.columns = T::columns();
+    pub fn select_as<T: ProjectionSchema>(&mut self) -> &mut Self {
+        self.columns = T::projections();
         self
     }
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoColumns,
+        T: IntoProjections,
     {
-        self.columns = cols.into_columns();
+        self.columns = cols.into_projections();
         self
     }
 
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoColumns,
+        T: IntoProjections,
     {
-        let other = cols.into_columns();
+        let other = cols.into_projections();
         self.columns.append(other);
         self
     }
@@ -745,7 +745,7 @@ impl FormatWriter for Builder {
 mod tests {
     use crate::{
         bind::{self, Bind},
-        col::ColumnSchema,
+        col::ProjectionSchema,
         column_static,
         dialect::Postgres,
         expr::{IntoLhsExpr, IntoRhsExpr},
@@ -784,15 +784,15 @@ mod tests {
 
     // generated ?
     impl TableSchema for User {
-        fn table() -> TableIdent {
-            TableIdent::ident_static("users")
+        fn table() -> TableRef {
+            TableRef::ident_static("users")
         }
     }
 
     // generated ?
-    impl ColumnSchema for User {
-        fn columns() -> Projections {
-            [column_static("id"), column_static("admin")].into_columns()
+    impl ProjectionSchema for User {
+        fn projections() -> Projections {
+            [column_static("id"), column_static("admin")].into_projections()
         }
     }
 
