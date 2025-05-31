@@ -13,7 +13,7 @@ mod writer;
 
 use bind::Bind;
 pub use col::ColumnSchema;
-pub use col::Columns;
+pub use col::Projections;
 pub use col::IntoColumns;
 pub use col::IntoTable;
 pub use col::TableSchema;

@@ -7,17 +7,17 @@ use crate::{
     writer::FormatWriter,
 };
 
-pub type Columns = Array<TableIdent>;
+pub type Projections = Array<TableIdent>;
 
-impl FormatWriter for Columns {
+impl FormatWriter for Projections {
     fn format_writer<W: fmt::Write>(
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> fmt::Result {
         match self {
-            Columns::None => context.writer.write_char('*')?,
-            Columns::One(ident) => ident.format_writer(context)?,
-            Columns::Many(idents) => {
+            Projections::None => context.writer.write_char('*')?,
+            Projections::One(ident) => ident.format_writer(context)?,
+            Projections::Many(idents) => {
                 // just format the elem seperated with comma
                 for (index, elem) in idents.iter().enumerate() {
                     if index > 0 {
@@ -36,11 +36,11 @@ pub trait TableSchema {
 }
 
 pub trait ColumnSchema {
-    fn columns() -> Columns;
+    fn columns() -> Projections;
 }
 
 pub trait IntoColumns {
-    fn into_columns(self) -> Columns;
+    fn into_columns(self) -> Projections;
 }
 
 pub trait IntoTable {
@@ -84,133 +84,133 @@ impl<T: TableSchema> IntoTable for T {
 }
 
 impl IntoColumns for &str {
-    fn into_columns(self) -> Columns {
-        Columns::One(self.into_table())
+    fn into_columns(self) -> Projections {
+        Projections::One(self.into_table())
     }
 }
 
 impl IntoColumns for String {
-    fn into_columns(self) -> Columns {
-        Columns::One(self.into_table())
+    fn into_columns(self) -> Projections {
+        Projections::One(self.into_table())
     }
 }
 
 impl IntoColumns for Raw {
-    fn into_columns(self) -> Columns {
-        Columns::One(self.into_table())
+    fn into_columns(self) -> Projections {
+        Projections::One(self.into_table())
     }
 }
 
 impl IntoColumns for Ident {
-    fn into_columns(self) -> Columns {
-        Columns::One(self.into_table())
+    fn into_columns(self) -> Projections {
+        Projections::One(self.into_table())
     }
 }
 
 impl IntoColumns for TableIdent {
-    fn into_columns(self) -> Columns {
-        Columns::One(self.into_table())
+    fn into_columns(self) -> Projections {
+        Projections::One(self.into_table())
     }
 }
 
 impl<const N: usize> IntoColumns for [&str; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
-            Columns::One(self[0].into_table())
+            Projections::One(self[0].into_table())
         } else {
             let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
-            Columns::Many(vec)
+            Projections::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [String; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
 impl<const N: usize> IntoColumns for [Ident; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
-            Columns::One(self[0].clone().into_table())
+            Projections::One(self[0].clone().into_table())
         } else {
             let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
-            Columns::Many(vec)
+            Projections::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [Raw; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
-            Columns::One(self[0].clone().into_table())
+            Projections::One(self[0].clone().into_table())
         } else {
             let vec: Vec<TableIdent> = self.map(|t| t.into_table()).to_vec();
-            Columns::Many(vec)
+            Projections::Many(vec)
         }
     }
 }
 
 impl<const N: usize> IntoColumns for [TableIdent; N] {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
-            Columns::One(self[0].clone())
+            Projections::One(self[0].clone())
         } else {
             let vec: Vec<TableIdent> = self.to_vec();
-            Columns::Many(vec)
+            Projections::Many(vec)
         }
     }
 }
 
 impl IntoColumns for Vec<&str> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<String> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<Ident> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<Raw> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
 impl IntoColumns for Vec<TableIdent> {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Columns::Many(vec)
+        Projections::Many(vec)
     }
 }
 
-impl IntoColumns for Columns {
-    fn into_columns(self) -> Columns {
+impl IntoColumns for Projections {
+    fn into_columns(self) -> Projections {
         self
     }
 }
 
 impl<T: ColumnSchema> IntoColumns for T {
-    fn into_columns(self) -> Columns {
+    fn into_columns(self) -> Projections {
         T::columns()
     }
 }
@@ -221,7 +221,7 @@ mod tests {
 
     use super::*;
 
-    fn select<T>(value: T) -> Columns
+    fn select<T>(value: T) -> Projections
     where
         T: IntoColumns,
     {
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_format_wildcard() {
-        let s = Columns::None;
+        let s = Projections::None;
         let wildcard = format_writer(s, Dialect::Postgres);
         assert_eq!("*", wildcard);
     }

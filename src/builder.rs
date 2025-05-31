@@ -1,7 +1,7 @@
 use crate::{
     IntoSet, Raw,
     bind::{Binds, IntoBinds},
-    col::{ColumnSchema, Columns, IntoColumns, IntoTable, TableSchema},
+    col::{ColumnSchema, Projections, IntoColumns, IntoTable, TableSchema},
     dialect::HasDialect,
     expr::{
         ConditionKind,
@@ -39,7 +39,7 @@ pub struct Builder {
     ty: QueryKind,
     distinct: bool,
     maybe_table: Option<TableIdent>,
-    columns: Columns,
+    columns: Projections,
     binds: Binds,
     maybe_where: Option<Conditions>,
 }
@@ -236,7 +236,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(T::table()),
-            columns: Columns::None,
+            columns: Projections::None,
             binds: Binds::None,
             ty: QueryKind::Select,
             maybe_where: None,
@@ -251,7 +251,7 @@ impl Builder {
             query: String::new(),
             distinct: false,
             maybe_table: Some(table.into_table()),
-            columns: Columns::None,
+            columns: Projections::None,
             binds: Binds::None,
             ty: QueryKind::Select,
             maybe_where: None,
@@ -458,13 +458,14 @@ impl Builder {
         &mut self,
         group_conj: Conjunction,
         conj: Conjunction,
-        columns: Columns,
+        columns: Projections,
         value: ScalarExpr,
         operator: Operator,
     ) -> &mut Self {
         self.where_group_expr(group_conj, |builder| {
             for col in columns {
-                // todo: instead of cloning, i can put the same placeholder value and refer to the same
+                // todo: instead of cloning, i could put the same placeholder value (in pg and
+                // sqlite) and refer to the same.
                 builder.where_binary_expr(conj, ScalarExpr::Ident(col), operator, value.clone());
             }
         });
@@ -620,7 +621,7 @@ impl Builder {
             return self;
         }
         let raw = value.into_raw();
-        self.columns = Columns::One(TableIdent::Raw(raw));
+        self.columns = Projections::One(TableIdent::Raw(raw));
         self.binds.append(binds.into_binds());
         self
     }
@@ -763,7 +764,7 @@ mod tests {
 
     // generated ?
     impl ColumnSchema for User {
-        fn columns() -> Columns {
+        fn columns() -> Projections {
             [column_static("id"), column_static("admin")].into_columns()
         }
     }
