@@ -30,7 +30,7 @@ pub enum QueryKind {
 
 impl TakeBindings for Builder {
     fn take_bindings(&mut self) -> Binds {
-        std::mem::take(&mut self.binds)
+        self.binds.take_bindings()
     }
 }
 
@@ -898,8 +898,6 @@ impl Builder {
         o.push_proj(ident, order);
         self
     }
-
-    // start of expr stuff
 
     // select stuff
 
