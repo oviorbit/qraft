@@ -985,9 +985,10 @@ impl FormatWriter for Builder {
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
-        context.writer.write_str("select ")?;
         if self.distinct {
-            context.writer.write_str(" distinct ")?;
+            context.writer.write_str("select distinct ")?;
+        } else {
+            context.writer.write_str("select ")?;
         }
         self.projections.format_writer(context)?;
         if let Some(ref table) = self.maybe_table {
@@ -1017,7 +1018,6 @@ impl FormatWriter for Builder {
             }
         }
 
-        // order by
         if let Some(ref order) = self.maybe_order {
             if ! order.is_empty() {
                 context.writer.write_str(" order by ")?;
@@ -1288,6 +1288,24 @@ mod tests {
         builder.offset(42);
         assert_eq!(
             "select * from \"users\" offset 42",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_order_clause() {
+        let mut builder = Builder::table("users");
+        builder.order_by_asc("id");
+
+        assert_eq!(
+            "select * from \"users\" order by \"id\" asc",
+            builder.to_sql::<Postgres>()
+        );
+
+        builder.order_by_desc("username");
+
+        assert_eq!(
+            "select * from \"users\" order by \"id\" asc, \"username\" desc",
             builder.to_sql::<Postgres>()
         );
     }
