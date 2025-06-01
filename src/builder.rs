@@ -1,3 +1,5 @@
+use qraft_derive::{having_variant, or_variant, variant};
+
 use crate::{
     IntoInList, Raw,
     bind::{Binds, IntoBinds},
@@ -322,6 +324,28 @@ macro_rules! define_in {
     };
 }
 
+macro_rules! emit_one {
+    // $Conj:   Conjunction::And or Conjunction::Or
+    // $base:   lowercase‐name (e.g. eq, ne, gt, …)
+    // $Variant:  enum variant (e.g. Eq, Ne, Gt, …)
+    ($conj:expr, $base:ident, $variant:expr) => {
+        pub fn $base<C, V>(&mut self, column: C, value: V) -> &mut Self
+        where
+            C: IntoLhsExpr,
+            V: IntoRhsExpr,
+        {
+            self.filter(column, $variant, value)
+        }
+    };
+}
+
+macro_rules! emit_pair {
+    ($short:ident, $variant:expr) => {
+        // For the “and” version:
+        emit_one!(Conjunction::And, test_$short, $variant);
+    };
+}
+
 impl Builder {
     pub fn table_as<T: TableSchema>() -> Self {
         Self::table(T::table())
@@ -391,37 +415,17 @@ impl Builder {
         self
     }
 
+    #[or_variant]
     pub fn filter<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoLhsExpr,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            value.into_rhs_expr(),
-        );
-        self
-    }
-
-    pub fn or_where<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
-    where
-        C: IntoLhsExpr,
-        O: IntoOperator,
-        V: IntoRhsExpr,
-    {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::Or,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            value.into_rhs_expr(),
-        );
+        let conditions = self.maybe_where.get_or_insert_default();
+        let lhs = column.into_lhs_expr();
+        let rhs = value.into_rhs_expr();
+        conditions.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
 
@@ -447,116 +451,76 @@ impl Builder {
     column_condition!(Conjunction::And, having_column, maybe_having);
     column_condition!(Conjunction::Or, or_having_column, maybe_having);
 
-    define_unary!(
-        where_null,
-        or_where_null,
-        having_null,
-        or_having_null,
-        UnaryOperator::Null
-    );
-    define_unary!(
-        where_false,
-        or_where_false,
-        having_false,
-        or_having_false,
-        UnaryOperator::False
-    );
-    define_unary!(
-        where_true,
-        or_where_true,
-        having_true,
-        or_having_true,
-        UnaryOperator::True
-    );
-    define_unary!(
-        where_not_null,
-        or_where_not_null,
-        having_not_null,
-        or_having_not_null,
-        UnaryOperator::NotNull
-    );
+    #[variant(Operator, Eq, eq, not_eq, like, not_like, ilike, not_ilike)]
+    fn where_binary<C, V>(&mut self, column: C, value: V) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        V: IntoRhsExpr,
+    {
+        Self::push_binary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
+            Conjunction::And,
+            column.into_lhs_expr(),
+            Operator::Eq,
+            value.into_rhs_expr(),
+        );
+        self
+    }
 
-    define_binary!(where_eq, or_where_eq, having_eq, or_having_eq, Operator::Eq);
-    define_binary!(where_gt, or_where_gt, having_gt, or_having_gt, Operator::Gt);
-    define_binary!(
-        where_gte,
-        or_where_gte,
-        having_gte,
-        or_having_gte,
-        Operator::Gte
-    );
-    define_binary!(where_lt, or_where_lt, having_lt, or_having_lt, Operator::Lt);
-    define_binary!(
-        where_lte,
-        or_where_lte,
-        having_lte,
-        or_having_lte,
-        Operator::Lte
-    );
-    define_binary!(
-        where_like,
-        or_where_like,
-        having_like,
-        or_having_like,
-        Operator::Like
-    );
-    define_binary!(
-        where_not_eq,
-        or_where_not_eq,
-        having_not_eq,
-        or_having_not_eq,
-        Operator::NotEq
-    );
-    define_binary!(
-        where_not_like,
-        or_where_not_like,
-        having_not_like,
-        or_having_not_like,
-        Operator::NotLike
-    );
-    define_binary!(
-        where_ilike,
-        or_where_ilike,
-        having_ilike,
-        or_having_ilike,
-        Operator::Ilike
-    );
-    define_binary!(
-        where_not_ilike,
-        or_where_not_ilike,
-        having_not_ilike,
-        or_having_not_ilike,
-        Operator::NotIlike
-    );
+    #[variant(UnaryOperator, Null, null, not_null, true, false)]
+    fn where_unary<C>(&mut self, column: C) -> &mut Self
+    where
+        C: IntoLhsExpr,
+    {
+        Self::push_unary_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
+            Conjunction::And,
+            column.into_lhs_expr(),
+            UnaryOperator::Null,
+        );
+        self
+    }
 
-    define_between!(
-        where_between,
-        or_where_between,
-        having_between,
-        or_having_between,
-        BetweenOperator::Between
-    );
-    define_between!(
-        where_not_between,
-        or_where_not_between,
-        having_not_between,
-        or_having_not_between,
-        BetweenOperator::NotBetween
-    );
-    define_between_columns!(
-        where_between_columns,
-        or_where_between_columns,
-        having_between_columns,
-        or_having_between_columns,
-        BetweenOperator::Between
-    );
-    define_between_columns!(
-        where_not_between_columns,
-        or_where_not_between_columns,
-        having_not_between_columns,
-        or_having_not_between_columns,
-        BetweenOperator::NotBetween
-    );
+    #[variant(BetweenOperator, Between, between, not_between)]
+    fn between_expr<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        L: IntoRhsExpr,
+        H: IntoRhsExpr,
+    {
+        Self::push_between_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
+            Conjunction::And,
+            lhs.into_lhs_expr(),
+            low.into_rhs_expr(),
+            high.into_rhs_expr(),
+            BetweenOperator::Between,
+        );
+        self
+    }
+
+    #[variant(BetweenOperator, Between, between_columns Between, not_between_columns NotBetween)]
+    pub fn between_columns_expr<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        L: IntoLhsExpr,
+        H: IntoLhsExpr,
+    {
+        Self::push_between_expr(
+            &mut self.binds,
+            self.maybe_where.get_or_insert_default(),
+            Conjunction::And,
+            lhs.into_lhs_expr(),
+            low.into_lhs_expr(),
+            high.into_lhs_expr(),
+            BetweenOperator::Between,
+        );
+        self
+    }
+
     define_exists!(
         where_exists,
         or_where_exists,
