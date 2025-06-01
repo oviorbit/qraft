@@ -1,6 +1,15 @@
-use qraft_derive::{variant, or_variant};
+use qraft_derive::{or_variant, variant};
 
-use crate::{builder::QueryKind, expr::{between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings}, writer::FormatWriter, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoGroupProj, IntoRaw, IntoRhsExpr, Projections, TableRef};
+use crate::{
+    Binds, Builder, IntoBinds, IntoGroupProj, IntoInList, IntoLhsExpr, IntoOperator, IntoRaw,
+    IntoRhsExpr, Projections, TableRef,
+    builder::QueryKind,
+    expr::{
+        Conjunction, Expr, TakeBindings, between::BetweenOperator, binary::Operator,
+        cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator,
+    },
+    writer::FormatWriter,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum JoinType {
@@ -11,7 +20,10 @@ pub enum JoinType {
 }
 
 impl FormatWriter for JoinType {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             JoinType::Inner => context.writer.write_str("inner join"),
             JoinType::Left => context.writer.write_str("left join"),
@@ -67,7 +79,7 @@ impl JoinClause {
 
     pub fn using<C>(&mut self, columns: C) -> &mut Self
     where
-        C: IntoGroupProj // subqueries are not allowed !
+        C: IntoGroupProj, // subqueries are not allowed !
     {
         self.maybe_using = Some(columns.into_group_proj());
         self
@@ -84,7 +96,8 @@ impl JoinClause {
         let mut rhs = other_column.into_lhs_expr();
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
-        self.conditions.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
+        self.conditions
+            .push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
 
@@ -99,7 +112,8 @@ impl JoinClause {
         let mut rhs = value.into_rhs_expr();
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
-        self.conditions.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
+        self.conditions
+            .push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
 
@@ -114,7 +128,8 @@ impl JoinClause {
         };
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        self.conditions.push_group(Conjunction::And, inner.conditions);
+        self.conditions
+            .push_group(Conjunction::And, inner.conditions);
         self
     }
 
@@ -129,7 +144,8 @@ impl JoinClause {
         };
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        self.conditions.push_group(Conjunction::And, inner.conditions);
+        self.conditions
+            .push_group(Conjunction::And, inner.conditions);
         self
     }
 
@@ -156,7 +172,8 @@ impl JoinClause {
         let mut rhs = value.into_rhs_expr();
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
-        self.conditions.push_binary(Conjunction::And, lhs, rhs, Operator::Eq);
+        self.conditions
+            .push_binary(Conjunction::And, lhs, rhs, Operator::Eq);
         self
     }
 
@@ -167,7 +184,8 @@ impl JoinClause {
     {
         let mut lhs = column.into_lhs_expr();
         self.binds.append(lhs.take_bindings());
-        self.conditions.push_unary(Conjunction::And, lhs, UnaryOperator::Null);
+        self.conditions
+            .push_unary(Conjunction::And, lhs, UnaryOperator::Null);
         self
     }
 
@@ -184,7 +202,8 @@ impl JoinClause {
         self.binds.append(lhs.take_bindings());
         self.binds.append(low.take_bindings());
         self.binds.append(high.take_bindings());
-        self.conditions.push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
+        self.conditions
+            .push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
         self
     }
 
@@ -201,7 +220,8 @@ impl JoinClause {
         self.binds.append(lhs.take_bindings());
         self.binds.append(low.take_bindings());
         self.binds.append(high.take_bindings());
-        self.conditions.push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
+        self.conditions
+            .push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
         self
     }
 
@@ -213,7 +233,8 @@ impl JoinClause {
         let mut inner = Builder::default();
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        self.conditions.push_exists(Conjunction::And, inner, ExistsOperator::Exists);
+        self.conditions
+            .push_exists(Conjunction::And, inner, ExistsOperator::Exists);
         self
     }
 
@@ -227,7 +248,8 @@ impl JoinClause {
         let mut rhs = rhs.into_in_list();
         self.binds.append(lhs.take_bindings());
         self.binds.append(rhs.take_bindings());
-        self.conditions.push_in(Conjunction::And, lhs, rhs, InOperator::In);
+        self.conditions
+            .push_in(Conjunction::And, lhs, rhs, InOperator::In);
         self
     }
 
@@ -279,7 +301,6 @@ impl JoinClause {
         )
     }
 
-
     fn where_grouped_expr(
         &mut self,
         group_conj: Conjunction,
@@ -307,7 +328,10 @@ impl JoinClause {
 }
 
 impl FormatWriter for JoinClause {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         self.ty.format_writer(context)?;
         context.writer.write_char(' ')?;
         if let Some(ref table) = self.maybe_table {
@@ -318,7 +342,7 @@ impl FormatWriter for JoinClause {
             context.writer.write_str(" using (")?;
             using.format_writer(context)?;
             context.writer.write_char(')')?;
-        } else if ! self.conditions.is_empty() {
+        } else if !self.conditions.is_empty() {
             if matches!(self.kind, QueryKind::Join) {
                 context.writer.write_str(" on ")?;
             }

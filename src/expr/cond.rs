@@ -1,7 +1,14 @@
-use crate::{writer::FormatWriter, Binds, Builder, Raw};
+use crate::{Binds, Builder, Raw, writer::FormatWriter};
 
 use super::{
-    between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, exists::{ExistsExpr, ExistsOperator}, group::GroupCondition, r#in::{InExpr, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, TakeBindings
+    Expr, TakeBindings,
+    between::{BetweenCondition, BetweenOperator},
+    binary::{BinaryCondition, Operator},
+    exists::{ExistsExpr, ExistsOperator},
+    group::GroupCondition,
+    r#in::{InExpr, InOperator},
+    list::InList,
+    unary::{UnaryCondition, UnaryOperator},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -46,7 +53,7 @@ impl TakeBindings for ConditionKind {
             ConditionKind::Unary(condition) => condition.take_bindings(),
             ConditionKind::Between(condition) => condition.take_bindings(),
             ConditionKind::In(condition) => condition.take_bindings(),
-            ConditionKind::Exists(condition) => condition.take_bindings()
+            ConditionKind::Exists(condition) => condition.take_bindings(),
         }
     }
 }
@@ -100,7 +107,8 @@ pub struct Conditions(pub(crate) Vec<Condition>);
 
 impl TakeBindings for Conditions {
     fn take_bindings(&mut self) -> Binds {
-        self.0.iter_mut()
+        self.0
+            .iter_mut()
             .map(|v| v.take_bindings())
             .fold(Binds::None, |mut acc, next| {
                 acc.append(next);

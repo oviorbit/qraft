@@ -1,7 +1,11 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, expr::{exists::ExistsExpr, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
+    Builder, Raw,
+    bind::Array,
+    expr::{Expr, TakeBindings, exists::ExistsExpr, r#in::InExpr},
+    ident::{Ident, IntoIdent, TableRef},
+    writer::FormatWriter,
 };
 
 pub type Projections = Array<Expr>;
@@ -127,35 +131,50 @@ impl<const N: usize> IntoGroupProj for [TableRef; N] {
 
 impl IntoGroupProj for Vec<&str> {
     fn into_group_proj(self) -> Projections {
-        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        let vec = self
+            .into_iter()
+            .map(|t| Expr::Ident(t.into_table()))
+            .collect();
         Projections::Many(vec)
     }
 }
 
 impl IntoGroupProj for Vec<String> {
     fn into_group_proj(self) -> Projections {
-        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        let vec = self
+            .into_iter()
+            .map(|t| Expr::Ident(t.into_table()))
+            .collect();
         Projections::Many(vec)
     }
 }
 
 impl IntoGroupProj for Vec<Ident> {
     fn into_group_proj(self) -> Projections {
-        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        let vec = self
+            .into_iter()
+            .map(|t| Expr::Ident(t.into_table()))
+            .collect();
         Projections::Many(vec)
     }
 }
 
 impl IntoGroupProj for Vec<Raw> {
     fn into_group_proj(self) -> Projections {
-        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        let vec = self
+            .into_iter()
+            .map(|t| Expr::Ident(t.into_table()))
+            .collect();
         Projections::Many(vec)
     }
 }
 
 impl IntoGroupProj for Vec<TableRef> {
     fn into_group_proj(self) -> Projections {
-        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        let vec = self
+            .into_iter()
+            .map(|t| Expr::Ident(t.into_table()))
+            .collect();
         Projections::Many(vec)
     }
 }
@@ -171,7 +190,6 @@ impl<T: ProjectionSchema> IntoGroupProj for T {
         T::projections()
     }
 }
-
 
 pub trait IntoSelectProj {
     fn into_select_proj(self) -> Projections;

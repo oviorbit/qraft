@@ -3,11 +3,26 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{
-        AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections, TableSchema
-    }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Ident, IntoInList, JoinClause, JoinType, Joins
+    Ident, IntoInList, JoinClause, JoinType, Joins,
+    bind::{Binds, IntoBinds},
+    col::{
+        AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
+        TableSchema,
+    },
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::BetweenOperator,
+        binary::Operator,
+        cond::{Conditions, Conjunction},
+        exists::{ExistsExpr, ExistsOperator},
+        r#in::InOperator,
+        order::{Order, Ordering},
+        unary::UnaryOperator,
+    },
+    ident::{IntoIdent, TableRef},
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -705,7 +720,11 @@ impl Builder {
     {
         let self_builder = self.take();
         let mut builder = Builder::default();
-        let exists = ExistsExpr::new(ExistsOperator::Exists, self_builder, Some(Ident::new_static("exists")));
+        let exists = ExistsExpr::new(
+            ExistsOperator::Exists,
+            self_builder,
+            Some(Ident::new_static("exists")),
+        );
         builder.select(exists);
         builder.fetch_value(executor).await
     }
@@ -814,7 +833,11 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, sub
+        bind::{self, Bind},
+        col::ProjectionSchema,
+        column_static,
+        dialect::Postgres,
+        raw, sub,
     };
 
     use super::*;

@@ -1,6 +1,6 @@
 use std::{fmt::Write, ops::Deref};
 
-use crate::{dialect::Dialect, Ident};
+use crate::{Ident, dialect::Dialect};
 
 pub(crate) trait FormatWriter {
     fn format_writer<W: Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result;

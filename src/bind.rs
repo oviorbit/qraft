@@ -101,7 +101,7 @@ impl<'q> EncodeBind<'q, sqlx::Postgres> for Bind {
             Bind::U32(value) => binds.add(value.map(|v| v as i32)),
             Bind::U64(value) => binds.add(value.map(|v| v as i64)),
             Bind::VecBytes(items) => binds.add(items),
-             #[cfg(feature = "time")]
+            #[cfg(feature = "time")]
             Bind::Date(value) => binds.add(value),
             #[cfg(feature = "time")]
             Bind::Time(value) => binds.add(value),

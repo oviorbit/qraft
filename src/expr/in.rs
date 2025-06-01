@@ -1,6 +1,9 @@
-use crate::{writer::{self, FormatWriter}, Ident};
+use crate::{
+    Ident,
+    writer::{self, FormatWriter},
+};
 
-use super::{list::InList, Expr, TakeBindings};
+use super::{Expr, TakeBindings, list::InList};
 
 #[derive(Debug, Clone)]
 pub struct InExpr {

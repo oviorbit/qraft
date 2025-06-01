@@ -1,6 +1,11 @@
 use smol_str::SmolStr;
 
-use crate::{col::AliasSub, ident::IntoIdent, writer::{self, FormatWriter}, Builder, Ident};
+use crate::{
+    Builder, Ident,
+    col::AliasSub,
+    ident::IntoIdent,
+    writer::{self, FormatWriter},
+};
 
 use super::TakeBindings;
 
@@ -20,7 +25,7 @@ impl AliasSubFn {
     pub fn new<I, T>(keyword: I, inner: Builder, alias: T) -> Self
     where
         I: Into<SmolStr>,
-        T: IntoIdent
+        T: IntoIdent,
     {
         Self {
             keyword: keyword.into(),

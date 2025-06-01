@@ -1,6 +1,6 @@
 use crate::writer::FormatWriter;
 
-use super::{cond::Conditions, TakeBindings};
+use super::{TakeBindings, cond::Conditions};
 
 #[derive(Debug, Clone)]
 pub struct GroupCondition {

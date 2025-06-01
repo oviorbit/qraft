@@ -6,20 +6,20 @@ mod col;
 mod dialect;
 pub mod expr;
 mod ident;
+mod join;
 mod raw;
 mod writer;
-mod join;
 
-use col::AliasSub;
-use expr::sub::AliasSubFn;
-use ident::IntoIdent;
-pub use join::*;
 use bind::Bind;
+use col::AliasSub;
 pub use col::IntoGroupProj;
 pub use col::IntoTable;
 pub use col::ProjectionSchema;
 pub use col::Projections;
 pub use col::TableSchema;
+use expr::sub::AliasSubFn;
+use ident::IntoIdent;
+pub use join::*;
 
 pub use bind::Binds;
 pub use bind::IntoBind;
@@ -70,7 +70,8 @@ pub fn raw(value: &str) -> Raw {
 pub fn sub_as<F, I>(table: F, alias: I) -> AliasSub
 where
     F: FnOnce(&mut Builder),
-    I: IntoIdent {
+    I: IntoIdent,
+{
     let mut inner = Builder::default();
     table(&mut inner);
     AliasSub::new(inner, alias)

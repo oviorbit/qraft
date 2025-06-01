@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use crate::{
-    writer::{FormatContext, FormatWriter}, Builder, Ident
+    Builder, Ident,
+    writer::{FormatContext, FormatWriter},
 };
 
 use super::TakeBindings;
