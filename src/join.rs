@@ -1,6 +1,6 @@
 use qraft_derive::{variant, or_variant};
 
-use crate::{builder::QueryKind, expr::{between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings}, writer::FormatWriter, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoProjections, IntoRaw, IntoRhsExpr, Projections, TableRef};
+use crate::{builder::QueryKind, expr::{between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings}, writer::FormatWriter, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoGroupProj, IntoRaw, IntoRhsExpr, Projections, TableRef};
 
 #[derive(Debug, Clone, Copy)]
 pub enum JoinType {
@@ -67,9 +67,9 @@ impl JoinClause {
 
     pub fn using<C>(&mut self, columns: C) -> &mut Self
     where
-        C: IntoProjections // subqueries are not allowed !
+        C: IntoGroupProj // subqueries are not allowed !
     {
-        self.maybe_using = Some(columns.into_projections());
+        self.maybe_using = Some(columns.into_group_proj());
         self
     }
 
@@ -234,14 +234,14 @@ impl JoinClause {
     #[or_variant]
     pub fn where_all<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::And,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -250,14 +250,14 @@ impl JoinClause {
     #[or_variant]
     pub fn where_any<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::Or,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -266,14 +266,14 @@ impl JoinClause {
     #[or_variant(not)]
     pub fn where_none<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::AndNot,
             Conjunction::Or,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )

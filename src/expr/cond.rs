@@ -1,7 +1,7 @@
 use crate::{writer::FormatWriter, Binds, Builder, Raw};
 
 use super::{
-    between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, TakeBindings
+    between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, exists::{ExistsExpr, ExistsOperator}, group::GroupCondition, r#in::{InExpr, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, TakeBindings
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -33,8 +33,8 @@ pub enum ConditionKind {
     Raw(Raw),
     Unary(UnaryCondition),
     Between(BetweenCondition),
-    In(InCondition),
-    Exists(ExistsCondition),
+    In(InExpr),
+    Exists(ExistsExpr),
 }
 
 impl TakeBindings for ConditionKind {
@@ -132,7 +132,7 @@ impl Conditions {
         rhs: InList,
         operator: InOperator,
     ) {
-        let inc = InCondition { operator, lhs, rhs };
+        let inc = InExpr { operator, lhs, rhs, alias: None };
         let kind = ConditionKind::In(inc);
         let cond = Condition::new(conjunction, kind);
         self.push(cond);
@@ -144,9 +144,10 @@ impl Conditions {
         rhs: Builder,
         operator: ExistsOperator,
     ) {
-        let exists = ExistsCondition {
+        let exists = ExistsExpr {
             operator,
             subquery: Box::new(rhs),
+            alias: None,
         };
         let kind = ConditionKind::Exists(exists);
         let cond = Condition::new(conjunction, kind);

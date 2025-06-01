@@ -8,11 +8,12 @@ pub(crate) mod group;
 pub(crate) mod r#in;
 pub(crate) mod list;
 pub(crate) mod order;
-pub(crate) mod unary;
 pub(crate) mod sub;
+pub(crate) mod unary;
 
 pub use cond::Conjunction;
-use sub::FnCall;
+use exists::ExistsExpr;
+use r#in::InExpr;
 
 use crate::{
     Binds, Builder, Ident, IntoBind, IntoTable, TableRef,
@@ -26,6 +27,8 @@ pub enum Expr {
     Bind(Bind),
     Ident(TableRef),
     Subquery(Box<Builder>),
+    Exists(ExistsExpr),
+    In(Box<InExpr>),
 }
 
 pub(crate) trait TakeBindings {
@@ -38,6 +41,8 @@ impl TakeBindings for Expr {
             Expr::Bind(bind) => Array::One(std::mem::replace(bind, Bind::Consumed)),
             Expr::Ident(ident) => ident.take_bindings(),
             Expr::Subquery(builder) => builder.take_bindings(),
+            Expr::Exists(condition) => condition.take_bindings(),
+            Expr::In(condition) => condition.take_bindings(),
         }
     }
 }
@@ -55,6 +60,8 @@ impl FormatWriter for Expr {
                 builder.format_writer(context)?;
                 context.writer.write_char(')')
             }
+            Expr::Exists(condition) => condition.format_writer(context),
+            Expr::In(condition) => condition.format_writer(context),
         }
     }
 }

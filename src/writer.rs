@@ -1,6 +1,6 @@
 use std::{fmt::Write, ops::Deref};
 
-use crate::dialect::Dialect;
+use crate::{dialect::Dialect, Ident};
 
 pub(crate) trait FormatWriter {
     fn format_writer<W: Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result;
@@ -61,6 +61,14 @@ impl<'a, W: Write> FormatContext<'a, W> {
         }
 
         self.writer.write_char(quote)?;
+        Ok(())
+    }
+
+    pub fn write_alias(&mut self, alias: Option<&Ident>) -> std::fmt::Result {
+        if let Some(ref alias) = alias {
+            self.writer.write_str(" as ")?;
+            alias.format_writer(self)?;
+        }
         Ok(())
     }
 

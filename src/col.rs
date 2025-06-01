@@ -1,10 +1,10 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, expr::{sub::AliasSubFn, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
+    bind::Array, expr::{exists::ExistsExpr, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
-pub type Projections = Array<TableRef>;
+pub type Projections = Array<Expr>;
 
 impl FormatWriter for Projections {
     fn format_writer<W: fmt::Write>(
@@ -36,20 +36,172 @@ pub trait ProjectionSchema {
     fn projections() -> Projections;
 }
 
-pub trait IntoProjections {
-    fn into_projections(self) -> Projections;
+pub trait IntoGroupProj {
+    fn into_group_proj(self) -> Projections;
 }
 
-pub trait IntoProjectionsWithSub {
-    fn into_projections_with_sub(self) -> Projections;
+impl IntoGroupProj for &str {
+    fn into_group_proj(self) -> Projections {
+        Projections::One(Expr::Ident(self.into_table()))
+    }
 }
 
-impl<T> IntoProjectionsWithSub for T
+impl IntoGroupProj for String {
+    fn into_group_proj(self) -> Projections {
+        Projections::One(Expr::Ident(self.into_table()))
+    }
+}
+
+impl IntoGroupProj for Raw {
+    fn into_group_proj(self) -> Projections {
+        Projections::One(Expr::Ident(self.into_table()))
+    }
+}
+
+impl IntoGroupProj for Ident {
+    fn into_group_proj(self) -> Projections {
+        Projections::One(Expr::Ident(self.into_table()))
+    }
+}
+
+impl IntoGroupProj for TableRef {
+    fn into_group_proj(self) -> Projections {
+        Projections::One(Expr::Ident(self))
+    }
+}
+
+impl<const N: usize> IntoGroupProj for [&str; N] {
+    fn into_group_proj(self) -> Projections {
+        // cheap clone O(1)
+        if N == 1 {
+            Projections::One(Expr::Ident(self[0].into_table()))
+        } else {
+            let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
+            Projections::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoGroupProj for [String; N] {
+    fn into_group_proj(self) -> Projections {
+        let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
+        Projections::Many(vec)
+    }
+}
+
+impl<const N: usize> IntoGroupProj for [Ident; N] {
+    fn into_group_proj(self) -> Projections {
+        // cheap clone O(1)
+        if N == 1 {
+            Projections::One(Expr::Ident(self[0].clone().into_table()))
+        } else {
+            let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
+            Projections::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoGroupProj for [Raw; N] {
+    fn into_group_proj(self) -> Projections {
+        // cheap clone O(1)
+        if N == 1 {
+            Projections::One(Expr::Ident(self[0].clone().into_table()))
+        } else {
+            let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
+            Projections::Many(vec)
+        }
+    }
+}
+
+impl<const N: usize> IntoGroupProj for [TableRef; N] {
+    fn into_group_proj(self) -> Projections {
+        // cheap clone O(1)
+        if N == 1 {
+            Projections::One(Expr::Ident(self[0].clone()))
+        } else {
+            let vec: Vec<Expr> = self.map(Expr::Ident).to_vec();
+            Projections::Many(vec)
+        }
+    }
+}
+
+impl IntoGroupProj for Vec<&str> {
+    fn into_group_proj(self) -> Projections {
+        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        Projections::Many(vec)
+    }
+}
+
+impl IntoGroupProj for Vec<String> {
+    fn into_group_proj(self) -> Projections {
+        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        Projections::Many(vec)
+    }
+}
+
+impl IntoGroupProj for Vec<Ident> {
+    fn into_group_proj(self) -> Projections {
+        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        Projections::Many(vec)
+    }
+}
+
+impl IntoGroupProj for Vec<Raw> {
+    fn into_group_proj(self) -> Projections {
+        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        Projections::Many(vec)
+    }
+}
+
+impl IntoGroupProj for Vec<TableRef> {
+    fn into_group_proj(self) -> Projections {
+        let vec = self.into_iter().map(|t| Expr::Ident(t.into_table())).collect();
+        Projections::Many(vec)
+    }
+}
+
+impl IntoGroupProj for Projections {
+    fn into_group_proj(self) -> Projections {
+        self
+    }
+}
+
+impl<T: ProjectionSchema> IntoGroupProj for T {
+    fn into_group_proj(self) -> Projections {
+        T::projections()
+    }
+}
+
+
+pub trait IntoSelectProj {
+    fn into_select_proj(self) -> Projections;
+}
+
+impl<T> IntoSelectProj for T
 where
-    T: IntoProjections,
+    T: IntoGroupProj,
 {
-    fn into_projections_with_sub(self) -> Projections {
-        self.into_projections()
+    fn into_select_proj(self) -> Projections {
+        self.into_group_proj()
+    }
+}
+
+impl IntoSelectProj for AliasSub {
+    fn into_select_proj(self) -> Projections {
+        let table_ref = TableRef::AliasSub(self);
+        Projections::One(Expr::Ident(table_ref))
+    }
+}
+
+impl IntoSelectProj for InExpr {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(Expr::In(Box::new(self)))
+    }
+}
+
+impl IntoSelectProj for ExistsExpr {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(Expr::Exists(self))
     }
 }
 
@@ -91,28 +243,14 @@ impl TakeBindings for AliasSub {
     }
 }
 
-impl IntoProjectionsWithSub for AliasSub {
-    fn into_projections_with_sub(self) -> Projections {
-        let table_ref = TableRef::AliasSub(self);
-        Projections::One(table_ref)
-    }
-}
-
-impl IntoProjectionsWithSub for AliasSubFn {
-    fn into_projections_with_sub(self) -> Projections {
-        let table_ref = TableRef::AliasSubFn(self);
-        Projections::One(table_ref)
-    }
+pub trait IntoTable {
+    fn into_table(self) -> TableRef;
 }
 
 impl IntoTable for AliasSub {
     fn into_table(self) -> TableRef {
         TableRef::AliasSub(self)
     }
-}
-
-pub trait IntoTable {
-    fn into_table(self) -> TableRef;
 }
 
 impl IntoTable for &str {
@@ -151,138 +289,6 @@ impl<T: TableSchema> IntoTable for T {
     }
 }
 
-impl IntoProjections for &str {
-    fn into_projections(self) -> Projections {
-        Projections::One(self.into_table())
-    }
-}
-
-impl IntoProjections for String {
-    fn into_projections(self) -> Projections {
-        Projections::One(self.into_table())
-    }
-}
-
-impl IntoProjections for Raw {
-    fn into_projections(self) -> Projections {
-        Projections::One(self.into_table())
-    }
-}
-
-impl IntoProjections for Ident {
-    fn into_projections(self) -> Projections {
-        Projections::One(self.into_table())
-    }
-}
-
-impl IntoProjections for TableRef {
-    fn into_projections(self) -> Projections {
-        Projections::One(self.into_table())
-    }
-}
-
-impl<const N: usize> IntoProjections for [&str; N] {
-    fn into_projections(self) -> Projections {
-        // cheap clone O(1)
-        if N == 1 {
-            Projections::One(self[0].into_table())
-        } else {
-            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
-            Projections::Many(vec)
-        }
-    }
-}
-
-impl<const N: usize> IntoProjections for [String; N] {
-    fn into_projections(self) -> Projections {
-        let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
-        Projections::Many(vec)
-    }
-}
-
-impl<const N: usize> IntoProjections for [Ident; N] {
-    fn into_projections(self) -> Projections {
-        // cheap clone O(1)
-        if N == 1 {
-            Projections::One(self[0].clone().into_table())
-        } else {
-            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
-            Projections::Many(vec)
-        }
-    }
-}
-
-impl<const N: usize> IntoProjections for [Raw; N] {
-    fn into_projections(self) -> Projections {
-        // cheap clone O(1)
-        if N == 1 {
-            Projections::One(self[0].clone().into_table())
-        } else {
-            let vec: Vec<TableRef> = self.map(|t| t.into_table()).to_vec();
-            Projections::Many(vec)
-        }
-    }
-}
-
-impl<const N: usize> IntoProjections for [TableRef; N] {
-    fn into_projections(self) -> Projections {
-        // cheap clone O(1)
-        if N == 1 {
-            Projections::One(self[0].clone())
-        } else {
-            let vec: Vec<TableRef> = self.to_vec();
-            Projections::Many(vec)
-        }
-    }
-}
-
-impl IntoProjections for Vec<&str> {
-    fn into_projections(self) -> Projections {
-        let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Projections::Many(vec)
-    }
-}
-
-impl IntoProjections for Vec<String> {
-    fn into_projections(self) -> Projections {
-        let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Projections::Many(vec)
-    }
-}
-
-impl IntoProjections for Vec<Ident> {
-    fn into_projections(self) -> Projections {
-        let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Projections::Many(vec)
-    }
-}
-
-impl IntoProjections for Vec<Raw> {
-    fn into_projections(self) -> Projections {
-        let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Projections::Many(vec)
-    }
-}
-
-impl IntoProjections for Vec<TableRef> {
-    fn into_projections(self) -> Projections {
-        let vec = self.into_iter().map(|t| t.into_table()).collect();
-        Projections::Many(vec)
-    }
-}
-
-impl IntoProjections for Projections {
-    fn into_projections(self) -> Projections {
-        self
-    }
-}
-
-impl<T: ProjectionSchema> IntoProjections for T {
-    fn into_projections(self) -> Projections {
-        T::projections()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{column_static, dialect::Dialect, raw_static, tests::format_writer};
@@ -291,9 +297,9 @@ mod tests {
 
     fn select<T>(value: T) -> Projections
     where
-        T: IntoProjections,
+        T: IntoGroupProj,
     {
-        value.into_projections()
+        value.into_group_proj()
     }
 
     #[test]

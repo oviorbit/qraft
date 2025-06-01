@@ -1,29 +1,30 @@
 use std::fmt::Write;
 
 use crate::{
-    Builder,
-    writer::{FormatContext, FormatWriter},
+    writer::{FormatContext, FormatWriter}, Builder, Ident
 };
 
 use super::TakeBindings;
 
 #[derive(Debug, Clone)]
-pub struct ExistsCondition {
+pub struct ExistsExpr {
     pub(crate) operator: ExistsOperator,
     pub(crate) subquery: Box<Builder>,
+    pub(crate) alias: Option<Ident>,
 }
 
-impl TakeBindings for ExistsCondition {
+impl TakeBindings for ExistsExpr {
     fn take_bindings(&mut self) -> crate::Binds {
         self.subquery.take_bindings()
     }
 }
 
-impl ExistsCondition {
+impl ExistsExpr {
     pub fn new(operator: ExistsOperator, subquery: Builder) -> Self {
         Self {
             operator,
             subquery: Box::new(subquery),
+            alias: None,
         }
     }
 }
@@ -43,12 +44,13 @@ impl FormatWriter for ExistsOperator {
     }
 }
 
-impl FormatWriter for ExistsCondition {
+impl FormatWriter for ExistsExpr {
     fn format_writer<W: Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result {
         self.operator.format_writer(context)?;
         context.writer.write_str(" (")?;
         self.subquery.format_writer(context)?;
         context.writer.write_char(')')?;
+        context.write_alias(self.alias.as_ref())?;
         Ok(())
     }
 }

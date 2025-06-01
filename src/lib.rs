@@ -15,7 +15,7 @@ use expr::sub::AliasSubFn;
 use ident::IntoIdent;
 pub use join::*;
 use bind::Bind;
-pub use col::IntoProjections;
+pub use col::IntoGroupProj;
 pub use col::IntoTable;
 pub use col::ProjectionSchema;
 pub use col::Projections;
@@ -40,6 +40,8 @@ pub use expr::list::IntoInList;
 
 pub use dialect::*;
 use smol_str::SmolStr;
+
+// Can use { ... } instead of |builder| ...
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)

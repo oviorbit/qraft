@@ -2,7 +2,7 @@ use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
     bind::{Binds, IntoBinds}, col::{
-        AliasSub, IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections, TableSchema
+        AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections, TableSchema
     }, dialect::HasDialect, expr::{
         between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, sub::AliasSubFn, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
@@ -255,8 +255,8 @@ impl Builder {
 
     // group by stuff
 
-    pub fn group_by<T: IntoProjections>(&mut self, projections: T) -> &mut Self {
-        let proj = projections.into_projections();
+    pub fn group_by<T: IntoGroupProj>(&mut self, projections: T) -> &mut Self {
+        let proj = projections.into_group_proj();
         self.maybe_group_by = Some(proj);
         self
     }
@@ -453,14 +453,14 @@ impl Builder {
     #[condition_variant]
     pub fn where_all<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::And,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -469,14 +469,14 @@ impl Builder {
     #[condition_variant]
     pub fn where_any<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::Or,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -485,14 +485,14 @@ impl Builder {
     #[condition_variant(not)]
     pub fn where_none<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoProjections,
+        C: IntoGroupProj,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::AndNot,
             Conjunction::Or,
-            columns.into_projections(),
+            columns.into_group_proj(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -607,7 +607,7 @@ impl Builder {
         B: IntoBinds,
     {
         let raw = value.into_raw();
-        self.projections = Projections::One(TableRef::Raw(raw));
+        self.projections = Projections::One(Expr::Ident(TableRef::Raw(raw)));
         self.binds.append(binds.into_binds());
         self
     }
@@ -619,17 +619,17 @@ impl Builder {
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoProjectionsWithSub,
+        T: IntoSelectProj,
     {
-        self.projections = cols.into_projections_with_sub();
+        self.projections = cols.into_select_proj();
         self
     }
 
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoProjectionsWithSub,
+        T: IntoSelectProj,
     {
-        let other = cols.into_projections_with_sub();
+        let other = cols.into_select_proj();
         self.projections.append(other);
         self
     }
@@ -680,10 +680,11 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        let sub_fn = AliasSubFn::new("exists", self, "exists");
-        let mut builder = Builder::default();
-        builder.select(sub_fn);
-        builder.fetch_value(executor).await
+        //let sub_fn = AliasSubFn::new("exists", self, "exists");
+        //let mut builder = Builder::default();
+        //builder.select(sub_fn);
+        //builder.fetch_value(executor).await
+        todo!()
     }
 
     pub async fn fetch_value<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
@@ -789,11 +790,7 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind},
-        col::ProjectionSchema,
-        column_static,
-        dialect::Postgres,
-        raw, sub,
+        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, expr::exists::ExistsExpr, raw, sub
     };
 
     use super::*;
@@ -836,7 +833,7 @@ mod tests {
     // generated ?
     impl ProjectionSchema for User {
         fn projections() -> Projections {
-            [column_static("id"), column_static("admin")].into_projections()
+            [column_static("id"), column_static("admin")].into_group_proj()
         }
     }
 
@@ -1177,9 +1174,13 @@ mod tests {
     fn test_subfn() {
         let mut builder = Builder::table("users");
         builder.where_eq("id", 1);
-        let sub_fn = AliasSubFn::new("exists", builder, "exists");
+        let exists = ExistsExpr {
+            operator: ExistsOperator::Exists,
+            subquery: Box::new(builder),
+            alias: Some("exists".into_ident()),
+        };
         let mut builder = Builder::default();
-        builder.select(sub_fn);
+        builder.select(exists);
         let result = r#"select exists(select * from "users" where "id" = $1) as "exists""#;
         assert_eq!(result, builder.to_sql::<Postgres>());
     }

@@ -3,7 +3,7 @@ use smol_str::SmolStr;
 use crate::{
     bind::Array,
     col::AliasSub,
-    expr::{sub::AliasSubFn, TakeBindings},
+    expr::TakeBindings,
     raw::Raw,
     writer::{self, FormatWriter},
 };
@@ -13,7 +13,6 @@ pub enum TableRef {
     Ident(Ident),
     Raw(Raw),
     AliasSub(AliasSub),
-    AliasSubFn(AliasSubFn),
 }
 
 impl TakeBindings for TableRef {
@@ -22,7 +21,6 @@ impl TakeBindings for TableRef {
             TableRef::Ident(_) => Array::None,
             TableRef::Raw(_) => Array::None,
             TableRef::AliasSub(builder) => builder.take_bindings(),
-            TableRef::AliasSubFn(sub_fn) => sub_fn.take_bindings(),
         }
     }
 }
@@ -60,7 +58,6 @@ impl FormatWriter for TableRef {
             TableRef::Ident(ident) => ident.format_writer(context),
             TableRef::Raw(raw) => raw.format_writer(context),
             TableRef::AliasSub(builder) => builder.format_writer(context),
-            TableRef::AliasSubFn(sub_fn) => sub_fn.format_writer(context),
         }
     }
 }
