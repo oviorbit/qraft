@@ -132,7 +132,7 @@ impl Conditions {
         rhs: InList,
         operator: InOperator,
     ) {
-        let inc = InExpr { operator, lhs, rhs, alias: None };
+        let inc = InExpr::new(operator, lhs, rhs, None);
         let kind = ConditionKind::In(inc);
         let cond = Condition::new(conjunction, kind);
         self.push(cond);
@@ -144,11 +144,7 @@ impl Conditions {
         rhs: Builder,
         operator: ExistsOperator,
     ) {
-        let exists = ExistsExpr {
-            operator,
-            subquery: Box::new(rhs),
-            alias: None,
-        };
+        let exists = ExistsExpr::new(operator, rhs, None);
         let kind = ConditionKind::Exists(exists);
         let cond = Condition::new(conjunction, kind);
         self.push(cond);

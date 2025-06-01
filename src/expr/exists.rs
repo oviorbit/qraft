@@ -20,11 +20,11 @@ impl TakeBindings for ExistsExpr {
 }
 
 impl ExistsExpr {
-    pub fn new(operator: ExistsOperator, subquery: Builder) -> Self {
+    pub fn new(operator: ExistsOperator, subquery: Builder, alias: Option<Ident>) -> Self {
         Self {
             operator,
             subquery: Box::new(subquery),
-            alias: None,
+            alias,
         }
     }
 }
