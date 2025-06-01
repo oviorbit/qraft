@@ -32,6 +32,10 @@ impl<'a, W: Write> FormatContext<'a, W> {
     }
 
     pub(crate) fn write_ident(&mut self, part: &str) -> std::fmt::Result {
+        if part == "*" {
+            return self.writer.write_char('*');
+        }
+
         let quote = match self.dialect {
             Dialect::Postgres | Dialect::Sqlite => '"',
             Dialect::MySql => '`',

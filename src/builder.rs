@@ -664,6 +664,17 @@ impl FormatWriter for Builder {
             table.format_writer(context)?;
         }
 
+        // joins here
+        if let Some(ref joins) = self.maybe_joins {
+            context.writer.write_char(' ')?;
+            for (index, join) in joins.iter().enumerate() {
+                if index > 0 {
+                    context.writer.write_char(' ')?;
+                }
+                join.format_writer(context)?;
+            }
+        }
+
         if let Some(ref w) = self.maybe_where {
             // if we are not in a where group
             if !w.is_empty() {
@@ -1062,6 +1073,13 @@ mod tests {
     #[test]
     fn test_join() {
         let mut builder = Builder::table("users");
-        builder.join("contacts", "users.id", "=", "contacts.user_id");
+        builder.join("contacts", "users.id", "=", "contacts.user_id")
+            .join("orders", "users.id", '=', "orders.user_id")
+            .select(["users.*", "contacts.phone", "orders.price"]);
+        let result = r#"select "users".*, "contacts"."phone", "orders"."price" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" inner join "orders" on "users"."id" = "orders"."user_id""#;
+        assert_eq!(
+            result,
+            builder.to_sql::<Postgres>()
+        );
     }
 }
