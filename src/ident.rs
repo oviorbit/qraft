@@ -12,7 +12,7 @@ use crate::{
 pub enum TableRef {
     Ident(Ident),
     Raw(Raw),
-    AliasedSub(Ident, Box<Builder>),
+    AliasedSub(Box<Builder>, Ident),
 }
 
 impl TakeBindings for TableRef {
@@ -20,7 +20,7 @@ impl TakeBindings for TableRef {
         match self {
             TableRef::Ident(_) => Array::None,
             TableRef::Raw(_) => Array::None,
-            TableRef::AliasedSub(_, builder) => builder.take_bindings(),
+            TableRef::AliasedSub(builder, _) => builder.take_bindings(),
         }
     }
 }
@@ -57,7 +57,7 @@ impl FormatWriter for TableRef {
         match self {
             TableRef::Ident(ident) => ident.format_writer(context),
             TableRef::Raw(raw) => raw.format_writer(context),
-            TableRef::AliasedSub(ident, builder) => {
+            TableRef::AliasedSub(builder, ident) => {
                 context.writer.write_char('(')?;
                 builder.format_writer(context)?;
                 context.writer.write_char(')')?;

@@ -1,19 +1,34 @@
 use qraft_derive::{variant, or_variant};
 
-use crate::{builder::QueryKind, expr::{between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings}, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoProjections, IntoRaw, IntoRhsExpr, Projections, TableRef};
+use crate::{builder::QueryKind, expr::{between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings}, writer::FormatWriter, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoProjections, IntoRaw, IntoRhsExpr, Projections, TableRef};
 
+#[derive(Debug, Clone, Copy)]
 pub enum JoinType {
     Inner,
     Left,
     Right,
+    Cross,
 }
 
+impl FormatWriter for JoinType {
+    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+        match self {
+            JoinType::Inner => context.writer.write_str("inner join"),
+            JoinType::Left => context.writer.write_str("left join"),
+            JoinType::Right => context.writer.write_str("right join"),
+            JoinType::Cross => context.writer.write_str("cross join"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct JoinClause {
     kind: QueryKind,
     ty: JoinType,
-    table: Option<TableRef>,
+    maybe_table: Option<TableRef>,
     conditions: Conditions,
     binds: Binds,
+    maybe_using: Option<Projections>,
 }
 
 impl Default for JoinClause {
@@ -21,9 +36,10 @@ impl Default for JoinClause {
         Self {
             kind: QueryKind::Join,
             ty: JoinType::Inner,
-            table: None,
+            maybe_table: None,
             conditions: Conditions::default(),
             binds: Binds::None,
+            maybe_using: None,
         }
     }
 }
@@ -34,18 +50,27 @@ impl TakeBindings for JoinClause {
     }
 }
 
+pub type Joins = Vec<JoinClause>;
+
 impl JoinClause {
-    pub fn new(ty: JoinType, table: TableRef) -> Self {
+    pub(crate) fn new(ty: JoinType, table: TableRef) -> Self {
         Self {
             ty,
-            table: Some(table),
+            maybe_table: Some(table),
             conditions: Conditions::default(),
             kind: QueryKind::Join,
             binds: Binds::None,
+            maybe_using: None,
         }
     }
 
-    // do stuff here ?
+    pub fn using<C>(&mut self, columns: C) -> &mut Self
+    where
+        C: IntoProjections // subqueries are not allowed !
+    {
+        self.maybe_using = Some(columns.into_projections());
+        self
+    }
 
     #[or_variant]
     pub fn on<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
@@ -277,5 +302,27 @@ impl JoinClause {
             Conjunction::AndNot => self.where_not_group(closure),
             Conjunction::OrNot => self.or_where_not_group(closure),
         }
+    }
+}
+
+impl FormatWriter for JoinClause {
+    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+        self.ty.format_writer(context)?;
+        context.writer.write_char(' ')?;
+        if let Some(ref table) = self.maybe_table {
+            table.format_writer(context)?;
+        }
+        // using is exclusive to on and > priority
+        if let Some(ref using) = self.maybe_using {
+            context.writer.write_str(" using (")?;
+            using.format_writer(context)?;
+            context.writer.write_char(')')?;
+        } else if ! self.conditions.is_empty() {
+            if matches!(self.kind, QueryKind::Join) {
+                context.writer.write_str(" on ")?;
+            }
+            self.conditions.format_writer(context)?;
+        }
+        Ok(())
     }
 }

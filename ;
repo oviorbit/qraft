@@ -75,7 +75,7 @@ impl Builder {
         let mut inner = Self::default();
         table(&mut inner);
         self.binds.append(inner.take_bindings());
-        self.maybe_table = Some(TableRef::AliasedSub(Box::new(inner), alias.into_ident()));
+        self.maybe_table = Some(TableRef::AliasedSub(alias.into_ident(), Box::new(inner)));
         self
     }
 
@@ -110,87 +110,8 @@ impl Builder {
         CC: IntoTable
     {
         self.join_clause(table, |join| {
-            join.on(column, operator, other_column);
+            join.on(column, operator, other_column)
         });
-        self
-    }
-
-    pub fn left_join<T, C, O, CC>(&mut self, table: T, column: C, operator: O, other_column: CC) -> &mut Self
-    where
-        T: IntoTable,
-        C: IntoTable,
-        O: IntoOperator,
-        CC: IntoTable
-    {
-        self.left_join_clause(table, |join| {
-            join.on(column, operator, other_column);
-        });
-        self
-    }
-
-    pub fn right_join<T, C, O, CC>(&mut self, table: T, column: C, operator: O, other_column: CC) -> &mut Self
-    where
-        T: IntoTable,
-        C: IntoTable,
-        O: IntoOperator,
-        CC: IntoTable
-    {
-        self.left_join_clause(table, |join| {
-            join.on(column, operator, other_column);
-        });
-        self
-    }
-
-    pub fn cross_join<T>(&mut self, table: T) -> &mut Self
-    where
-        T: IntoTable,
-    {
-        let mut join = JoinClause::new(JoinType::Cross, table.into_table());
-        self.binds.append(join.take_bindings());
-        let target = self.maybe_joins.get_or_insert_default();
-        target.push(join);
-        self
-    }
-
-    pub fn join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
-    where
-        F: FnOnce(&mut Builder),
-        A: IntoIdent,
-        J: FnOnce(&mut JoinClause),
-    {
-        let mut inner = Self::default();
-        sub(&mut inner);
-        self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
-        self.join_clause(table_ref, clause);
-        self
-    }
-
-    pub fn left_join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
-    where
-        F: FnOnce(&mut Builder),
-        A: IntoIdent,
-        J: FnOnce(&mut JoinClause),
-    {
-        let mut inner = Self::default();
-        sub(&mut inner);
-        self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
-        self.left_join_clause(table_ref, clause);
-        self
-    }
-
-    pub fn right_join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
-    where
-        F: FnOnce(&mut Builder),
-        A: IntoIdent,
-        J: FnOnce(&mut JoinClause),
-    {
-        let mut inner = Self::default();
-        sub(&mut inner);
-        self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
-        self.right_join_clause(table_ref, clause);
         self
     }
 
