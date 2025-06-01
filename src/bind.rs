@@ -231,6 +231,38 @@ impl<T> Array<T> {
     }
 }
 
+impl Binds {
+    pub fn normalize(&mut self) {
+        let old = std::mem::take(self);
+
+        *self = match old {
+            Array::None => Array::None,
+
+            Array::One(b) => {
+                if b.is_consumed() {
+                    Array::None
+                } else {
+                    Array::One(b)
+                }
+            }
+
+            Array::Many(mut vec) => {
+                vec.retain(|b| !b.is_consumed());
+
+                match vec.len() {
+                    0 => Array::None,
+                    1 => {
+                        // safe we have at least 1
+                        let only = vec.into_iter().next().expect("we already checked the len");
+                        Array::One(only)
+                    }
+                    _ => Array::Many(vec),
+                }
+            }
+        };
+    }
+}
+
 pub trait IntoBind {
     fn into_bind(self) -> Bind;
 }

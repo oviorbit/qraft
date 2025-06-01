@@ -8,6 +8,7 @@ pub mod expr;
 mod ident;
 mod raw;
 mod writer;
+mod join;
 
 use bind::Bind;
 pub use col::IntoProjections;

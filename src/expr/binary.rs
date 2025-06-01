@@ -1,12 +1,20 @@
 use crate::{dialect::Dialect, writer::FormatWriter};
 
-use super::Expr;
+use super::{Expr, TakeBindings};
 
 #[derive(Debug, Clone)]
 pub struct BinaryCondition {
     pub(crate) lhs: Expr,
     pub(crate) operator: Operator,
     pub(crate) rhs: Expr,
+}
+
+impl TakeBindings for BinaryCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        let mut binds = self.lhs.take_bindings();
+        binds.append(self.rhs.take_bindings());
+        binds
+    }
 }
 
 impl FormatWriter for BinaryCondition {

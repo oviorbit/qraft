@@ -5,10 +5,18 @@ use crate::{
     writer::{FormatContext, FormatWriter},
 };
 
+use super::TakeBindings;
+
 #[derive(Debug, Clone)]
 pub struct ExistsCondition {
     pub(crate) operator: ExistsOperator,
     pub(crate) subquery: Box<Builder>,
+}
+
+impl TakeBindings for ExistsCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        self.subquery.take_bindings()
+    }
 }
 
 impl ExistsCondition {

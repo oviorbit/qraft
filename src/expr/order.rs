@@ -1,11 +1,13 @@
 use std::fmt;
 
 use crate::{
-    Raw, TableRef,
+    Binds, Raw, TableRef,
     bind::Array,
     dialect::Dialect,
     writer::{self, FormatWriter},
 };
+
+use super::TakeBindings;
 
 #[derive(Debug, Clone)]
 pub enum OrderExpr {
@@ -14,7 +16,28 @@ pub enum OrderExpr {
     Random,
 }
 
+impl TakeBindings for OrderExpr {
+    fn take_bindings(&mut self) -> Binds {
+        match self {
+            OrderExpr::Column(table_ref, _) => table_ref.take_bindings(),
+            OrderExpr::Raw(_) => Binds::None,
+            OrderExpr::Random => Binds::None,
+        }
+    }
+}
+
 pub type OrderProjections = Array<OrderExpr>;
+
+impl TakeBindings for OrderProjections {
+    fn take_bindings(&mut self) -> Binds {
+        self.iter_mut()
+            .map(|v| v.take_bindings())
+            .fold(Binds::None, |mut acc, next| {
+                acc.append(next);
+                acc
+            })
+    }
+}
 
 impl FormatWriter for OrderExpr {
     fn format_writer<W: fmt::Write>(
@@ -39,6 +62,12 @@ impl FormatWriter for OrderExpr {
 #[derive(Debug, Default, Clone)]
 pub struct Order {
     projections: OrderProjections,
+}
+
+impl TakeBindings for Order {
+    fn take_bindings(&mut self) -> Binds {
+        self.projections.take_bindings()
+    }
 }
 
 impl FormatWriter for Order {

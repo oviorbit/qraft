@@ -78,10 +78,10 @@ impl Builder {
         self
     }
 
-    pub fn from_sub<I, F>(&mut self, alias: I, table: F) -> &mut Self
+    pub fn from_sub<F, I>(&mut self, table: F, alias: I) -> &mut Self
     where
-        I: IntoIdent,
         F: FnOnce(&mut Self),
+        I: IntoIdent,
     {
         let mut inner = Self::default();
         table(&mut inner);
@@ -808,9 +808,9 @@ mod tests {
     #[test]
     fn test_from_sub() {
         let mut builder = Builder::table("users");
-        builder.from_sub("foo", |builder| {
+        builder.from_sub(|builder| {
             builder.where_eq("username", "foo").from("bar");
-        });
+        }, "foo");
         assert_eq!(
             "select * from (select * from \"bar\" where \"username\" = $1) as \"foo\"",
             builder.to_sql::<Postgres>()

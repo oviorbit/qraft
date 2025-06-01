@@ -1,10 +1,16 @@
 use crate::writer::FormatWriter;
 
-use super::cond::Conditions;
+use super::{cond::Conditions, TakeBindings};
 
 #[derive(Debug, Clone)]
 pub struct GroupCondition {
     pub(crate) conditions: Conditions,
+}
+
+impl TakeBindings for GroupCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        self.conditions.take_bindings()
+    }
 }
 
 impl FormatWriter for GroupCondition {

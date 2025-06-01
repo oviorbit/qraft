@@ -1,14 +1,7 @@
-use crate::{Builder, Raw, writer::FormatWriter};
+use crate::{writer::FormatWriter, Binds, Builder, Raw};
 
 use super::{
-    Expr,
-    between::{BetweenCondition, BetweenOperator},
-    binary::{BinaryCondition, Operator},
-    exists::{ExistsCondition, ExistsOperator},
-    group::GroupCondition,
-    r#in::{InCondition, InOperator},
-    list::InList,
-    unary::{UnaryCondition, UnaryOperator},
+    between::{BetweenCondition, BetweenOperator}, binary::{BinaryCondition, Operator}, exists::{ExistsCondition, ExistsOperator}, group::GroupCondition, r#in::{InCondition, InOperator}, list::InList, unary::{UnaryCondition, UnaryOperator}, Expr, TakeBindings
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +35,20 @@ pub enum ConditionKind {
     Between(BetweenCondition),
     In(InCondition),
     Exists(ExistsCondition),
+}
+
+impl TakeBindings for ConditionKind {
+    fn take_bindings(&mut self) -> Binds {
+        match self {
+            ConditionKind::Binary(condition) => condition.take_bindings(),
+            ConditionKind::Group(condition) => condition.take_bindings(),
+            ConditionKind::Raw(_) => Binds::None,
+            ConditionKind::Unary(condition) => condition.take_bindings(),
+            ConditionKind::Between(condition) => condition.take_bindings(),
+            ConditionKind::In(condition) => condition.take_bindings(),
+            ConditionKind::Exists(condition) => condition.take_bindings()
+        }
+    }
 }
 
 impl FormatWriter for ConditionKind {
@@ -82,8 +89,25 @@ impl Condition {
     }
 }
 
+impl TakeBindings for Condition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        self.kind.take_bindings()
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Conditions(pub(crate) Vec<Condition>);
+
+impl TakeBindings for Conditions {
+    fn take_bindings(&mut self) -> Binds {
+        self.0.iter_mut()
+            .map(|v| v.take_bindings())
+            .fold(Binds::None, |mut acc, next| {
+                acc.append(next);
+                acc
+            })
+    }
+}
 
 impl Conditions {
     pub fn push(&mut self, other: Condition) {

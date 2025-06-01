@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::writer::{FormatContext, FormatWriter};
 
-use super::Expr;
+use super::{Expr, TakeBindings};
 
 #[derive(Debug, Clone, Copy)]
 pub enum UnaryOperator {
@@ -16,6 +16,12 @@ pub enum UnaryOperator {
 pub struct UnaryCondition {
     pub(crate) lhs: Expr,
     pub(crate) operator: UnaryOperator,
+}
+
+impl TakeBindings for UnaryCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        self.lhs.take_bindings()
+    }
 }
 
 impl FormatWriter for UnaryCondition {

@@ -1,12 +1,20 @@
 use crate::writer::FormatWriter;
 
-use super::{Expr, list::InList};
+use super::{list::InList, Expr, TakeBindings};
 
 #[derive(Debug, Clone)]
 pub struct InCondition {
     pub(crate) operator: InOperator,
     pub(crate) lhs: Expr,
     pub(crate) rhs: InList,
+}
+
+impl TakeBindings for InCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        let mut binds = self.lhs.take_bindings();
+        binds.append(self.rhs.take_bindings());
+        binds
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

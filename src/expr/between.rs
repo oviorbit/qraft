@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::writer::{FormatContext, FormatWriter};
 
-use super::Expr;
+use super::{Expr, TakeBindings};
 
 #[derive(Debug, Clone, Copy)]
 pub enum BetweenOperator {
@@ -16,6 +16,15 @@ pub struct BetweenCondition {
     pub(crate) low: Expr,
     pub(crate) high: Expr,
     pub(crate) operator: BetweenOperator,
+}
+
+impl TakeBindings for BetweenCondition {
+    fn take_bindings(&mut self) -> crate::Binds {
+        let mut binds = self.lhs.take_bindings();
+        binds.append(self.low.take_bindings());
+        binds.append(self.high.take_bindings());
+        binds
+    }
 }
 
 impl FormatWriter for BetweenOperator {
