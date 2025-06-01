@@ -2,9 +2,9 @@ use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
     bind::{Binds, IntoBinds}, col::{
-        IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections, TableSchema
+        AliasSub, IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections, TableSchema
     }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, sub::SubqueryFn, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, sub::AliasSubFn, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
 };
 
@@ -76,7 +76,8 @@ impl Builder {
         let mut inner = Self::default();
         table(&mut inner);
         self.binds.append(inner.take_bindings());
-        self.maybe_table = Some(TableRef::AliasedSub(Box::new(inner), alias.into_ident()));
+        let aliased = AliasSub::new(inner, alias);
+        self.maybe_table = Some(TableRef::AliasSub(aliased));
         self
     }
 
@@ -177,7 +178,8 @@ impl Builder {
         let mut inner = Self::default();
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
+        let aliased = AliasSub::new(inner, alias);
+        let table_ref = TableRef::AliasSub(aliased);
         self.join_clause(table_ref, clause);
         self
     }
@@ -191,7 +193,8 @@ impl Builder {
         let mut inner = Self::default();
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
+        let aliased = AliasSub::new(inner, alias);
+        let table_ref = TableRef::AliasSub(aliased);
         self.left_join_clause(table_ref, clause);
         self
     }
@@ -205,7 +208,8 @@ impl Builder {
         let mut inner = Self::default();
         sub(&mut inner);
         self.binds.append(inner.take_bindings());
-        let table_ref = TableRef::AliasedSub(Box::new(inner), alias.into_ident());
+        let aliased = AliasSub::new(inner, alias);
+        let table_ref = TableRef::AliasSub(aliased);
         self.right_join_clause(table_ref, clause);
         self
     }
@@ -676,7 +680,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        let sub_fn = SubqueryFn::new("exists", self).alias("exists");
+        let sub_fn = AliasSubFn::new("exists", self, "exists");
         let mut builder = Builder::default();
         builder.select(sub_fn);
         builder.fetch_value(executor).await
@@ -1173,7 +1177,7 @@ mod tests {
     fn test_subfn() {
         let mut builder = Builder::table("users");
         builder.where_eq("id", 1);
-        let sub_fn = SubqueryFn::new("exists", builder).alias("exists");
+        let sub_fn = AliasSubFn::new("exists", builder, "exists");
         let mut builder = Builder::default();
         builder.select(sub_fn);
         let result = r#"select exists(select * from "users" where "id" = $1) as "exists""#;

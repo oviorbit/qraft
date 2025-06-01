@@ -1,9 +1,9 @@
 use smol_str::SmolStr;
 
 use crate::{
-    Builder,
     bind::Array,
-    expr::{TakeBindings, sub::SubqueryFn},
+    col::AliasSub,
+    expr::{sub::AliasSubFn, TakeBindings},
     raw::Raw,
     writer::{self, FormatWriter},
 };
@@ -12,8 +12,8 @@ use crate::{
 pub enum TableRef {
     Ident(Ident),
     Raw(Raw),
-    AliasedSub(Box<Builder>, Ident),
-    SubqueryFn(SubqueryFn),
+    AliasSub(AliasSub),
+    AliasSubFn(AliasSubFn),
 }
 
 impl TakeBindings for TableRef {
@@ -21,8 +21,8 @@ impl TakeBindings for TableRef {
         match self {
             TableRef::Ident(_) => Array::None,
             TableRef::Raw(_) => Array::None,
-            TableRef::AliasedSub(builder, _) => builder.take_bindings(),
-            TableRef::SubqueryFn(sub_fn) => sub_fn.take_bindings(),
+            TableRef::AliasSub(builder) => builder.take_bindings(),
+            TableRef::AliasSubFn(sub_fn) => sub_fn.take_bindings(),
         }
     }
 }
@@ -59,14 +59,8 @@ impl FormatWriter for TableRef {
         match self {
             TableRef::Ident(ident) => ident.format_writer(context),
             TableRef::Raw(raw) => raw.format_writer(context),
-            TableRef::AliasedSub(builder, ident) => {
-                context.writer.write_char('(')?;
-                builder.format_writer(context)?;
-                context.writer.write_char(')')?;
-                context.writer.write_str(" as ")?;
-                ident.format_writer(context)
-            }
-            TableRef::SubqueryFn(sub_fn) => sub_fn.format_writer(context),
+            TableRef::AliasSub(builder) => builder.format_writer(context),
+            TableRef::AliasSubFn(sub_fn) => sub_fn.format_writer(context),
         }
     }
 }

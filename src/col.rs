@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, expr::sub::SubqueryFn, ident::{Ident, TableRef}, writer::FormatWriter, Builder, Raw
+    bind::Array, expr::{sub::AliasSubFn, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<TableRef>;
@@ -46,7 +46,7 @@ pub trait IntoProjectionsWithSub {
 
 impl<T> IntoProjectionsWithSub for T
 where
-    T: IntoProjections
+    T: IntoProjections,
 {
     fn into_projections_with_sub(self) -> Projections {
         self.into_projections()
@@ -54,28 +54,60 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct AliasedBuilder {
+pub struct AliasSub {
     pub(crate) alias: Ident,
-    pub(crate) inner: Builder,
+    pub(crate) inner: Box<Builder>,
 }
 
-impl IntoProjectionsWithSub for AliasedBuilder {
+impl AliasSub {
+    pub fn new<I>(inner: Builder, alias: I) -> Self
+    where
+        I: IntoIdent,
+    {
+        Self {
+            alias: alias.into_ident(),
+            inner: Box::new(inner),
+        }
+    }
+}
+
+impl FormatWriter for AliasSub {
+    fn format_writer<W: fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
+        context.writer.write_char('(')?;
+        self.inner.format_writer(context)?;
+        context.writer.write_char(')')?;
+        context.writer.write_str(" as ")?;
+        self.alias.format_writer(context)?;
+        Ok(())
+    }
+}
+
+impl TakeBindings for AliasSub {
+    fn take_bindings(&mut self) -> crate::Binds {
+        self.inner.take_bindings()
+    }
+}
+
+impl IntoProjectionsWithSub for AliasSub {
     fn into_projections_with_sub(self) -> Projections {
-        let table_ref = TableRef::AliasedSub(Box::new(self.inner), self.alias);
+        let table_ref = TableRef::AliasSub(self);
         Projections::One(table_ref)
     }
 }
 
-impl IntoProjectionsWithSub for SubqueryFn {
+impl IntoProjectionsWithSub for AliasSubFn {
     fn into_projections_with_sub(self) -> Projections {
-        let table_ref = TableRef::SubqueryFn(self);
+        let table_ref = TableRef::AliasSubFn(self);
         Projections::One(table_ref)
     }
 }
 
-impl IntoTable for AliasedBuilder {
+impl IntoTable for AliasSub {
     fn into_table(self) -> TableRef {
-        TableRef::AliasedSub(Box::new(self.inner), self.alias)
+        TableRef::AliasSub(self)
     }
 }
 

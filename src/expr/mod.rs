@@ -12,6 +12,7 @@ pub(crate) mod unary;
 pub(crate) mod sub;
 
 pub use cond::Conjunction;
+use sub::FnCall;
 
 use crate::{
     Binds, Builder, Ident, IntoBind, IntoTable, TableRef,

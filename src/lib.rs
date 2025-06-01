@@ -10,8 +10,8 @@ mod raw;
 mod writer;
 mod join;
 
-use col::AliasedBuilder;
-use expr::sub::SubqueryFn;
+use col::AliasSub;
+use expr::sub::AliasSubFn;
 use ident::IntoIdent;
 pub use join::*;
 use bind::Bind;
@@ -65,26 +65,24 @@ pub fn raw(value: &str) -> Raw {
     Raw::new(value)
 }
 
-pub fn sub_as<F, I>(table: F, alias: I) -> AliasedBuilder
+pub fn sub_as<F, I>(table: F, alias: I) -> AliasSub
 where
     F: FnOnce(&mut Builder),
     I: IntoIdent {
     let mut inner = Builder::default();
     table(&mut inner);
-    AliasedBuilder {
-        alias: alias.into_ident(),
-        inner,
-    }
+    AliasSub::new(inner, alias)
 }
 
-pub fn fn_sub<T, F>(keyword: T, subquery: F) -> SubqueryFn
+pub fn fn_sub_as<T, F, A>(keyword: T, subquery: F, alias: A) -> AliasSubFn
 where
     T: Into<SmolStr>,
     F: FnOnce(&mut Builder),
+    A: IntoIdent,
 {
     let mut builder = Builder::default();
     subquery(&mut builder);
-    SubqueryFn::new(keyword, builder)
+    AliasSubFn::new(keyword, builder, alias)
 }
 
 pub fn sub<F>(query: F) -> Builder
