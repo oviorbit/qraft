@@ -8,9 +8,8 @@ use crate::{
         Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
         between::BetweenOperator,
         binary::Operator,
-        cond::{Condition, ConditionKind, Conditions, Conjunction},
+        cond::{Conditions, Conjunction},
         exists::ExistsOperator,
-        group::GroupCondition,
         r#in::InOperator,
         order::{Order, Ordering},
         unary::UnaryOperator,
@@ -85,6 +84,7 @@ impl Builder {
     {
         let mut inner = Self::default();
         table(&mut inner);
+        self.binds.append(inner.take_bindings());
         self.maybe_table = Some(TableRef::AliasedSub(alias.into_ident(), Box::new(inner)));
         self
     }
@@ -371,8 +371,8 @@ impl Builder {
         self
     }
 
-    #[inline]
-    pub(crate) fn where_grouped_expr(
+    #[condition_variant(none)]
+    fn where_grouped_expr(
         &mut self,
         group_conj: Conjunction,
         conj: Conjunction,
@@ -380,99 +380,22 @@ impl Builder {
         value: Expr,
         operator: Operator,
     ) -> &mut Self {
-        self.where_group_expr(group_conj, |builder| {
+        let closure = |builder: &mut Self| {
             for proj in projections {
                 let conditions = builder.maybe_where.get_or_insert_default();
                 let mut lhs = proj.into_lhs_expr();
-                // check for numbered stuff here
                 let mut rhs = value.clone();
                 builder.binds.append(lhs.take_bindings());
                 builder.binds.append(rhs.take_bindings());
                 conditions.push_binary(conj, lhs, rhs, operator);
             }
-        });
-        self
-    }
-
-    #[inline]
-    pub(crate) fn having_grouped_expr(
-        &mut self,
-        group_conj: Conjunction,
-        conj: Conjunction,
-        projections: Projections,
-        value: Expr,
-        operator: Operator,
-    ) -> &mut Self {
-        self.having_group_expr(group_conj, |builder| {
-            for proj in projections {
-                let conditions = builder.maybe_having.get_or_insert_default();
-                let mut lhs = proj.into_lhs_expr();
-                // check for numbered stuff here
-                let mut rhs = value.clone();
-                builder.binds.append(lhs.take_bindings());
-                builder.binds.append(rhs.take_bindings());
-                conditions.push_binary(conj, lhs, rhs, operator);
-            }
-        });
-        self
-    }
-
-    #[inline]
-    pub(crate) fn where_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        // with a type of where, we should ignore most actions
-        let mut inner = Self {
-            ty: QueryKind::Where,
-            ..Default::default()
         };
-        // modify the internal states with wheres
-        closure(&mut inner);
-
-        let binds = inner.take_bindings();
-        if let Some(inner_conds) = inner.maybe_where {
-            self.binds.append(binds);
-
-            let group = GroupCondition {
-                conditions: inner_conds,
-            };
-            let kind = ConditionKind::Group(group);
-
-            let ws = self.maybe_where.get_or_insert_default();
-            ws.push(Condition::new(conjunction, kind));
+        match group_conj {
+            Conjunction::And => self.where_group(closure),
+            Conjunction::Or => self.or_where_group(closure),
+            Conjunction::AndNot => self.where_not_group(closure),
+            Conjunction::OrNot => self.or_where_not_group(closure),
         }
-
-        self
-    }
-
-    #[inline]
-    pub(crate) fn having_group_expr<F>(&mut self, conjunction: Conjunction, closure: F) -> &mut Self
-    where
-        F: FnOnce(&mut Self),
-    {
-        // with a type of where, we should ignore most actions
-        let mut inner = Self {
-            ty: QueryKind::Having,
-            ..Default::default()
-        };
-        // modify the internal states with wheres
-        closure(&mut inner);
-
-        let binds = inner.take_bindings();
-        if let Some(inner_conds) = inner.maybe_having {
-            self.binds.append(binds);
-
-            let group = GroupCondition {
-                conditions: inner_conds,
-            };
-            let kind = ConditionKind::Group(group);
-
-            let ws = self.maybe_having.get_or_insert_default();
-            ws.push(Condition::new(conjunction, kind));
-        }
-
-        self
     }
 
     // add order by stuff

@@ -100,10 +100,12 @@ pub fn condition_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         .expect("Failed to re‐parse function body with Or replacement");
 
     let first_arg = args_iter.next();
-    let tag = if !args.is_empty() && first_arg.is_some_and(|v| v == "not") {
+    let tag = if first_arg.is_some_and(|v| v == "not") {
         quote! {
             #[or_variant(not)]
         }
+    } else if first_arg.is_some_and(|v| v == "none") {
+        quote! {}
     } else {
         quote! {
             #[or_variant]
