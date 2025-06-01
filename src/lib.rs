@@ -11,6 +11,7 @@ mod writer;
 mod join;
 
 use col::AliasedBuilder;
+use expr::sub::SubqueryFn;
 use ident::IntoIdent;
 pub use join::*;
 use bind::Bind;
@@ -38,6 +39,7 @@ pub use expr::IntoRhsExpr;
 pub use expr::list::IntoInList;
 
 pub use dialect::*;
+use smol_str::SmolStr;
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)
@@ -63,7 +65,7 @@ pub fn raw(value: &str) -> Raw {
     Raw::new(value)
 }
 
-pub fn alias_sub<F, I>(table: F, alias: I) -> AliasedBuilder
+pub fn sub_as<F, I>(table: F, alias: I) -> AliasedBuilder
 where
     F: FnOnce(&mut Builder),
     I: IntoIdent {
@@ -73,6 +75,16 @@ where
         alias: alias.into_ident(),
         inner,
     }
+}
+
+pub fn fn_sub<T, F>(keyword: T, subquery: F) -> SubqueryFn
+where
+    T: Into<SmolStr>,
+    F: FnOnce(&mut Builder),
+{
+    let mut builder = Builder::default();
+    subquery(&mut builder);
+    SubqueryFn::new(keyword, builder)
 }
 
 pub fn sub<F>(query: F) -> Builder

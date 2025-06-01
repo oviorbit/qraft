@@ -52,6 +52,7 @@ impl TakeBindings for JoinClause {
 
 pub type Joins = Vec<JoinClause>;
 
+// todo: maybe create a where clause to match this and prevent the kind ?
 impl JoinClause {
     pub(crate) fn new(ty: JoinType, table: TableRef) -> Self {
         Self {

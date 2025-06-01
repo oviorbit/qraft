@@ -1,26 +1,11 @@
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    IntoInList, JoinClause, JoinType, Joins,
-    bind::{Binds, IntoBinds},
-    col::{
-        IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections,
-        TableSchema,
-    },
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::BetweenOperator,
-        binary::Operator,
-        cond::{Conditions, Conjunction},
-        exists::ExistsOperator,
-        r#in::InOperator,
-        order::{Order, Ordering},
-        unary::UnaryOperator,
-    },
-    ident::{IntoIdent, TableRef},
-    raw::IntoRaw,
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{
+        IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections, TableSchema
+    }, dialect::HasDialect, expr::{
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, sub::SubqueryFn, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -684,6 +669,33 @@ impl Builder {
     }
 
     // building the builder
+    pub async fn exists<DB, E>(self, executor: E) -> Result<bool, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        (bool,): for<'r> sqlx::FromRow<'r, DB::Row>,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let sub_fn = SubqueryFn::new("exists", self).alias("exists");
+        let mut builder = Builder::default();
+        builder.select(sub_fn);
+        builder.fetch_value(executor).await
+    }
+
+    pub async fn fetch_value<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        (T,): for<'r> sqlx::FromRow<'r, DB::Row>,
+        T: Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take_bindings();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
+            .fetch_one(executor)
+            .await
+    }
 
     pub fn to_sql<Database: HasDialect>(&mut self) -> &str {
         let size_hint = 64;
@@ -1152,7 +1164,19 @@ mod tests {
     #[test]
     fn test_group_by() {
         let mut builder = Builder::table("users");
-        let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
+        builder.group_by("id");
+        let result = r#"select * from "users" group by "id""#;
+        assert_eq!(result, builder.to_sql::<Postgres>());
+    }
+
+    #[test]
+    fn test_subfn() {
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1);
+        let sub_fn = SubqueryFn::new("exists", builder).alias("exists");
+        let mut builder = Builder::default();
+        builder.select(sub_fn);
+        let result = r#"select exists(select * from "users" where "id" = $1) as "exists""#;
         assert_eq!(result, builder.to_sql::<Postgres>());
     }
 }

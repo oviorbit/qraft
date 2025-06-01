@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, ident::{Ident, TableRef}, writer::FormatWriter, Builder, Raw
+    bind::Array, expr::sub::SubqueryFn, ident::{Ident, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<TableRef>;
@@ -62,6 +62,13 @@ pub struct AliasedBuilder {
 impl IntoProjectionsWithSub for AliasedBuilder {
     fn into_projections_with_sub(self) -> Projections {
         let table_ref = TableRef::AliasedSub(Box::new(self.inner), self.alias);
+        Projections::One(table_ref)
+    }
+}
+
+impl IntoProjectionsWithSub for SubqueryFn {
+    fn into_projections_with_sub(self) -> Projections {
+        let table_ref = TableRef::SubqueryFn(self);
         Projections::One(table_ref)
     }
 }

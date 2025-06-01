@@ -9,6 +9,7 @@ pub(crate) mod r#in;
 pub(crate) mod list;
 pub(crate) mod order;
 pub(crate) mod unary;
+pub(crate) mod sub;
 
 pub use cond::Conjunction;
 

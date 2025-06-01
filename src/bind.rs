@@ -20,6 +20,8 @@ pub enum Bind {
     U16(u16),
     U32(u32),
     U64(u64),
+
+    VecBytes(Vec<u8>),
 }
 
 impl Bind {
