@@ -26,6 +26,7 @@ pub enum QueryKind {
     Select,
     Where,
     Having,
+    Join,
 }
 
 impl TakeBindings for Builder {
@@ -121,7 +122,7 @@ impl Builder {
     }
 
     #[or_variant]
-    pub fn filter<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
+    pub fn where_clause<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoLhsExpr,
         O: IntoOperator,

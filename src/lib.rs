@@ -10,6 +10,7 @@ mod raw;
 mod writer;
 mod join;
 
+pub use join::*;
 use bind::Bind;
 pub use col::IntoProjections;
 pub use col::IntoTable;

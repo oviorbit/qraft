@@ -29,6 +29,7 @@ pub fn or_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_block = &input_fn.block;
 
     let or_name_string = format!("or_{}", fn_name);
+    let or_name_string = or_name_string.replace("r#", "");
     let or_fn_name = Ident::new(&or_name_string, fn_name.span());
 
     let original_block_tokens: proc_macro2::TokenStream = quote! { #fn_block };
@@ -142,8 +143,14 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         .collect();
 
     let enum_name = snakes.pop_front().expect("expect the enum name");
+    let mut is_join = false;
+    let enum_name = if enum_name == "join" {
+        is_join = true;
+        snakes.pop_front().expect("expect the enum name")
+    } else {
+        enum_name
+    };
     let variant_name = snakes.pop_front().expect("expect the enum variant name");
-
     if snakes.len() < 2 {
         panic!("expected at least two operator inside #[binary(...)]");
     }
@@ -180,8 +187,18 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         let new_block_tokens: proc_macro2::TokenStream = fn_block_string
             .parse()
             .expect("Failed to re‐parse function body with Or replacement");
+
+        let variant = if is_join {
+            quote! {
+                #[or_variant]
+            }
+        } else {
+            quote! {
+                #[condition_variant]
+            }
+        };
         let expanded = quote! {
-            #[condition_variant]
+            #variant
             pub #fn_unsafety #fn_asyncness fn #fn_name #fn_generics ( #fn_inputs ) #fn_output
             #fn_where
             {

@@ -26,7 +26,7 @@ pub enum Expr {
     Subquery(Box<Builder>),
 }
 
-pub trait TakeBindings {
+pub(crate) trait TakeBindings {
     fn take_bindings(&mut self) -> Binds;
 }
 
