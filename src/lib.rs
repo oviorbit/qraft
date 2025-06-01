@@ -10,10 +10,10 @@ mod raw;
 mod writer;
 
 use bind::Bind;
-pub use col::ProjectionSchema;
-pub use col::Projections;
 pub use col::IntoProjections;
 pub use col::IntoTable;
+pub use col::ProjectionSchema;
+pub use col::Projections;
 pub use col::TableSchema;
 
 pub use bind::Binds;
@@ -27,9 +27,9 @@ pub use raw::Raw;
 
 pub use builder::Builder;
 
+pub use expr::IntoLhsExpr;
 pub use expr::IntoOperator;
 pub use expr::IntoRhsExpr;
-pub use expr::IntoLhsExpr;
 
 pub use expr::list::IntoInList;
 

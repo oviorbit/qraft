@@ -1,7 +1,10 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, ident::{Ident, TableRef}, writer::FormatWriter, Raw
+    Raw,
+    bind::Array,
+    ident::{Ident, TableRef},
+    writer::FormatWriter,
 };
 
 pub type Projections = Array<TableRef>;

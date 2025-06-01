@@ -77,7 +77,7 @@ pub trait IntoIdent {
 
 impl<T> IntoIdent for T
 where
-    T: Into<SmolStr>
+    T: Into<SmolStr>,
 {
     fn into_ident(self) -> Ident {
         Ident::new(self.into())

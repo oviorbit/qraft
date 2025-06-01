@@ -1,7 +1,10 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, dialect::Dialect, writer::{self, FormatWriter}, Raw, TableRef
+    Raw, TableRef,
+    bind::Array,
+    dialect::Dialect,
+    writer::{self, FormatWriter},
 };
 
 #[derive(Debug, Clone)]
@@ -25,12 +28,10 @@ impl FormatWriter for OrderExpr {
                 ordering.format_writer(context)
             }
             OrderExpr::Raw(raw) => raw.format_writer(context),
-            OrderExpr::Random => {
-                match context.dialect {
-                    Dialect::Postgres | Dialect::Sqlite => context.writer.write_str("random()"),
-                    Dialect::MySql => context.writer.write_str("rand()"),
-                }
-            }
+            OrderExpr::Random => match context.dialect {
+                Dialect::Postgres | Dialect::Sqlite => context.writer.write_str("random()"),
+                Dialect::MySql => context.writer.write_str("rand()"),
+            },
         }
     }
 }

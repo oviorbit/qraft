@@ -1,6 +1,6 @@
 use crate::writer::FormatWriter;
 
-use super::{list::InList, Expr};
+use super::{Expr, list::InList};
 
 #[derive(Debug, Clone)]
 pub struct InCondition {

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 smol_str = "0.3.2"
+qraft_derive = { path = "./qraft_derive", version = "0.1.0" }
 
 [profile.dev.build-override]
 opt-level = 3

@@ -1,4 +1,4 @@
-use crate::{expr::TakeBindings, writer::FormatWriter, Binds, Builder, IntoBinds};
+use crate::{Binds, Builder, IntoBinds, expr::TakeBindings, writer::FormatWriter};
 
 #[derive(Debug, Clone)]
 pub enum InList {

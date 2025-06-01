@@ -1,4 +1,4 @@
-use crate::{writer::FormatWriter, Raw};
+use crate::{Raw, writer::FormatWriter};
 
 pub(crate) mod between;
 pub(crate) mod binary;
@@ -6,9 +6,9 @@ pub(crate) mod cond;
 pub(crate) mod exists;
 pub(crate) mod group;
 pub(crate) mod r#in;
-pub(crate) mod unary;
 pub(crate) mod list;
 pub(crate) mod order;
+pub(crate) mod unary;
 
 pub use cond::Conjunction;
 
@@ -56,14 +56,6 @@ impl FormatWriter for Expr {
         }
     }
 }
-//
-//#[derive(Debug, Clone)]
-//#[repr(transparent)]
-//pub struct LhsExpr(pub(crate) Expr);
-//
-//#[derive(Debug, Clone)]
-//#[repr(transparent)]
-//pub struct RhsExpr(pub(crate) Expr);
 
 pub trait IntoRhsExpr {
     fn into_rhs_expr(self) -> Expr;
@@ -71,6 +63,18 @@ pub trait IntoRhsExpr {
 
 pub trait IntoLhsExpr {
     fn into_lhs_expr(self) -> Expr;
+}
+
+impl IntoRhsExpr for Expr {
+    fn into_rhs_expr(self) -> Expr {
+        self
+    }
+}
+
+impl IntoLhsExpr for Expr {
+    fn into_lhs_expr(self) -> Expr {
+        self
+    }
 }
 
 pub trait IntoOperator {
@@ -126,4 +130,3 @@ impl IntoLhsExpr for Builder {
         Expr::Subquery(Box::new(self))
     }
 }
-

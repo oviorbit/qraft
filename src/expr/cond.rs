@@ -1,6 +1,15 @@
-use crate::{writer::FormatWriter, Raw};
+use crate::{Builder, Raw, writer::FormatWriter};
 
-use super::{between::BetweenCondition, binary::BinaryCondition, exists::ExistsCondition, group::GroupCondition, r#in::InCondition, unary::UnaryCondition};
+use super::{
+    Expr,
+    between::{BetweenCondition, BetweenOperator},
+    binary::{BinaryCondition, Operator},
+    exists::{ExistsCondition, ExistsOperator},
+    group::GroupCondition,
+    r#in::{InCondition, InOperator},
+    list::InList,
+    unary::{UnaryCondition, UnaryOperator},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Conjunction {
@@ -83,6 +92,85 @@ impl Conditions {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn push_unary(&mut self, conjunction: Conjunction, lhs: Expr, operator: UnaryOperator) {
+        let cond = UnaryCondition { lhs, operator };
+        let kind = ConditionKind::Unary(cond);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
+    }
+
+    pub fn push_in(
+        &mut self,
+        conjunction: Conjunction,
+        lhs: Expr,
+        rhs: InList,
+        operator: InOperator,
+    ) {
+        let inc = InCondition { operator, lhs, rhs };
+        let kind = ConditionKind::In(inc);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
+    }
+
+    pub fn push_exists(
+        &mut self,
+        conjunction: Conjunction,
+        rhs: Builder,
+        operator: ExistsOperator,
+    ) {
+        let exists = ExistsCondition {
+            operator,
+            subquery: Box::new(rhs),
+        };
+        let kind = ConditionKind::Exists(exists);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
+    }
+
+    pub fn push_group(&mut self, conjunction: Conjunction, conditions: Conditions) {
+        let group = GroupCondition { conditions };
+        let kind = ConditionKind::Group(group);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
+    }
+
+    pub fn push_binary(
+        &mut self,
+        conjunction: Conjunction,
+        lhs: Expr,
+        rhs: Expr,
+        operator: Operator,
+    ) {
+        let binary = BinaryCondition { lhs, operator, rhs };
+        let kind = ConditionKind::Binary(binary);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
+    }
+
+    pub fn push_between(
+        &mut self,
+        conjunction: Conjunction,
+        lhs: Expr,
+        low: Expr,
+        high: Expr,
+        operator: BetweenOperator,
+    ) {
+        let cond = BetweenCondition {
+            lhs,
+            low,
+            high,
+            operator,
+        };
+        let kind = ConditionKind::Between(cond);
+        self.push(Condition::new(conjunction, kind));
+    }
+
+    pub fn push_raw(&mut self, conjunction: Conjunction, raw: Raw) {
+        let kind = ConditionKind::Raw(raw);
+        let cond = Condition::new(conjunction, kind);
+        self.push(cond);
     }
 }
 
