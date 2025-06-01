@@ -1,21 +1,19 @@
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    IntoInList, Raw,
-    bind::{Binds, IntoBinds},
+    IntoInList, bind::{Binds, IntoBinds},
     col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema},
     dialect::HasDialect,
     expr::{
         Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::{BetweenCondition, BetweenOperator},
-        binary::{BinaryCondition, Operator},
+        between::BetweenOperator,
+        binary::Operator,
         cond::{Condition, ConditionKind, Conditions, Conjunction},
-        exists::{ExistsCondition, ExistsOperator},
+        exists::ExistsOperator,
         group::GroupCondition,
-        r#in::{InCondition, InOperator},
-        list::InList,
+        r#in::InOperator,
         order::{Order, Ordering},
-        unary::{UnaryCondition, UnaryOperator},
+        unary::UnaryOperator,
     },
     ident::{IntoIdent, TableRef},
     raw::IntoRaw,
@@ -359,14 +357,12 @@ impl Builder {
         O: IntoOperator,
         V: IntoRhsExpr,
     {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_having.get_or_insert_default(),
-            Conjunction::And,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            value.into_rhs_expr(),
-        );
+        let conditions = self.maybe_having.get_or_insert_default();
+        let mut lhs = column.into_lhs_expr();
+        let mut rhs = value.into_rhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+        conditions.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
 
@@ -381,16 +377,13 @@ impl Builder {
     ) -> &mut Self {
         self.where_group_expr(group_conj, |builder| {
             for proj in projections {
-                // todo: instead of cloning, i could put the same placeholder value (in pg and
-                // sqlite) and refer to the same.
-                Builder::push_binary_expr(
-                    &mut builder.binds,
-                    builder.maybe_where.get_or_insert_default(),
-                    conj,
-                    Expr::Ident(proj),
-                    operator,
-                    value.clone(),
-                );
+                let conditions = builder.maybe_where.get_or_insert_default();
+                let mut lhs = proj.into_lhs_expr();
+                // check for numbered stuff here
+                let mut rhs = value.clone();
+                builder.binds.append(lhs.take_bindings());
+                builder.binds.append(rhs.take_bindings());
+                conditions.push_binary(conj, lhs, rhs, operator);
             }
         });
         self
@@ -407,125 +400,16 @@ impl Builder {
     ) -> &mut Self {
         self.having_group_expr(group_conj, |builder| {
             for proj in projections {
-                // todo: instead of cloning, i could put the same placeholder value (in pg and
-                // sqlite) and refer to the same.
-                Builder::push_binary_expr(
-                    &mut builder.binds,
-                    builder.maybe_having.get_or_insert_default(),
-                    conj,
-                    Expr::Ident(proj),
-                    operator,
-                    value.clone(),
-                );
+                let conditions = builder.maybe_having.get_or_insert_default();
+                let mut lhs = proj.into_lhs_expr();
+                // check for numbered stuff here
+                let mut rhs = value.clone();
+                builder.binds.append(lhs.take_bindings());
+                builder.binds.append(rhs.take_bindings());
+                conditions.push_binary(conj, lhs, rhs, operator);
             }
         });
         self
-    }
-
-    #[inline]
-    pub(crate) fn push_exists_expr(
-        binds: &mut Binds,
-        target: &mut Conditions,
-        conj: Conjunction,
-        operator: ExistsOperator,
-        mut rhs: Builder,
-    ) {
-        binds.append(rhs.take_bindings());
-        let cond = ExistsCondition {
-            operator,
-            subquery: Box::new(rhs),
-        };
-        let kind = ConditionKind::Exists(cond);
-        let cond = Condition::new(conj, kind);
-        target.push(cond);
-    }
-
-    #[inline]
-    pub(crate) fn push_in_expr(
-        binds: &mut Binds,
-        target: &mut Conditions,
-        conj: Conjunction,
-        mut lhs: Expr,
-        mut rhs: InList,
-        operator: InOperator,
-    ) {
-        binds.append(lhs.take_bindings());
-        binds.append(rhs.take_bindings());
-        let cond = InCondition { operator, lhs, rhs };
-        let kind = ConditionKind::In(cond);
-        let cond = Condition::new(conj, kind);
-        target.push(cond);
-    }
-
-    #[inline]
-    pub(crate) fn push_between_expr(
-        binds: &mut Binds,
-        target: &mut Conditions,
-        conj: Conjunction,
-        mut lhs: Expr,
-        mut low: Expr,
-        mut high: Expr,
-        operator: BetweenOperator,
-    ) {
-        binds.append(lhs.take_bindings());
-        binds.append(low.take_bindings());
-        binds.append(high.take_bindings());
-        let cond = BetweenCondition {
-            lhs,
-            low,
-            high,
-            operator,
-        };
-        let kind = ConditionKind::Between(cond);
-        let cond = Condition::new(conj, kind);
-        target.push(cond);
-    }
-
-    #[inline]
-    pub(crate) fn where_raw_expr(
-        &mut self,
-        conj: Conjunction,
-        rhs: Raw,
-        binds: Binds,
-    ) -> &mut Self {
-        let expr = self.maybe_where.get_or_insert_default();
-        self.binds.append(binds);
-        let cond = ConditionKind::Raw(rhs);
-        let cond = Condition::new(conj, cond);
-        expr.push(cond);
-        self
-    }
-
-    #[inline]
-    pub(crate) fn push_unary_expr(
-        binds: &mut Binds,
-        target: &mut Conditions,
-        conj: Conjunction,
-        mut lhs: Expr,
-        operator: UnaryOperator,
-    ) {
-        binds.append(lhs.take_bindings());
-        let cond = UnaryCondition { lhs, operator };
-        let kind = ConditionKind::Unary(cond);
-        let cond = Condition::new(conj, kind);
-        target.push(cond);
-    }
-
-    #[inline]
-    pub(crate) fn push_binary_expr(
-        binds: &mut Binds,
-        target: &mut Conditions,
-        conjunction: Conjunction,
-        mut lhs: Expr,
-        operator: Operator,
-        mut rhs: Expr,
-    ) {
-        binds.append(lhs.take_bindings());
-        binds.append(rhs.take_bindings());
-        let binary = BinaryCondition { lhs, operator, rhs };
-        let expr = ConditionKind::Binary(binary);
-        let condition = Condition::new(conjunction, expr);
-        target.push(condition);
     }
 
     #[inline]

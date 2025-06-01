@@ -73,6 +73,18 @@ pub trait IntoLhsExpr {
     fn into_lhs_expr(self) -> Expr;
 }
 
+impl IntoRhsExpr for Expr {
+    fn into_rhs_expr(self) -> Expr {
+        self
+    }
+}
+
+impl IntoLhsExpr for Expr {
+    fn into_lhs_expr(self) -> Expr {
+        self
+    }
+}
+
 pub trait IntoOperator {
     fn into_operator(self) -> Operator;
 }
