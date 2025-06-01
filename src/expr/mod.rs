@@ -1,4 +1,4 @@
-use crate::{writer::FormatWriter, Raw};
+use crate::{Raw, writer::FormatWriter};
 
 pub(crate) mod between;
 pub(crate) mod binary;
@@ -6,9 +6,9 @@ pub(crate) mod cond;
 pub(crate) mod exists;
 pub(crate) mod group;
 pub(crate) mod r#in;
-pub(crate) mod unary;
 pub(crate) mod list;
 pub(crate) mod order;
+pub(crate) mod unary;
 
 pub use cond::Conjunction;
 
@@ -130,4 +130,3 @@ impl IntoLhsExpr for Builder {
         Expr::Subquery(Box::new(self))
     }
 }
-

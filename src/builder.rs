@@ -1,7 +1,8 @@
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    IntoInList, bind::{Binds, IntoBinds},
+    IntoInList,
+    bind::{Binds, IntoBinds},
     col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema},
     dialect::HasDialect,
     expr::{
@@ -874,7 +875,6 @@ mod tests {
         assert_eq!(builder.binds.len(), 4);
 
         builder.reset_where();
-
 
         builder
             .where_eq("id", 1)
