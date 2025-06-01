@@ -10,6 +10,8 @@ mod raw;
 mod writer;
 mod join;
 
+use col::AliasedBuilder;
+use ident::IntoIdent;
 pub use join::*;
 use bind::Bind;
 pub use col::IntoProjections;
@@ -59,6 +61,18 @@ pub fn raw_static(value: &'static str) -> Raw {
 
 pub fn raw(value: &str) -> Raw {
     Raw::new(value)
+}
+
+pub fn alias_sub<F, I>(table: F, alias: I) -> AliasedBuilder
+where
+    F: FnOnce(&mut Builder),
+    I: IntoIdent {
+    let mut inner = Builder::default();
+    table(&mut inner);
+    AliasedBuilder {
+        alias: alias.into_ident(),
+        inner,
+    }
 }
 
 pub fn sub<F>(query: F) -> Builder

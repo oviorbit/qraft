@@ -7,11 +7,11 @@ use crate::{
     writer::{self, FormatWriter},
 };
 
-use super::TakeBindings;
+use super::{Expr, TakeBindings};
 
 #[derive(Debug, Clone)]
 pub enum OrderExpr {
-    Column(TableRef, Ordering),
+    Column(Expr, Ordering),
     Raw(Raw),
     Random,
 }
@@ -96,7 +96,7 @@ impl Order {
         self.projections.is_empty()
     }
 
-    pub fn push_proj(&mut self, ident: TableRef, ordering: Ordering) {
+    pub fn push_expr(&mut self, ident: Expr, ordering: Ordering) {
         let order_expr = OrderExpr::Column(ident, ordering);
         self.projections.push(order_expr);
     }

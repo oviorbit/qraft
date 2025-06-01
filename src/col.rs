@@ -1,10 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Raw,
-    bind::Array,
-    ident::{Ident, TableRef},
-    writer::FormatWriter,
+    bind::Array, ident::{Ident, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<TableRef>;
@@ -41,6 +38,38 @@ pub trait ProjectionSchema {
 
 pub trait IntoProjections {
     fn into_projections(self) -> Projections;
+}
+
+pub trait IntoProjectionsWithSub {
+    fn into_projections_with_sub(self) -> Projections;
+}
+
+impl<T> IntoProjectionsWithSub for T
+where
+    T: IntoProjections
+{
+    fn into_projections_with_sub(self) -> Projections {
+        self.into_projections()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AliasedBuilder {
+    pub(crate) alias: Ident,
+    pub(crate) inner: Builder,
+}
+
+impl IntoProjectionsWithSub for AliasedBuilder {
+    fn into_projections_with_sub(self) -> Projections {
+        let table_ref = TableRef::AliasedSub(Box::new(self.inner), self.alias);
+        Projections::One(table_ref)
+    }
+}
+
+impl IntoTable for AliasedBuilder {
+    fn into_table(self) -> TableRef {
+        TableRef::AliasedSub(Box::new(self.inner), self.alias)
+    }
 }
 
 pub trait IntoTable {

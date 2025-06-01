@@ -1,7 +1,7 @@
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
+    bind::{Binds, IntoBinds}, col::{IntoProjectionsWithSub, IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
         between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
 };
@@ -233,6 +233,22 @@ impl Builder {
         self.binds.append(join.take_bindings());
         let target = self.maybe_joins.get_or_insert_default();
         target.push(join);
+        self
+    }
+
+    // group by stuff
+
+    pub fn group_by<T>(&mut self, projections: T) -> &mut Self
+    where
+        T: IntoProjections
+    {
+        let proj = projections.into_projections();
+        self.maybe_group_by = Some(proj);
+        self
+    }
+
+    pub fn reset_group_by(&mut self) -> &mut Self {
+        self.maybe_group_by = None;
         self
     }
 
@@ -525,19 +541,19 @@ impl Builder {
 
     // add order by stuff
 
-    pub fn order_by_asc<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_expr(column.into_table(), Ordering::Asc)
+    pub fn order_by_asc<I: IntoLhsExpr>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_lhs_expr(), Ordering::Asc)
     }
 
-    pub fn order_by_desc<I: IntoTable>(&mut self, column: I) -> &mut Self {
-        self.order_by_expr(column.into_table(), Ordering::Desc)
+    pub fn order_by_desc<I: IntoLhsExpr>(&mut self, column: I) -> &mut Self {
+        self.order_by_expr(column.into_lhs_expr(), Ordering::Desc)
     }
 
-    pub fn latest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+    pub fn latest<I: IntoLhsExpr>(&mut self, column: I) -> &mut Self {
         self.order_by_desc(column)
     }
 
-    pub fn oldest<I: IntoTable>(&mut self, column: I) -> &mut Self {
+    pub fn oldest<I: IntoLhsExpr>(&mut self, column: I) -> &mut Self {
         self.order_by_asc(column)
     }
 
@@ -562,9 +578,9 @@ impl Builder {
     }
 
     #[inline]
-    pub(crate) fn order_by_expr(&mut self, ident: TableRef, order: Ordering) -> &mut Self {
+    pub(crate) fn order_by_expr(&mut self, ident: Expr, order: Ordering) -> &mut Self {
         let o = self.maybe_order.get_or_insert_default();
-        o.push_proj(ident, order);
+        o.push_expr(ident, order);
         self
     }
 
@@ -584,17 +600,17 @@ impl Builder {
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoProjections,
+        T: IntoProjectionsWithSub,
     {
-        self.projections = cols.into_projections();
+        self.projections = cols.into_projections_with_sub();
         self
     }
 
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoProjections,
+        T: IntoProjectionsWithSub,
     {
-        let other = cols.into_projections();
+        let other = cols.into_projections_with_sub();
         self.projections.append(other);
         self
     }
@@ -1097,6 +1113,17 @@ mod tests {
         builder.join_clause("orders", |clause| {
             clause.where_eq("foo", "bar");
         });
+        let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
+        assert_eq!(
+            result,
+            builder.to_sql::<Postgres>()
+        );
+        assert_eq!(builder.binds.len(), 1);
+    }
+
+    #[test]
+    fn test_group_by() {
+        let mut builder = Builder::table("users");
         let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
         assert_eq!(
             result,
