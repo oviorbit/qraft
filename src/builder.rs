@@ -813,8 +813,6 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::PgPool;
-
     use crate::{
         bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, sub
     };
