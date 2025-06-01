@@ -1,7 +1,7 @@
 use smol_str::SmolStr;
 
 use crate::{
-    Builder, Ident,
+    Builder,
     col::AliasSub,
     ident::IntoIdent,
     writer::{self, FormatWriter},

@@ -3,7 +3,7 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    Ident, IntoInList, JoinClause, JoinType, Joins,
+    IntoInList, JoinClause, JoinType, Joins,
     bind::{Binds, IntoBinds},
     col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
@@ -15,7 +15,7 @@ use crate::{
         between::BetweenOperator,
         binary::Operator,
         cond::{Conditions, Conjunction},
-        exists::{ExistsExpr, ExistsOperator},
+        exists::ExistsOperator,
         r#in::InOperator,
         order::{Order, Ordering},
         unary::UnaryOperator,
@@ -718,6 +718,8 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
+        use crate::{expr::exists::ExistsExpr, Ident};
+
         let self_builder = self.take();
         let mut builder = Builder::default();
         let exists = ExistsExpr::new(
@@ -864,6 +866,7 @@ mod tests {
         assert_eq!("select * from \"users\"", builder.to_sql::<Postgres>());
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Clone)]
     struct User {
         id: i64,

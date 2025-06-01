@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Binds, Raw, TableRef,
+    Binds, Raw,
     bind::Array,
     dialect::Dialect,
     writer::{self, FormatWriter},
