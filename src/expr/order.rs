@@ -86,12 +86,6 @@ impl FormatWriter for Order {
 }
 
 impl Order {
-    pub fn new() -> Self {
-        Self {
-            projections: OrderProjections::None,
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.projections.is_empty()
     }

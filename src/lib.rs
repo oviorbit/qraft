@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 mod bind;
 mod builder;
 mod col;
