@@ -35,6 +35,7 @@ pub struct Builder {
     maybe_offset: Option<usize>,
     maybe_order: Option<Order>,
     maybe_joins: Option<Joins>,
+    maybe_group_by: Option<Projections>,
 }
 
 impl Builder {
@@ -59,6 +60,7 @@ impl Builder {
             maybe_order: None,
             maybe_having: None,
             maybe_joins: None,
+            maybe_group_by: None,
         }
     }
 
@@ -686,6 +688,12 @@ impl FormatWriter for Builder {
         }
 
         // group by
+        if let Some(ref group_by) = self.maybe_group_by {
+            if matches!(self.ty, QueryKind::Select) {
+                context.writer.write_str(" group by ")?;
+            }
+            group_by.format_writer(context)?;
+        }
 
         if let Some(ref h) = self.maybe_having {
             // if we are not in a having group
@@ -1077,6 +1085,19 @@ mod tests {
             .join("orders", "users.id", '=', "orders.user_id")
             .select(["users.*", "contacts.phone", "orders.price"]);
         let result = r#"select "users".*, "contacts"."phone", "orders"."price" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" inner join "orders" on "users"."id" = "orders"."user_id""#;
+        assert_eq!(
+            result,
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_join_clause() {
+        let mut builder = Builder::table("users");
+        builder.join_clause("orders", |clause| {
+            clause.where_eq("foo", "bar");
+        });
+        let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
         assert_eq!(
             result,
             builder.to_sql::<Postgres>()
