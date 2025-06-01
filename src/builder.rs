@@ -50,7 +50,7 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn table_as<T: TableSchema>() -> Self {
+    pub fn table_schema<T: TableSchema>() -> Self {
         Self::table(T::table())
     }
 
@@ -498,7 +498,9 @@ impl Builder {
         self
     }
 
-    pub fn order_by_raw<R: IntoRaw>(&mut self, raw: R) -> &mut Self {
+    pub fn order_by_raw<R: IntoRaw, B: IntoBinds>(&mut self, raw: R, binds: B) -> &mut Self {
+        let binds = binds.into_binds();
+        self.binds.append(binds);
         let o = self.maybe_order.get_or_insert_default();
         let raw = raw.into_raw();
         o.push_raw(raw);
@@ -527,7 +529,7 @@ impl Builder {
         self
     }
 
-    pub fn select_as<T: ProjectionSchema>(&mut self) -> &mut Self {
+    pub fn select_schema<T: ProjectionSchema>(&mut self) -> &mut Self {
         self.projections = T::projections();
         self
     }
@@ -712,8 +714,8 @@ mod tests {
 
     #[test]
     fn test_select_into_ident() {
-        let mut builder = Builder::table_as::<User>();
-        builder.select_as::<User>();
+        let mut builder = Builder::table_schema::<User>();
+        builder.select_schema::<User>();
         assert_eq!(
             "select \"id\", \"admin\" from \"users\"",
             builder.to_sql::<Postgres>()
