@@ -1,9 +1,26 @@
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{IntoProjectionsWithSub, IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema}, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
+    IntoInList, JoinClause, JoinType, Joins,
+    bind::{Binds, IntoBinds},
+    col::{
+        IntoProjections, IntoProjectionsWithSub, IntoTable, ProjectionSchema, Projections,
+        TableSchema,
+    },
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::BetweenOperator,
+        binary::Operator,
+        cond::{Conditions, Conjunction},
+        exists::ExistsOperator,
+        r#in::InOperator,
+        order::{Order, Ordering},
+        unary::UnaryOperator,
+    },
+    ident::{IntoIdent, TableRef},
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -43,10 +60,7 @@ impl Builder {
         Self::table(T::table())
     }
 
-    pub fn table<T>(table: T) -> Self
-    where
-        T: IntoTable,
-    {
+    pub fn table<T: IntoTable>(table: T) -> Self {
         Self {
             query: String::new(),
             distinct: false,
@@ -104,12 +118,18 @@ impl Builder {
     }
 
     // joins stuff
-    pub fn join<T, C, O, CC>(&mut self, table: T, column: C, operator: O, other_column: CC) -> &mut Self
+    pub fn join<T, C, O, CC>(
+        &mut self,
+        table: T,
+        column: C,
+        operator: O,
+        other_column: CC,
+    ) -> &mut Self
     where
         T: IntoTable,
         C: IntoTable,
         O: IntoOperator,
-        CC: IntoTable
+        CC: IntoTable,
     {
         self.join_clause(table, |join| {
             join.on(column, operator, other_column);
@@ -117,12 +137,18 @@ impl Builder {
         self
     }
 
-    pub fn left_join<T, C, O, CC>(&mut self, table: T, column: C, operator: O, other_column: CC) -> &mut Self
+    pub fn left_join<T, C, O, CC>(
+        &mut self,
+        table: T,
+        column: C,
+        operator: O,
+        other_column: CC,
+    ) -> &mut Self
     where
         T: IntoTable,
         C: IntoTable,
         O: IntoOperator,
-        CC: IntoTable
+        CC: IntoTable,
     {
         self.left_join_clause(table, |join| {
             join.on(column, operator, other_column);
@@ -130,12 +156,18 @@ impl Builder {
         self
     }
 
-    pub fn right_join<T, C, O, CC>(&mut self, table: T, column: C, operator: O, other_column: CC) -> &mut Self
+    pub fn right_join<T, C, O, CC>(
+        &mut self,
+        table: T,
+        column: C,
+        operator: O,
+        other_column: CC,
+    ) -> &mut Self
     where
         T: IntoTable,
         C: IntoTable,
         O: IntoOperator,
-        CC: IntoTable
+        CC: IntoTable,
     {
         self.left_join_clause(table, |join| {
             join.on(column, operator, other_column);
@@ -143,10 +175,7 @@ impl Builder {
         self
     }
 
-    pub fn cross_join<T>(&mut self, table: T) -> &mut Self
-    where
-        T: IntoTable,
-    {
+    pub fn cross_join<T: IntoTable>(&mut self, table: T) -> &mut Self {
         let mut join = JoinClause::new(JoinType::Cross, table.into_table());
         self.binds.append(join.take_bindings());
         let target = self.maybe_joins.get_or_insert_default();
@@ -199,7 +228,7 @@ impl Builder {
     pub fn join_clause<T, F>(&mut self, table: T, sub: F) -> &mut Self
     where
         T: IntoTable,
-        F: FnOnce(&mut JoinClause)
+        F: FnOnce(&mut JoinClause),
     {
         let mut join = JoinClause::new(JoinType::Inner, table.into_table());
         sub(&mut join);
@@ -209,11 +238,10 @@ impl Builder {
         self
     }
 
-
     pub fn left_join_clause<T, F>(&mut self, table: T, sub: F) -> &mut Self
     where
         T: IntoTable,
-        F: FnOnce(&mut JoinClause)
+        F: FnOnce(&mut JoinClause),
     {
         let mut join = JoinClause::new(JoinType::Left, table.into_table());
         sub(&mut join);
@@ -226,7 +254,7 @@ impl Builder {
     pub fn right_join_clause<T, F>(&mut self, table: T, sub: F) -> &mut Self
     where
         T: IntoTable,
-        F: FnOnce(&mut JoinClause)
+        F: FnOnce(&mut JoinClause),
     {
         let mut join = JoinClause::new(JoinType::Right, table.into_table());
         sub(&mut join);
@@ -238,10 +266,7 @@ impl Builder {
 
     // group by stuff
 
-    pub fn group_by<T>(&mut self, projections: T) -> &mut Self
-    where
-        T: IntoProjections
-    {
+    pub fn group_by<T: IntoProjections>(&mut self, projections: T) -> &mut Self {
         let proj = projections.into_projections();
         self.maybe_group_by = Some(proj);
         self
@@ -364,10 +389,7 @@ impl Builder {
     }
 
     #[variant(UnaryOperator, Null, null, not_null, true, false)]
-    fn unary_expr<C>(&mut self, column: C) -> &mut Self
-    where
-        C: IntoLhsExpr,
-    {
+    fn unary_expr<C: IntoLhsExpr>(&mut self, column: C) -> &mut Self {
         let mut column = column.into_lhs_expr();
         self.binds.append(column.take_bindings());
         let target = self.maybe_where.get_or_insert_default();
@@ -562,7 +584,11 @@ impl Builder {
         self
     }
 
-    pub fn order_by_raw<R: IntoRaw, B: IntoBinds>(&mut self, raw: R, binds: B) -> &mut Self {
+    pub fn order_by_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
+    where
+        R: IntoRaw,
+        B: IntoBinds,
+    {
         let binds = binds.into_binds();
         self.binds.append(binds);
         let o = self.maybe_order.get_or_insert_default();
@@ -586,7 +612,11 @@ impl Builder {
 
     // select stuff
 
-    pub fn select_raw<T: IntoRaw, B: IntoBinds>(&mut self, value: T, binds: B) -> &mut Self {
+    pub fn select_raw<T, B>(&mut self, value: T, binds: B) -> &mut Self
+    where
+        T: IntoRaw,
+        B: IntoBinds,
+    {
         let raw = value.into_raw();
         self.projections = Projections::One(TableRef::Raw(raw));
         self.binds.append(binds.into_binds());
@@ -965,9 +995,12 @@ mod tests {
     #[test]
     fn test_from_sub() {
         let mut builder = Builder::table("users");
-        builder.from_sub(|builder| {
-            builder.where_eq("username", "foo").from("bar");
-        }, "foo");
+        builder.from_sub(
+            |builder| {
+                builder.where_eq("username", "foo").from("bar");
+            },
+            "foo",
+        );
         assert_eq!(
             "select * from (select * from \"bar\" where \"username\" = $1) as \"foo\"",
             builder.to_sql::<Postgres>()
@@ -1097,14 +1130,12 @@ mod tests {
     #[test]
     fn test_join() {
         let mut builder = Builder::table("users");
-        builder.join("contacts", "users.id", "=", "contacts.user_id")
+        builder
+            .join("contacts", "users.id", "=", "contacts.user_id")
             .join("orders", "users.id", '=', "orders.user_id")
             .select(["users.*", "contacts.phone", "orders.price"]);
         let result = r#"select "users".*, "contacts"."phone", "orders"."price" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" inner join "orders" on "users"."id" = "orders"."user_id""#;
-        assert_eq!(
-            result,
-            builder.to_sql::<Postgres>()
-        );
+        assert_eq!(result, builder.to_sql::<Postgres>());
     }
 
     #[test]
@@ -1114,10 +1145,7 @@ mod tests {
             clause.where_eq("foo", "bar");
         });
         let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
-        assert_eq!(
-            result,
-            builder.to_sql::<Postgres>()
-        );
+        assert_eq!(result, builder.to_sql::<Postgres>());
         assert_eq!(builder.binds.len(), 1);
     }
 
@@ -1125,9 +1153,6 @@ mod tests {
     fn test_group_by() {
         let mut builder = Builder::table("users");
         let result = r#"select * from "users" inner join "orders" on "foo" = $1"#;
-        assert_eq!(
-            result,
-            builder.to_sql::<Postgres>()
-        );
+        assert_eq!(result, builder.to_sql::<Postgres>());
     }
 }
