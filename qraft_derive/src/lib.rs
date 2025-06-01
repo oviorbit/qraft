@@ -48,7 +48,7 @@ pub fn or_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn having_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn condition_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_vis = &input_fn.vis;
@@ -141,7 +141,7 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
             .parse()
             .expect("Failed to re‐parse function body with Or replacement");
         let expanded = quote! {
-            #[having_variant]
+            #[condition_variant]
             pub #fn_unsafety #fn_asyncness fn #fn_name #fn_generics ( #fn_inputs ) #fn_output
             #fn_where
             {

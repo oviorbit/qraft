@@ -1,4 +1,4 @@
-use qraft_derive::{having_variant, or_variant, variant};
+use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
     IntoInList, Raw,
@@ -439,17 +439,19 @@ impl Builder {
     group_condition!(Conjunction::And, having_group, having_group_expr);
     group_condition!(Conjunction::Or, or_having_group, having_group_expr);
 
-    define_raw!(Conjunction::And, where_raw);
-    define_raw!(Conjunction::Or, or_where_raw);
-
-    define_raw!(Conjunction::And, having_raw);
-    define_raw!(Conjunction::Or, or_having_raw);
-
-    column_condition!(Conjunction::And, where_column, maybe_where);
-    column_condition!(Conjunction::Or, or_where_column, maybe_where);
-
-    column_condition!(Conjunction::And, having_column, maybe_having);
-    column_condition!(Conjunction::Or, or_having_column, maybe_having);
+    #[condition_variant]
+    pub fn where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
+    where
+        R: IntoRaw,
+        B: IntoBinds,
+    {
+        let raw = raw.into_raw();
+        let binds = binds.into_binds();
+        let target = self.maybe_where.get_or_insert_default();
+        self.binds.append(binds);
+        target.push_raw(Conjunction::And, raw);
+        self
+    }
 
     #[variant(Operator, Eq, eq, not_eq, like, not_like, ilike, not_ilike)]
     fn where_binary<C, V>(&mut self, column: C, value: V) -> &mut Self
@@ -457,29 +459,40 @@ impl Builder {
         C: IntoLhsExpr,
         V: IntoRhsExpr,
     {
-        Self::push_binary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            column.into_lhs_expr(),
-            Operator::Eq,
-            value.into_rhs_expr(),
-        );
+        let mut lhs = column.into_lhs_expr();
+        let mut rhs = value.into_rhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_binary(Conjunction::And, lhs, rhs, Operator::Eq);
+        self
+    }
+
+    #[condition_variant]
+    pub fn where_column<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
+    where
+        C: IntoLhsExpr,
+        O: IntoOperator,
+        CC: IntoLhsExpr,
+    {
+        let mut lhs = column.into_lhs_expr();
+        let mut rhs = other_column.into_lhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
 
     #[variant(UnaryOperator, Null, null, not_null, true, false)]
-    fn where_unary<C>(&mut self, column: C) -> &mut Self
+    fn unary_expr<C>(&mut self, column: C) -> &mut Self
     where
         C: IntoLhsExpr,
     {
-        Self::push_unary_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            column.into_lhs_expr(),
-            UnaryOperator::Null,
-        );
+        let mut column = column.into_lhs_expr();
+        self.binds.append(column.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_unary(Conjunction::And, column, UnaryOperator::Null);
         self
     }
 
@@ -490,65 +503,62 @@ impl Builder {
         L: IntoRhsExpr,
         H: IntoRhsExpr,
     {
-        Self::push_between_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            lhs.into_lhs_expr(),
-            low.into_rhs_expr(),
-            high.into_rhs_expr(),
-            BetweenOperator::Between,
-        );
+        let mut lhs = lhs.into_lhs_expr();
+        let mut low = low.into_rhs_expr();
+        let mut high = high.into_rhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(low.take_bindings());
+        self.binds.append(high.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
         self
     }
 
     #[variant(BetweenOperator, Between, between_columns Between, not_between_columns NotBetween)]
-    pub fn between_columns_expr<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
+    fn between_columns_expr<C, L, H>(&mut self, lhs: C, low: L, high: H) -> &mut Self
     where
         C: IntoLhsExpr,
         L: IntoLhsExpr,
         H: IntoLhsExpr,
     {
-        Self::push_between_expr(
-            &mut self.binds,
-            self.maybe_where.get_or_insert_default(),
-            Conjunction::And,
-            lhs.into_lhs_expr(),
-            low.into_lhs_expr(),
-            high.into_lhs_expr(),
-            BetweenOperator::Between,
-        );
+        let mut lhs = lhs.into_lhs_expr();
+        let mut low = low.into_lhs_expr();
+        let mut high = high.into_lhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(low.take_bindings());
+        self.binds.append(high.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_between(Conjunction::And, lhs, low, high, BetweenOperator::Between);
         self
     }
 
-    define_exists!(
-        where_exists,
-        or_where_exists,
-        having_exists,
-        or_having_exists,
-        ExistsOperator::Exists
-    );
-    define_exists!(
-        where_not_exists,
-        or_where_not_exists,
-        having_not_exists,
-        or_having_not_exists,
-        ExistsOperator::NotExists
-    );
-    define_in!(
-        where_in,
-        or_where_in,
-        having_in,
-        or_having_in,
-        InOperator::In
-    );
-    define_in!(
-        where_not_in,
-        or_where_not_in,
-        having_not_in,
-        or_having_not_in,
-        InOperator::NotIn
-    );
+    #[variant(ExistsOperator, Exists, exists, not_exists)]
+    fn exists_expr<Q>(&mut self, sub: Q) -> &mut Self
+    where
+        Q: FnOnce(&mut Self),
+    {
+        let mut inner = Self::default();
+        sub(&mut inner);
+        self.binds.append(inner.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_exists(Conjunction::And, inner, ExistsOperator::Exists);
+        self
+    }
+
+    #[variant(InOperator, In, in, not_in)]
+    fn in_expr<L, R>(&mut self, lhs: L, rhs: R) -> &mut Self
+    where
+        L: IntoLhsExpr,
+        R: IntoInList,
+    {
+        let mut lhs = lhs.into_lhs_expr();
+        let mut rhs = rhs.into_in_list();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
+        let target = self.maybe_where.get_or_insert_default();
+        target.push_in(Conjunction::And, lhs, rhs, InOperator::In);
+        self
+    }
 
     define_filter!(where_all, where_grouped_expr, Conjunction::And, Conjunction::And);
     define_filter!(where_any, where_grouped_expr, Conjunction::And, Conjunction::Or);
@@ -565,11 +575,13 @@ impl Builder {
     define_filter!(or_having_none, having_grouped_expr, Conjunction::OrNot, Conjunction::And);
 
     // havings here
+
     pub fn reset_having(&mut self) -> &mut Self {
         self.maybe_having = None;
         self
     }
 
+    #[or_variant]
     pub fn having<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
     where
         C: IntoLhsExpr,
@@ -580,23 +592,6 @@ impl Builder {
             &mut self.binds,
             self.maybe_having.get_or_insert_default(),
             Conjunction::And,
-            column.into_lhs_expr(),
-            operator.into_operator(),
-            value.into_rhs_expr(),
-        );
-        self
-    }
-
-    pub fn or_having<C, O, V>(&mut self, column: C, operator: O, value: V) -> &mut Self
-    where
-        C: IntoLhsExpr,
-        O: IntoOperator,
-        V: IntoRhsExpr,
-    {
-        Builder::push_binary_expr(
-            &mut self.binds,
-            self.maybe_having.get_or_insert_default(),
-            Conjunction::Or,
             column.into_lhs_expr(),
             operator.into_operator(),
             value.into_rhs_expr(),
