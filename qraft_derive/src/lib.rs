@@ -6,7 +6,15 @@ use quote::quote;
 use syn::{parse_macro_input, ItemFn, Ident};
 
 #[proc_macro_attribute]
-pub fn or_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn or_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let raw = attr.to_string();
+    let trimmed = raw.trim().trim_start_matches('(').trim_end_matches(')');
+    let args: VecDeque<String> = trimmed
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_vis = &input_fn.vis;
@@ -25,7 +33,16 @@ pub fn or_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let original_block_tokens: proc_macro2::TokenStream = quote! { #fn_block };
     let original_block_string = original_block_tokens.to_string();
-    let or_block_string = original_block_string.replace("Conjunction :: And", "Conjunction :: Or");
+
+    let mut args_iter = args.iter();
+    let first_arg = args_iter.next();
+
+    let or_block_string = if !args.is_empty() && first_arg.is_some_and(|v| v == "not") {
+        original_block_string.replace("Conjunction :: AndNot", "Conjunction :: OrNot")
+    } else {
+        original_block_string.replace("Conjunction :: And", "Conjunction :: Or")
+    };
+
     let or_block_tokens: proc_macro2::TokenStream = or_block_string
         .parse()
         .expect("Failed to re‐parse function body with Or replacement");
@@ -48,7 +65,17 @@ pub fn or_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn condition_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn condition_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let raw = attr.to_string();
+    let trimmed = raw.trim().trim_start_matches('(').trim_end_matches(')');
+    let args: VecDeque<String> = trimmed
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let mut args_iter = args.iter();
+
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let fn_vis = &input_fn.vis;
@@ -67,20 +94,31 @@ pub fn condition_variant(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let original_block_tokens: proc_macro2::TokenStream = quote! { #fn_block };
     let original_block_string = original_block_tokens.to_string();
-    let having_block_string = original_block_string.replace("where", "having");
+    let having_block_string = original_block_string.replace("where", "having").replace("Where", "Having");
     let having_block_tokens: proc_macro2::TokenStream = having_block_string
         .parse()
         .expect("Failed to re‐parse function body with Or replacement");
 
+    let first_arg = args_iter.next();
+    let tag = if !args.is_empty() && first_arg.is_some_and(|v| v == "not") {
+        quote! {
+            #[or_variant(not)]
+        }
+    } else {
+        quote! {
+            #[or_variant]
+        }
+    };
+
     let expanded = quote! {
-        #[or_variant]
+        #tag
         #fn_vis #fn_unsafety #fn_asyncness fn #fn_name #fn_generics ( #fn_inputs ) #fn_output
         #fn_where
         {
             #fn_block
         }
 
-        #[or_variant]
+        #tag
         #fn_vis #fn_unsafety #fn_asyncness fn #having_fn_name #fn_generics ( #fn_inputs ) #fn_output
         #fn_where
         {

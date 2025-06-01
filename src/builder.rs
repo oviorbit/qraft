@@ -429,15 +429,47 @@ impl Builder {
         self
     }
 
-    group_condition!(Conjunction::AndNot, where_not_group, where_group_expr);
-    group_condition!(Conjunction::OrNot, or_where_not_group, where_group_expr);
-    group_condition!(Conjunction::And, where_group, where_group_expr);
-    group_condition!(Conjunction::Or, or_where_group, where_group_expr);
+    #[condition_variant]
+    fn where_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut inner = Self {
+            ty: QueryKind::Where,
+            ..Default::default()
+        };
+        sub(&mut inner);
 
-    group_condition!(Conjunction::AndNot, having_not_group, having_group_expr);
-    group_condition!(Conjunction::OrNot, or_having_not_group, having_group_expr);
-    group_condition!(Conjunction::And, having_group, having_group_expr);
-    group_condition!(Conjunction::Or, or_having_group, having_group_expr);
+        let binds = inner.take_bindings();
+        if let Some(conds) = inner.maybe_where {
+            self.binds.append(binds);
+            let target = self.maybe_where.get_or_insert_default();
+            target.push_group(Conjunction::And, conds);
+        }
+
+        self
+    }
+
+    #[condition_variant(not)]
+    fn where_not_group<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut inner = Self {
+            ty: QueryKind::Where,
+            ..Default::default()
+        };
+        sub(&mut inner);
+
+        let binds = inner.take_bindings();
+        if let Some(conds) = inner.maybe_where {
+            self.binds.append(binds);
+            let target = self.maybe_where.get_or_insert_default();
+            target.push_group(Conjunction::AndNot, conds);
+        }
+
+        self
+    }
 
     #[condition_variant]
     pub fn where_raw<R, B>(&mut self, raw: R, binds: B) -> &mut Self
