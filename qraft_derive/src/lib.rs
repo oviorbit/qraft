@@ -38,9 +38,9 @@ pub fn or_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
     let first_arg = args_iter.next();
 
     let or_block_string = if !args.is_empty() && first_arg.is_some_and(|v| v == "not") {
-        original_block_string.replace("Conjunction :: AndNot", "Conjunction :: OrNot")
+        original_block_string.replacen("Conjunction :: AndNot", "Conjunction :: OrNot", 1)
     } else {
-        original_block_string.replace("Conjunction :: And", "Conjunction :: Or")
+        original_block_string.replacen("Conjunction :: And", "Conjunction :: Or", 1)
     };
 
     let or_block_tokens: proc_macro2::TokenStream = or_block_string

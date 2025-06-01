@@ -71,7 +71,6 @@ macro_rules! binary_condition {
     };
 }
 
-
 macro_rules! column_condition {
     ($conjunction:expr, $method:ident, $field:ident) => {
         pub fn $method<C, O, CC>(&mut self, column: C, operator: O, other_column: CC) -> &mut Self
@@ -203,7 +202,7 @@ macro_rules! group_condition {
         {
             self.$method_expr($conjunction, sub)
         }
-    }
+    };
 }
 
 macro_rules! define_raw {
@@ -592,19 +591,53 @@ impl Builder {
         self
     }
 
-    define_filter!(where_all, where_grouped_expr, Conjunction::And, Conjunction::And);
-    define_filter!(where_any, where_grouped_expr, Conjunction::And, Conjunction::Or);
-    define_filter!(where_none, where_grouped_expr, Conjunction::AndNot, Conjunction::And);
-    define_filter!(or_where_all, where_grouped_expr, Conjunction::Or, Conjunction::And);
-    define_filter!(or_where_any, where_grouped_expr, Conjunction::Or, Conjunction::Or);
-    define_filter!(or_where_none, where_grouped_expr, Conjunction::OrNot, Conjunction::And);
+    #[condition_variant]
+    pub fn where_all<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
+    where
+        C: IntoProjections,
+        O: IntoOperator,
+        V: IntoRhsExpr,
+    {
+        self.where_grouped_expr(
+            Conjunction::And,
+            Conjunction::And,
+            columns.into_projections(),
+            rhs.into_rhs_expr(),
+            operator.into_operator(),
+        )
+    }
 
-    define_filter!(having_all, having_grouped_expr, Conjunction::And, Conjunction::And);
-    define_filter!(having_any, having_grouped_expr, Conjunction::And, Conjunction::Or);
-    define_filter!(having_none, having_grouped_expr, Conjunction::AndNot, Conjunction::And);
-    define_filter!(or_having_all, having_grouped_expr, Conjunction::Or, Conjunction::And);
-    define_filter!(or_having_any, having_grouped_expr, Conjunction::Or, Conjunction::Or);
-    define_filter!(or_having_none, having_grouped_expr, Conjunction::OrNot, Conjunction::And);
+    #[condition_variant]
+    pub fn where_any<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
+    where
+        C: IntoProjections,
+        O: IntoOperator,
+        V: IntoRhsExpr,
+    {
+        self.where_grouped_expr(
+            Conjunction::And,
+            Conjunction::Or,
+            columns.into_projections(),
+            rhs.into_rhs_expr(),
+            operator.into_operator(),
+        )
+    }
+
+    #[condition_variant(not)]
+    pub fn where_none<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
+    where
+        C: IntoProjections,
+        O: IntoOperator,
+        V: IntoRhsExpr,
+    {
+        self.where_grouped_expr(
+            Conjunction::AndNot,
+            Conjunction::And,
+            columns.into_projections(),
+            rhs.into_rhs_expr(),
+            operator.into_operator(),
+        )
+    }
 
     // havings here
 
@@ -989,7 +1022,7 @@ impl FormatWriter for Builder {
 
         if let Some(ref w) = self.maybe_where {
             // if we are not in a where group
-            if ! w.is_empty() {
+            if !w.is_empty() {
                 if matches!(self.ty, QueryKind::Select) {
                     context.writer.write_str(" where ")?;
                 }
@@ -1001,7 +1034,7 @@ impl FormatWriter for Builder {
 
         if let Some(ref h) = self.maybe_having {
             // if we are not in a having group
-            if ! h.is_empty() {
+            if !h.is_empty() {
                 if matches!(self.ty, QueryKind::Select) {
                     context.writer.write_str(" having ")?;
                 }
@@ -1010,7 +1043,7 @@ impl FormatWriter for Builder {
         }
 
         if let Some(ref order) = self.maybe_order {
-            if ! order.is_empty() {
+            if !order.is_empty() {
                 context.writer.write_str(" order by ")?;
                 order.format_writer(context)?;
             }
