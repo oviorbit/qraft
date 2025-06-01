@@ -56,14 +56,6 @@ impl FormatWriter for Expr {
         }
     }
 }
-//
-//#[derive(Debug, Clone)]
-//#[repr(transparent)]
-//pub struct LhsExpr(pub(crate) Expr);
-//
-//#[derive(Debug, Clone)]
-//#[repr(transparent)]
-//pub struct RhsExpr(pub(crate) Expr);
 
 pub trait IntoRhsExpr {
     fn into_rhs_expr(self) -> Expr;

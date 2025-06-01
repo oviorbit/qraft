@@ -30,6 +30,10 @@ impl Bind {
         value.into_bind()
     }
 
+    pub fn is_consumed(&self) -> bool {
+        matches!(self, Self::Consumed)
+    }
+
     pub fn new_static_str(value: &'static str) -> Bind {
         Bind::StaticString(value)
     }

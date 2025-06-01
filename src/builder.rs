@@ -113,8 +113,9 @@ impl Builder {
 
     // where stuff
 
-    pub fn reset_where(&mut self) -> &mut Self {
+    fn reset_where(&mut self) -> &mut Self {
         self.maybe_where = None;
+        self.binds = Binds::None;
         self
     }
 
@@ -126,8 +127,10 @@ impl Builder {
         V: IntoRhsExpr,
     {
         let conditions = self.maybe_where.get_or_insert_default();
-        let lhs = column.into_lhs_expr();
-        let rhs = value.into_rhs_expr();
+        let mut lhs = column.into_lhs_expr();
+        let mut rhs = value.into_rhs_expr();
+        self.binds.append(lhs.take_bindings());
+        self.binds.append(rhs.take_bindings());
         conditions.push_binary(Conjunction::And, lhs, rhs, operator.into_operator());
         self
     }
@@ -345,8 +348,10 @@ impl Builder {
 
     // havings here
 
-    pub fn reset_having(&mut self) -> &mut Self {
+    fn reset_having(&mut self) -> &mut Self {
+        // not public for now, needs impl Take binds on all conditions
         self.maybe_having = None;
+        self.binds = Binds::None;
         self
     }
 
@@ -890,6 +895,7 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.limit(42);
         builder.limit(1);
+        assert!(builder.binds.is_empty());
         assert_eq!(
             "select * from \"users\" limit 1",
             builder.to_sql::<Postgres>()
@@ -900,6 +906,7 @@ mod tests {
     fn test_offset_clause() {
         let mut builder = Builder::table("users");
         builder.offset(42);
+        assert!(builder.binds.is_empty());
         assert_eq!(
             "select * from \"users\" offset 42",
             builder.to_sql::<Postgres>()
@@ -918,6 +925,7 @@ mod tests {
 
         builder.order_by_desc("username");
 
+        assert!(builder.binds.is_empty());
         assert_eq!(
             "select * from \"users\" order by \"id\" asc, \"username\" desc",
             builder.to_sql::<Postgres>()
@@ -931,16 +939,22 @@ mod tests {
             .where_eq("id", 1)
             .where_any(["id", "foo", "bar"], Operator::Eq, "baz");
 
+        assert_eq!(builder.binds.len(), 4);
         assert_eq!(
             "select * from \"users\" where \"id\" = $1 and (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
 
+        assert_eq!(builder.binds.len(), 4);
+
         builder.reset_where();
+
+
         builder
             .where_eq("id", 1)
             .or_where_any(["id", "foo", "bar"], Operator::Eq, "baz");
 
+        assert_eq!(builder.binds.len(), 4);
         assert_eq!(
             "select * from \"users\" where \"id\" = $1 or (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
             builder.to_sql::<Postgres>()
@@ -958,7 +972,9 @@ mod tests {
             "select * from \"users\" where \"id\" = $1 and (\"id\" = $2 and \"foo\" = $3 and \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
+        assert_eq!(builder.binds.len(), 4);
         builder.reset_where();
+
         builder
             .where_eq("id", 1)
             .or_where_all(["id", "foo", "bar"], Operator::Eq, "baz");
@@ -967,6 +983,7 @@ mod tests {
             "select * from \"users\" where \"id\" = $1 or (\"id\" = $2 and \"foo\" = $3 and \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
+        assert_eq!(builder.binds.len(), 4);
     }
 
     #[test]
@@ -980,7 +997,9 @@ mod tests {
             "select * from \"users\" where \"id\" = $1 and not (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
+        assert_eq!(builder.binds.len(), 4);
         builder.reset_where();
+
         builder
             .where_eq("id", 1)
             .or_where_none(["id", "foo", "bar"], Operator::Eq, "baz");
@@ -989,5 +1008,6 @@ mod tests {
             "select * from \"users\" where \"id\" = $1 or not (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
+        assert_eq!(builder.binds.len(), 4);
     }
 }
