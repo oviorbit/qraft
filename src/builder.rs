@@ -336,7 +336,7 @@ impl Builder {
     {
         self.where_grouped_expr(
             Conjunction::AndNot,
-            Conjunction::And,
+            Conjunction::Or,
             columns.into_projections(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
@@ -920,6 +920,73 @@ mod tests {
 
         assert_eq!(
             "select * from \"users\" order by \"id\" asc, \"username\" desc",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_where_any() {
+        let mut builder = Builder::table("users");
+        builder
+            .where_eq("id", 1)
+            .where_any(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 and (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
+            builder.to_sql::<Postgres>()
+        );
+
+        builder.reset_where();
+        builder
+            .where_eq("id", 1)
+            .or_where_any(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 or (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_where_all() {
+        let mut builder = Builder::table("users");
+        builder
+            .where_eq("id", 1)
+            .where_all(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 and (\"id\" = $2 and \"foo\" = $3 and \"bar\" = $4)",
+            builder.to_sql::<Postgres>()
+        );
+        builder.reset_where();
+        builder
+            .where_eq("id", 1)
+            .or_where_all(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 or (\"id\" = $2 and \"foo\" = $3 and \"bar\" = $4)",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn test_where_none() {
+        let mut builder = Builder::table("users");
+        builder
+            .where_eq("id", 1)
+            .where_none(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 and not (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
+            builder.to_sql::<Postgres>()
+        );
+        builder.reset_where();
+        builder
+            .where_eq("id", 1)
+            .or_where_none(["id", "foo", "bar"], Operator::Eq, "baz");
+
+        assert_eq!(
+            "select * from \"users\" where \"id\" = $1 or not (\"id\" = $2 or \"foo\" = $3 or \"bar\" = $4)",
             builder.to_sql::<Postgres>()
         );
     }
