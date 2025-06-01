@@ -1,4 +1,4 @@
-use crate::{expr::TakeBindings, writer::FormatWriter};
+use crate::{expr::TakeBindings, writer::FormatWriter, Projections};
 
 // max size is 32 bytes
 #[derive(Debug, Clone)]

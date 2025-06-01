@@ -474,7 +474,8 @@ impl Builder {
         self
     }
 
-    pub fn reset_select(&mut self) -> &mut Self {
+    fn reset_select(&mut self) -> &mut Self {
+        // could be made public but needs to impl take bindings on all conds
         self.projections.reset();
         self
     }
