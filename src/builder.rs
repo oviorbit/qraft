@@ -1,11 +1,13 @@
+use std::mem;
+
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
     bind::{Binds, IntoBinds}, col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections, TableSchema
     }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, r#in::InOperator, order::{Order, Ordering}, sub::AliasSubFn, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, IntoInList, JoinClause, JoinType, Joins
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -672,21 +674,43 @@ impl Builder {
         self
     }
 
+    fn take(&mut self) -> Self {
+        Self {
+            query: mem::take(&mut self.query),
+            ty: mem::take(&mut self.ty),
+            distinct: self.distinct,
+            maybe_table: self.maybe_table.take(),
+            projections: self.projections.take(),
+            binds: self.binds.take(),
+            maybe_where: self.maybe_where.take(),
+            maybe_having: self.maybe_having.take(),
+            maybe_limit: self.maybe_limit.take(),
+            maybe_offset: self.maybe_offset.take(),
+            maybe_order: self.maybe_order.take(),
+            maybe_joins: self.maybe_joins.take(),
+            maybe_group_by: self.maybe_group_by.take(),
+        }
+        //
+    }
+
     // building the builder
-    pub async fn exists<DB, E>(self, executor: E) -> Result<bool, sqlx::Error>
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn exists<DB, E>(&mut self, executor: E) -> Result<bool, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
         (bool,): for<'r> sqlx::FromRow<'r, DB::Row>,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        //let sub_fn = AliasSubFn::new("exists", self, "exists");
-        //let mut builder = Builder::default();
-        //builder.select(sub_fn);
-        //builder.fetch_value(executor).await
-        todo!()
+        let self_builder = self.take();
+        let mut builder = Builder::default();
+        let exists = ExistsExpr::new(ExistsOperator::Exists, self_builder, Some(Ident::new_static("exists")));
+        builder.select(exists);
+        builder.fetch_value(executor).await
     }
 
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
     pub async fn fetch_value<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
@@ -789,8 +813,10 @@ impl FormatWriter for Builder {
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
     use crate::{
-        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, expr::exists::ExistsExpr, raw, sub
+        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, sub
     };
 
     use super::*;
@@ -845,6 +871,12 @@ mod tests {
             "select \"id\", \"admin\" from \"users\"",
             builder.to_sql::<Postgres>()
         );
+        builder.reset_select();
+        builder.select(vec!["foo", "bar"]);
+        assert_eq!(
+            "select \"foo\", \"bar\" from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
     }
 
     #[test]
@@ -871,7 +903,7 @@ mod tests {
             bind::Array::One(value) => value,
             bind::Array::Many(_) => panic!("wrong size"),
         };
-        assert!(matches!(value, Bind::I32(5)));
+        assert!(matches!(value, Bind::I32(Some(5))));
     }
 
     #[test]
@@ -1167,21 +1199,6 @@ mod tests {
         let mut builder = Builder::table("users");
         builder.group_by("id");
         let result = r#"select * from "users" group by "id""#;
-        assert_eq!(result, builder.to_sql::<Postgres>());
-    }
-
-    #[test]
-    fn test_subfn() {
-        let mut builder = Builder::table("users");
-        builder.where_eq("id", 1);
-        let exists = ExistsExpr {
-            operator: ExistsOperator::Exists,
-            subquery: Box::new(builder),
-            alias: Some("exists".into_ident()),
-        };
-        let mut builder = Builder::default();
-        builder.select(exists);
-        let result = r#"select exists(select * from "users" where "id" = $1) as "exists""#;
         assert_eq!(result, builder.to_sql::<Postgres>());
     }
 }

@@ -5,6 +5,13 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn, Ident};
 
+mod bindable;
+
+#[proc_macro_derive(Bindable, attributes(bindable))]
+pub fn bindable_derive(input: TokenStream) -> TokenStream {
+    bindable::bindable_derive_impl(input)
+}
+
 #[proc_macro_attribute]
 pub fn or_variant(attr: TokenStream, item: TokenStream) -> TokenStream {
     let raw = attr.to_string();

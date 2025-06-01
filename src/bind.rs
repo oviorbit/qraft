@@ -1,27 +1,58 @@
+#[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+use sqlx::{Arguments, IntoArguments};
+
 use crate::{expr::TakeBindings, writer::FormatWriter};
+use qraft_derive::Bindable;
 
 // max size is 32 bytes
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Bindable)]
 pub enum Bind {
-    Null,
+    #[default]
+    #[bindable(ignore)]
     Consumed,
-    String(String),
-    StaticString(&'static str),
-    Bool(bool),
-    F32(f32),
-    F64(f64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
+    String(Option<String>),
+    StaticString(Option<&'static str>),
+    Bool(Option<bool>),
+    F32(Option<f32>),
+    F64(Option<f64>),
+    I8(Option<i8>),
+    I16(Option<i16>),
+    I32(Option<i32>),
+    I64(Option<i64>),
 
     // unsigned not so sure about it ?
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
+    U8(Option<u8>),
+    U16(Option<u16>),
+    U32(Option<u32>),
+    U64(Option<u64>),
 
-    VecBytes(Vec<u8>),
+    VecBytes(Option<Vec<u8>>),
+
+    #[cfg(feature = "time")]
+    Date(Option<time::Date>),
+    #[cfg(feature = "time")]
+    Time(Option<time::Time>),
+    #[cfg(feature = "time")]
+    Timestamptz(Option<time::OffsetDateTime>),
+    #[cfg(feature = "time")]
+    Timestamp(Option<time::PrimitiveDateTime>),
+
+    #[cfg(feature = "chrono")]
+    ChronoDate(Option<chrono::NaiveDate>),
+    #[cfg(feature = "chrono")]
+    ChronoTime(Option<chrono::NaiveTime>),
+    #[cfg(feature = "chrono")]
+    ChronoTimestamptzUtc(Option<chrono::DateTime<chrono::Utc>>),
+    #[cfg(feature = "chrono")]
+    ChronoTimestamptzLocal(Option<chrono::DateTime<chrono::Local>>),
+    #[cfg(feature = "chrono")]
+    ChronoTimestamp(Option<chrono::NaiveDateTime>),
+
+    #[cfg(feature = "uuid")]
+    Uuid(Option<uuid::Uuid>),
+
+    #[cfg(feature = "json")]
+    Json(Option<serde_json::Value>),
 }
 
 impl Bind {
@@ -37,11 +68,79 @@ impl Bind {
     }
 
     pub fn new_static_str(value: &'static str) -> Bind {
-        Bind::StaticString(value)
+        Bind::StaticString(Some(value))
     }
 }
 
+#[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+trait EncodeBind<'q, DB: sqlx::Database> {
+    fn encode_bind(self, binds: &mut <DB as sqlx::Database>::Arguments<'q>);
+}
+
 pub type Binds = Array<Bind>;
+
+#[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+impl<'q> EncodeBind<'q, sqlx::Postgres> for Bind {
+    fn encode_bind(self, binds: &mut <sqlx::Postgres as sqlx::Database>::Arguments<'q>) {
+        let _ = match self {
+            Bind::Consumed => {
+                debug_assert!(false, "Can't encode a consumed bind");
+                Ok(())
+            }
+            Bind::String(value) => binds.add(value),
+            Bind::StaticString(value) => binds.add(value),
+            Bind::Bool(value) => binds.add(value),
+            Bind::F32(value) => binds.add(value),
+            Bind::F64(value) => binds.add(value),
+            Bind::I8(value) => binds.add(value),
+            Bind::I16(value) => binds.add(value),
+            Bind::I32(value) => binds.add(value),
+            Bind::I64(value) => binds.add(value),
+            Bind::U8(value) => binds.add(value.map(|v| v as i8)),
+            Bind::U16(value) => binds.add(value.map(|v| v as i16)),
+            Bind::U32(value) => binds.add(value.map(|v| v as i32)),
+            Bind::U64(value) => binds.add(value.map(|v| v as i64)),
+            Bind::VecBytes(items) => binds.add(items),
+             #[cfg(feature = "time")]
+            Bind::Date(value) => binds.add(value),
+            #[cfg(feature = "time")]
+            Bind::Time(value) => binds.add(value),
+            #[cfg(feature = "time")]
+            Bind::Timestamptz(value) => binds.add(value),
+            #[cfg(feature = "time")]
+            Bind::Timestamp(value) => binds.add(value),
+            #[cfg(feature = "chrono")]
+            Bind::ChronoDate(value) => binds.add(value),
+            #[cfg(feature = "chrono")]
+            Bind::ChronoTime(value) => binds.add(value),
+            #[cfg(feature = "chrono")]
+            Bind::ChronoTimestamptzUtc(value) => binds.add(value),
+            #[cfg(feature = "chrono")]
+            Bind::ChronoTimestamptzLocal(value) => binds.add(value),
+            #[cfg(feature = "chrono")]
+            Bind::ChronoTimestamp(value) => binds.add(value),
+            #[cfg(feature = "uuid")]
+            Bind::Uuid(value) => binds.add(value),
+            #[cfg(feature = "json")]
+            Bind::Json(value) => binds.add(value),
+        };
+    }
+}
+
+#[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+impl<'q, DB> IntoArguments<'q, DB> for Binds
+where
+    DB: sqlx::Database,
+    Bind: EncodeBind<'q, DB>,
+{
+    fn into_arguments(self) -> <DB as sqlx::Database>::Arguments<'q> {
+        let mut arguments = <DB as sqlx::Database>::Arguments::default();
+        for bind in self {
+            bind.encode_bind(&mut arguments);
+        }
+        arguments
+    }
+}
 
 impl TakeBindings for Binds {
     fn take_bindings(&mut self) -> Binds {
@@ -208,6 +307,10 @@ impl<T> Array<T> {
         *self = combined;
     }
 
+    pub fn take(&mut self) -> Self {
+        std::mem::take(self)
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Array::None => 0,
@@ -282,14 +385,14 @@ where
     }
 }
 
-impl<T> IntoBinds for Vec<T>
-where
-    T: IntoBind,
-{
-    fn into_binds(self) -> Binds {
-        Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
-    }
-}
+//impl<T> IntoBinds for Vec<T>
+//where
+//    T: IntoBind,
+//{
+//    fn into_binds(self) -> Binds {
+//        Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
+//    }
+//}
 
 impl<T, const N: usize> IntoBinds for [T; N]
 where
@@ -305,37 +408,6 @@ where
             }
             _ => Binds::Many(iter.collect()),
         }
-    }
-}
-
-impl<T> IntoBind for Option<T>
-where
-    T: IntoBind,
-{
-    fn into_bind(self) -> Bind {
-        if let Some(value) = self {
-            value.into_bind()
-        } else {
-            Bind::Null
-        }
-    }
-}
-
-impl IntoBind for i32 {
-    fn into_bind(self) -> Bind {
-        Bind::I32(self)
-    }
-}
-
-impl IntoBind for String {
-    fn into_bind(self) -> Bind {
-        Bind::String(self)
-    }
-}
-
-impl IntoBind for &str {
-    fn into_bind(self) -> Bind {
-        Bind::String(self.into())
     }
 }
 
