@@ -87,6 +87,43 @@ impl IntoOperator for Operator {
     }
 }
 
+impl IntoOperator for char {
+    fn into_operator(self) -> Operator {
+        match self {
+            '=' => Operator::Eq,
+            '>' => Operator::Gt,
+            '<' => Operator::Lt,
+            other => {
+                debug_assert!(false, "Invalid operator char in Builder {:?}", other);
+                tracing::warn!("Invalid operator '{:?}', defaulting to =", other);
+                Operator::Eq
+            }
+        }
+    }
+}
+
+impl IntoOperator for &'static str {
+    fn into_operator(self) -> Operator {
+        match self.to_ascii_lowercase().as_str() {
+            "=" => Operator::Eq,
+            "!=" | "<>" => Operator::NotEq,
+            "<" => Operator::Lt,
+            "<=" => Operator::Lte,
+            ">" => Operator::Gt,
+            ">=" => Operator::Gte,
+            "like" => Operator::Like,
+            "not like" => Operator::NotLike,
+            "ilike" => Operator::Ilike,
+            "not ilike" => Operator::NotIlike,
+            other => {
+                debug_assert!(false, "Invalid operator string in Builder {:?}", other);
+                tracing::warn!("Invalid operator \"{:?}\", defaulting to =", other);
+                Operator::Eq
+            }
+        }
+    }
+}
+
 // maybe prevent the column-like identifier for blanket impl
 impl<T> IntoRhsExpr for T
 where

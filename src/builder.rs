@@ -1058,4 +1058,10 @@ mod tests {
         );
         assert_eq!(builder.binds.len(), 4);
     }
+
+    #[test]
+    fn test_join() {
+        let mut builder = Builder::table("users");
+        builder.join("contacts", "users.id", "=", "contacts.user_id");
+    }
 }
