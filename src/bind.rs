@@ -26,6 +26,7 @@ pub enum Bind {
     U32(Option<u32>),
     U64(Option<u64>),
 
+    #[bindable(ignore)]
     VecBytes(Option<Vec<u8>>),
 
     #[cfg(feature = "time")]
@@ -385,14 +386,14 @@ where
     }
 }
 
-//impl<T> IntoBinds for Vec<T>
-//where
-//    T: IntoBind,
-//{
-//    fn into_binds(self) -> Binds {
-//        Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
-//    }
-//}
+impl<T> IntoBinds for Vec<T>
+where
+    T: IntoBind,
+{
+    fn into_binds(self) -> Binds {
+        Binds::Many(self.into_iter().map(IntoBind::into_bind).collect())
+    }
+}
 
 impl<T, const N: usize> IntoBinds for [T; N]
 where
@@ -410,5 +411,3 @@ where
         }
     }
 }
-
-// todo: add more into bind

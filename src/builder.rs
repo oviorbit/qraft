@@ -1397,4 +1397,17 @@ mod tests {
             builder.to_sql::<Postgres>()
         );
     }
+
+    #[test]
+    fn test_many_binds() {
+        let mut builder = Builder::table("users");
+        builder.select_raw("? + ?", vec![2, 3]);
+
+        assert_eq!(
+            "select $1 + $2 from \"users\"",
+            builder.to_sql::<Postgres>()
+        );
+
+        assert_eq!(builder.binds.len(), 2);
+    }
 }
