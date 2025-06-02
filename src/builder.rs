@@ -651,6 +651,15 @@ impl Builder {
         self
     }
 
+    pub fn avg<T>(&mut self, table: T) -> &mut Self
+    where
+        T: IntoIdent,
+    {
+        let other = table.into_ident();
+        self.projections = Some(other);
+        self
+    }
+
     fn reset_select(&mut self) -> &mut Self {
         // could be made public but needs to impl take bindings on all conds
         self.projections.reset();
@@ -711,6 +720,127 @@ impl Builder {
     // building the builder
 
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn execute<DB, E>(
+        mut self,
+        executor: E,
+    ) -> Result<<DB as sqlx::Database>::QueryResult, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_with::<_, _>(sql, bindings)
+            .execute(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn maybe_first<DB, T, E>(
+        mut self,
+        executor: E,
+    ) -> Result<Option<T>, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        T: for<'r> sqlx::FromRow<'r, DB::Row> + Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_as_with::<_, T, _>(sql, bindings)
+            .fetch_optional(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn first<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        T: for<'r> sqlx::FromRow<'r, DB::Row> + Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_as_with::<_, T, _>(sql, bindings)
+            .fetch_one(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn all<DB, T, E>(mut self, executor: E) -> Result<Vec<T>, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        T: for<'r> sqlx::FromRow<'r, DB::Row> + Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_as_with::<_, T, _>(sql, bindings)
+            .fetch_all(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn maybe_value<DB, T, E>(
+        mut self,
+        executor: E,
+    ) -> Result<Option<T>, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        (T,): for<'r> sqlx::FromRow<'r, DB::Row>,
+        T: Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
+            .fetch_optional(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn value<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        (T,): for<'r> sqlx::FromRow<'r, DB::Row>,
+        T: Send + Unpin,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        let bindings = self.binds.take_bindings();
+        let sql = self.to_sql::<DB>();
+        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
+            .fetch_one(executor)
+            .await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn count<DB, E>(&mut self, executor: E) -> Result<usize, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        (usize,): for<'r> sqlx::FromRow<'r, DB::Row>,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+    {
+        use crate::{expr::exists::ExistsExpr, Ident};
+
+        let self_builder = self.take();
+        let mut builder = Builder::default();
+        let exists = ExistsExpr::new(
+            ExistsOperator::Exists,
+            self_builder,
+            Some(Ident::new_static("exists")),
+        );
+        builder.select(exists);
+        builder.value(executor).await
+    }
+
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
     pub async fn exists<DB, E>(&mut self, executor: E) -> Result<bool, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
@@ -728,23 +858,28 @@ impl Builder {
             Some(Ident::new_static("exists")),
         );
         builder.select(exists);
-        builder.fetch_value(executor).await
+        builder.value(executor).await
     }
 
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
-    pub async fn fetch_value<DB, T, E>(mut self, executor: E) -> Result<T, sqlx::Error>
+    pub async fn not_exists<DB, E>(&mut self, executor: E) -> Result<bool, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
-        (T,): for<'r> sqlx::FromRow<'r, DB::Row>,
-        T: Send + Unpin,
+        (bool,): for<'r> sqlx::FromRow<'r, DB::Row>,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        let bindings = self.binds.take_bindings();
-        let sql = self.to_sql::<DB>();
-        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
-            .fetch_one(executor)
-            .await
+        use crate::{expr::exists::ExistsExpr, Ident};
+
+        let self_builder = self.take();
+        let mut builder = Builder::default();
+        let exists = ExistsExpr::new(
+            ExistsOperator::Exists,
+            self_builder,
+            Some(Ident::new_static("exists")),
+        );
+        builder.select(exists);
+        builder.value(executor).await
     }
 
     pub fn to_sql<Database: HasDialect>(&mut self) -> &str {

@@ -4,6 +4,7 @@ pub(crate) mod between;
 pub(crate) mod binary;
 pub(crate) mod cond;
 pub(crate) mod exists;
+pub(crate) mod fncall;
 pub(crate) mod group;
 pub(crate) mod r#in;
 pub(crate) mod list;
@@ -13,6 +14,7 @@ pub(crate) mod unary;
 
 pub use cond::Conjunction;
 use exists::ExistsExpr;
+use fncall::AggregateCall;
 use r#in::InExpr;
 
 use crate::{
@@ -29,6 +31,7 @@ pub enum Expr {
     Subquery(Box<Builder>),
     Exists(ExistsExpr),
     In(Box<InExpr>),
+    AggregateCall(AggregateCall),
 }
 
 pub(crate) trait TakeBindings {
@@ -43,6 +46,7 @@ impl TakeBindings for Expr {
             Expr::Subquery(builder) => builder.take_bindings(),
             Expr::Exists(condition) => condition.take_bindings(),
             Expr::In(condition) => condition.take_bindings(),
+            Expr::AggregateCall(_) => Binds::None,
         }
     }
 }
@@ -62,6 +66,7 @@ impl FormatWriter for Expr {
             }
             Expr::Exists(condition) => condition.format_writer(context),
             Expr::In(condition) => condition.format_writer(context),
+            Expr::AggregateCall(aggregate) => aggregate.format_writer(context),
         }
     }
 }
