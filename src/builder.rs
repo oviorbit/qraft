@@ -51,19 +51,8 @@ impl Builder {
 
     pub fn table<T: IntoTable>(table: T) -> Self {
         Self {
-            query: String::new(),
-            distinct: false,
             maybe_table: Some(table.into_table()),
-            projections: Projections::None,
-            binds: Binds::None,
-            ty: QueryKind::Select,
-            maybe_where: None,
-            maybe_limit: None,
-            maybe_offset: None,
-            maybe_order: None,
-            maybe_having: None,
-            maybe_joins: None,
-            maybe_group_by: None,
+            ..Default::default()
         }
     }
 
@@ -890,7 +879,7 @@ impl Builder {
         <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
     {
         use crate::HasRowsAffected;
-
+        self.delete_query::<DB>();
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();
         Ok(rows > 0)
@@ -1484,6 +1473,13 @@ mod tests {
         assert_eq!(
             r#"delete from "users" where "rowid" in (select "users"."rowid" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" where "id" = ?1)"#,
             builder.to_sql::<Sqlite>()
+        );
+        let mut builder = Builder::table("roles as r");
+        builder.left_join("contacts", "users.id", "=", "contacts.user_id");
+        builder.delete_query::<Postgres>();
+        assert_eq!(
+            r#"delete from "roles" as "r" where "ctid" in (select "r"."ctid" from "roles" as "r" left join "contacts" on "users"."id" = "contacts"."user_id")"#,
+            builder.to_sql::<Postgres>(),
         );
     }
 }
