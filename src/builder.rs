@@ -1378,4 +1378,23 @@ mod tests {
         let result = r#"select * from "users" group by "id""#;
         assert_eq!(result, builder.to_sql::<Postgres>());
     }
+
+    #[test]
+    fn test_avg_agg() {
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1).avg("price");
+
+        assert_eq!(
+            "select avg(\"price\") from \"users\" where \"id\" = $1",
+            builder.to_sql::<Postgres>()
+        );
+
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1).avg("price as avg_price");
+
+        assert_eq!(
+            "select avg(\"price\") as \"avg_price\" from \"users\" where \"id\" = $1",
+            builder.to_sql::<Postgres>()
+        );
+    }
 }
