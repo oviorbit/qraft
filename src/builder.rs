@@ -590,7 +590,7 @@ impl Builder {
         self.order_by_asc(column)
     }
 
-    pub fn reset_order(&mut self) -> &mut Self {
+    pub fn reorder(&mut self) -> &mut Self {
         self.maybe_order = None;
         self
     }
