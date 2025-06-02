@@ -3,7 +3,7 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    Ident, IntoInList, JoinClause, JoinType, Joins,
+    IntoInList, JoinClause, JoinType, Joins,
     bind::{Binds, IntoBinds},
     col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
