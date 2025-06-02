@@ -122,6 +122,7 @@ impl Builder {
     }
 
     // joins stuff
+
     pub fn join<T, C, O, CC>(
         &mut self,
         table: T,
@@ -569,6 +570,9 @@ impl Builder {
     }
 
     // add order by stuff
+    pub fn order_by<I: IntoLhsExpr>(&mut self, column: I, ordering: Ordering) -> &mut Self {
+        self.order_by_expr(column.into_lhs_expr(), ordering)
+    }
 
     pub fn order_by_asc<I: IntoLhsExpr>(&mut self, column: I) -> &mut Self {
         self.order_by_expr(column.into_lhs_expr(), Ordering::Asc)
