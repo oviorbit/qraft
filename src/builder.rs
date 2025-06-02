@@ -19,6 +19,8 @@ pub enum QueryKind {
     Having,
     Join,
     Delete,
+    Insert,
+    Update,
 }
 
 impl TakeBindings for Builder {
@@ -936,6 +938,10 @@ impl Builder {
         self.query = str;
         self.query.as_str()
     }
+
+    pub fn as_sql(&mut self) -> &str {
+        self.query.as_str()
+    }
 }
 
 impl FormatWriter for Builder {
@@ -1480,6 +1486,15 @@ mod tests {
         assert_eq!(
             r#"delete from "roles" as "r" where "ctid" in (select "r"."ctid" from "roles" as "r" left join "contacts" on "users"."id" = "contacts"."user_id")"#,
             builder.to_sql::<Postgres>(),
+        );
+    }
+
+    #[test]
+    fn test_empty_table() {
+        let mut builder = Builder::table("");
+        assert_eq!(
+            "select * from \"\"",
+            builder.to_sql::<Postgres>()
         );
     }
 }
