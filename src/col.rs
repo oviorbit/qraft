@@ -1,11 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Builder, Raw,
-    bind::Array,
-    expr::{Expr, TakeBindings, exists::ExistsExpr, r#in::InExpr},
-    ident::{Ident, IntoIdent, TableRef},
-    writer::FormatWriter,
+    bind::Array, expr::{exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<Expr>;
@@ -201,6 +197,12 @@ where
 {
     fn into_select_proj(self) -> Projections {
         self.into_group_proj()
+    }
+}
+
+impl IntoSelectProj for AggregateCall {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(Expr::AggregateCall(self))
     }
 }
 

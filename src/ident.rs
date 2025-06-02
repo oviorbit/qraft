@@ -91,6 +91,17 @@ impl Ident {
     pub fn new_static(value: &'static str) -> Self {
         Self(SmolStr::new_static(value))
     }
+
+    pub fn split_alias(&self) -> (Ident, Option<Ident>) {
+        let s = self.0.as_str();
+        if let Some(idx) = find_as(s.as_bytes()) {
+            let left = &s[..idx];
+            let right = &s[idx + 4..];
+            (Ident::new(left), Some(Ident::new(right)))
+        } else {
+            (self.clone(), None)
+        }
+    }
 }
 
 impl FormatWriter for Ident {

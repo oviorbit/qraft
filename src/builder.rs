@@ -3,7 +3,7 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    IntoInList, JoinClause, JoinType, Joins,
+    Ident, IntoInList, JoinClause, JoinType, Joins,
     bind::{Binds, IntoBinds},
     col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
@@ -16,6 +16,7 @@ use crate::{
         binary::Operator,
         cond::{Conditions, Conjunction},
         exists::ExistsOperator,
+        fncall::{Aggregate, AggregateCall},
         r#in::InOperator,
         order::{Order, Ordering},
         unary::UnaryOperator,
@@ -651,12 +652,35 @@ impl Builder {
         self
     }
 
-    pub fn avg<T>(&mut self, table: T) -> &mut Self
-    where
-        T: IntoIdent,
-    {
-        let other = table.into_ident();
-        self.projections = Some(other);
+    pub fn avg<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn max<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn sum<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn min<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
         self
     }
 
@@ -737,10 +761,7 @@ impl Builder {
     }
 
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
-    pub async fn maybe_first<DB, T, E>(
-        mut self,
-        executor: E,
-    ) -> Result<Option<T>, sqlx::Error>
+    pub async fn maybe_first<DB, T, E>(mut self, executor: E) -> Result<Option<T>, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
         T: for<'r> sqlx::FromRow<'r, DB::Row> + Send + Unpin,
@@ -785,10 +806,7 @@ impl Builder {
     }
 
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
-    pub async fn maybe_value<DB, T, E>(
-        mut self,
-        executor: E,
-    ) -> Result<Option<T>, sqlx::Error>
+    pub async fn maybe_value<DB, T, E>(mut self, executor: E) -> Result<Option<T>, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
         (T,): for<'r> sqlx::FromRow<'r, DB::Row>,
@@ -827,7 +845,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{expr::exists::ExistsExpr, Ident};
+        use crate::{Ident, expr::exists::ExistsExpr};
 
         let self_builder = self.take();
         let mut builder = Builder::default();
@@ -848,7 +866,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{expr::exists::ExistsExpr, Ident};
+        use crate::{Ident, expr::exists::ExistsExpr};
 
         let self_builder = self.take();
         let mut builder = Builder::default();
@@ -869,7 +887,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{expr::exists::ExistsExpr, Ident};
+        use crate::{Ident, expr::exists::ExistsExpr};
 
         let self_builder = self.take();
         let mut builder = Builder::default();

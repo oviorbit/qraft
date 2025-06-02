@@ -26,6 +26,16 @@ pub struct AggregateCall {
     alias: Option<Ident>,
 }
 
+impl AggregateCall {
+    pub fn new(agg: Aggregate, column: Ident, alias: Option<Ident>) -> Self {
+        Self {
+            agg,
+            column,
+            alias,
+        }
+    }
+}
+
 impl FormatWriter for AggregateCall {
     fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
         self.agg.format_writer(context)?;
