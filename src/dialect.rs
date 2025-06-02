@@ -41,3 +41,28 @@ impl HasDialect for sqlx::MySql {
 impl HasDialect for sqlx::Sqlite {
     const DIALECT: Dialect = Dialect::Postgres;
 }
+
+pub trait HasRowsAffected {
+    fn rows_affected(&self) -> usize;
+}
+
+#[cfg(feature = "mysql")]
+impl HasRowsAffected for sqlx::mysql::MySqlQueryResult {
+    fn rows_affected(&self) -> usize {
+        self.rows_affected() as usize
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl HasRowsAffected for sqlx::postgres::PgQueryResult {
+    fn rows_affected(&self) -> usize {
+        self.rows_affected() as usize
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl HasRowsAffected for sqlx::sqlite::SqliteQueryResult {
+    fn rows_affected(&self) -> usize {
+        self.rows_affected() as usize
+    }
+}

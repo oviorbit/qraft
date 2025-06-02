@@ -74,8 +74,11 @@ impl<'a, W: Write> FormatContext<'a, W> {
 
     pub(crate) fn write_placeholder(&mut self) -> std::fmt::Result {
         self.placeholder += 1;
-        write!(self.writer, "${}", self.placeholder)?;
-        Ok(())
+        match self.dialect {
+            Dialect::Postgres => write!(self.writer, "${}", self.placeholder),
+            Dialect::MySql => self.writer.write_char('?'),
+            Dialect::Sqlite => write!(self.writer, "?{}", self.placeholder),
+        }
     }
 }
 

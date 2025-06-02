@@ -15,6 +15,12 @@ pub enum TableRef {
     AliasSub(AliasSub),
 }
 
+impl Default for TableRef {
+    fn default() -> Self {
+        TableRef::Ident(Ident::new_static(""))
+    }
+}
+
 impl TakeBindings for TableRef {
     fn take_bindings(&mut self) -> crate::Binds {
         match self {
@@ -47,6 +53,17 @@ impl TableRef {
     pub fn raw_static(value: &'static str) -> Self {
         Self::Raw(Raw::new_static(value))
     }
+
+    pub fn table_name(&self) -> &str {
+        match self {
+            TableRef::Ident(ident) => {
+                let res = split_alias(ident.0.as_str());
+                res.1.unwrap_or(res.0)
+            }
+            TableRef::Raw(raw) => raw.0.as_str(),
+            TableRef::AliasSub(alias) => alias.alias.0.as_str(),
+        }
+    }
 }
 
 impl FormatWriter for TableRef {
@@ -77,6 +94,17 @@ where
         Ident::new(self.into())
     }
 }
+
+pub fn split_alias(s: &str) -> (&str, Option<&str>) {
+    if let Some(idx) = find_as(s.as_bytes()) {
+        let left = &s[..idx];
+        let right = &s[idx + 4..];
+        (left, Some(right))
+    } else {
+        (s, None)
+    }
+}
+
 
 impl Ident {
     #[inline]

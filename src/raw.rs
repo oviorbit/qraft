@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Raw(SmolStr);
+pub struct Raw(pub(crate) SmolStr);
 
 impl Raw {
     pub fn new<T>(value: T) -> Self

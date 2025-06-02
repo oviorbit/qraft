@@ -3,27 +3,12 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    IntoInList, JoinClause, JoinType, Joins,
-    bind::{Binds, IntoBinds},
-    col::{
+    bind::{Binds, IntoBinds}, col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
         TableSchema,
-    },
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::BetweenOperator,
-        binary::Operator,
-        cond::{Conditions, Conjunction},
-        exists::ExistsOperator,
-        fncall::{Aggregate, AggregateCall},
-        r#in::InOperator,
-        order::{Order, Ordering},
-        unary::UnaryOperator,
-    },
-    ident::{IntoIdent, TableRef},
-    raw::IntoRaw,
-    writer::{FormatContext, FormatWriter},
+    }, dialect::HasDialect, expr::{
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +18,7 @@ pub enum QueryKind {
     Where,
     Having,
     Join,
+    Delete,
 }
 
 impl TakeBindings for Builder {
@@ -749,13 +735,14 @@ impl Builder {
 
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
     pub async fn execute<DB, E>(
-        mut self,
+        &mut self,
         executor: E,
     ) -> Result<<DB as sqlx::Database>::QueryResult, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
@@ -862,6 +849,53 @@ impl Builder {
         builder.value(executor).await
     }
 
+    fn delete_query<DB: HasDialect>(&mut self) {
+        let dialect = DB::DIALECT;
+        if matches!(dialect, Dialect::Postgres) {
+            let mut builder = Builder {
+                maybe_table: self.maybe_table.clone(),
+                ..Default::default()
+            };
+            let table_name = self.maybe_table.clone();
+            let alias = table_name.unwrap_or_default();
+            let ident = Ident::new(smol_str::format_smolstr!("{}.ctid", alias.table_name()));
+            self.select(ident);
+            builder.ty = QueryKind::Delete;
+            builder.where_in("ctid", self.take());
+            *self = builder;
+        } else if matches!(dialect, Dialect::MySql) {
+            self.ty = QueryKind::Delete;
+        } else if matches!(dialect, Dialect::Sqlite) {
+            let mut builder = Builder {
+                maybe_table: self.maybe_table.clone(),
+                ..Default::default()
+            };
+            let table_name = self.maybe_table.clone();
+            let alias = table_name.unwrap_or_default();
+            let ident = Ident::new(smol_str::format_smolstr!("{}.rowid", alias.table_name()));
+            self.select(ident);
+            builder.ty = QueryKind::Delete;
+            builder.where_in("rowid", self.take());
+            *self = builder;
+        }
+    }
+
+    // delete query
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn delete<DB, E>(&mut self, executor: E) -> Result<bool, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+    {
+        use crate::HasRowsAffected;
+
+        let value = self.execute::<DB, E>(executor).await?;
+        let rows = value.rows_affected();
+        Ok(rows > 0)
+    }
+
     #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
     pub async fn exists<DB, E>(&mut self, executor: E) -> Result<bool, sqlx::Error>
     where
@@ -870,7 +904,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{Ident, expr::exists::ExistsExpr};
+        use crate::{expr::exists::ExistsExpr, Ident};
 
         let self_builder = self.take();
         let mut builder = Builder::default();
@@ -920,13 +954,26 @@ impl FormatWriter for Builder {
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
-        if self.distinct {
-            context.writer.write_str("select distinct ")?;
-        } else {
-            context.writer.write_str("select ")?;
+
+        // check if we are building a select or delete
+
+        if self.ty == QueryKind::Delete {
+            context.writer.write_str("delete")?;
         }
-        self.projections.format_writer(context)?;
+
+        if self.ty == QueryKind::Select {
+            if self.distinct {
+                context.writer.write_str("select distinct ")?;
+            } else {
+                context.writer.write_str("select ")?;
+            }
+            self.projections.format_writer(context)?;
+        }
         if let Some(ref table) = self.maybe_table {
+            if self.ty == QueryKind::Delete && matches!(context.dialect, Dialect::MySql) {
+                context.writer.write_char(' ')?;
+                table.format_writer(context)?;
+            }
             context.writer.write_str(" from ")?;
             table.format_writer(context)?;
         }
@@ -945,7 +992,7 @@ impl FormatWriter for Builder {
         if let Some(ref w) = self.maybe_where {
             // if we are not in a where group
             if !w.is_empty() {
-                if matches!(self.ty, QueryKind::Select) {
+                if matches!(self.ty, QueryKind::Select | QueryKind::Delete) {
                     context.writer.write_str(" where ")?;
                 }
                 w.format_writer(context)?;
@@ -996,7 +1043,7 @@ mod tests {
         col::ProjectionSchema,
         column_static,
         dialect::Postgres,
-        raw, sub,
+        raw, sub, MySql, Sqlite,
     };
 
     use super::*;
@@ -1413,5 +1460,30 @@ mod tests {
         );
 
         assert_eq!(builder.binds.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_kind() {
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder.delete_query::<MySql>();
+        assert_eq!(
+            r#"delete `users` from `users` inner join `contacts` on `users`.`id` = `contacts`.`user_id` where `id` = ?"#,
+            builder.to_sql::<MySql>()
+        );
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder.delete_query::<Postgres>();
+        assert_eq!(
+            r#"delete from "users" where "ctid" in (select "users"."ctid" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" where "id" = $1)"#,
+            builder.to_sql::<Postgres>()
+        );
+        let mut builder = Builder::table("users");
+        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder.delete_query::<Sqlite>();
+        assert_eq!(
+            r#"delete from "users" where "rowid" in (select "users"."rowid" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" where "id" = ?1)"#,
+            builder.to_sql::<Sqlite>()
+        );
     }
 }
