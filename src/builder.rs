@@ -88,12 +88,32 @@ impl Builder {
         self
     }
 
+    pub fn when_not<F>(&mut self, condition: bool, builder: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        if ! condition {
+            builder(self);
+        }
+        self
+    }
+
     pub fn when_some<T, F>(&mut self, maybe_value: Option<T>, builder: F) -> &mut Self
     where
         F: FnOnce(&mut Self, T),
     {
         if let Some(value) = maybe_value {
             builder(self, value);
+        }
+        self
+    }
+
+    pub fn when_none<T, F>(&mut self, maybe_value: Option<T>, builder: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        if maybe_value.is_none() {
+            builder(self);
         }
         self
     }
