@@ -3,12 +3,28 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{
+    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins,
+    bind::{Binds, IntoBinds},
+    col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
         TableSchema,
-    }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
+    },
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::BetweenOperator,
+        binary::Operator,
+        cond::{Conditions, Conjunction},
+        exists::ExistsOperator,
+        fncall::{Aggregate, AggregateCall},
+        r#in::InOperator,
+        order::{Order, Ordering},
+        unary::UnaryOperator,
+    },
+    ident::{IntoIdent, TableRef},
+    insert::InsertBuilder,
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -1615,13 +1631,22 @@ mod tests {
 
     #[test]
     fn test_scalar_select() {
-       let result = "select (select count(*) from \"posts\" where \"topic_id\" = $1) = (select \"posts_count\" from \"topics\" where \"id\" = $2)";
+        let result = "select (select count(*) from \"posts\" where \"topic_id\" = $1) = (select \"posts_count\" from \"topics\" where \"id\" = $2)";
         let mut builder = Builder::new();
-        builder.select(sub(|builder| {
-            builder.select_count('*').from("posts").where_eq("topic_id", 1);
-        }).eq(sub(|builder| {
-            builder.select("posts_count").from("topics").where_eq("id", 1);
-        })));
-        println!("{}", builder.to_sql::<Postgres>())
+        builder.select(
+            sub(|builder| {
+                builder
+                    .select_count('*')
+                    .from("posts")
+                    .where_eq("topic_id", 1);
+            })
+            .eq(sub(|builder| {
+                builder
+                    .select("posts_count")
+                    .from("topics")
+                    .where_eq("id", 1);
+            })),
+        );
+        assert_eq!(result, builder.to_sql::<Postgres>())
     }
 }

@@ -17,6 +17,7 @@ pub use cond::Conjunction;
 use exists::ExistsExpr;
 use fncall::AggregateCall;
 use r#in::InExpr;
+use qraft_derive::variant;
 
 use crate::{
     Binds, Builder, Ident, IntoBind, IntoTable, TableRef,
@@ -37,6 +38,7 @@ pub enum Expr {
 }
 
 impl Expr {
+    #[variant(none, Operator, Eq, not_eq, gt, lt, gte, lte, like, not_like, ilike, not_ilike)]
     pub fn eq<R>(self, other: R) -> Expr
     where
         R: IntoRhsExpr,
@@ -45,19 +47,6 @@ impl Expr {
         let bin = BinaryCondition {
             lhs: self,
             operator: Operator::Eq,
-            rhs: rhs_expr,
-        };
-        Expr::Binary(Box::new(bin))
-    }
-
-    pub fn ne<R>(self, other: R) -> Expr
-    where
-        R: IntoRhsExpr,
-    {
-        let rhs_expr = other.into_rhs_expr();
-        let bin = BinaryCondition {
-            lhs: self,
-            operator: Operator::NotEq,
             rhs: rhs_expr,
         };
         Expr::Binary(Box::new(bin))

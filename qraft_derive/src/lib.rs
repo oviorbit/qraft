@@ -151,8 +151,12 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let enum_name = snakes.pop_front().expect("expect the enum name");
     let mut is_join = false;
+    let mut is_none = false;
     let enum_name = if enum_name == "join" {
         is_join = true;
+        snakes.pop_front().expect("expect the enum name")
+    } else if enum_name == "none" {
+        is_none = true;
         snakes.pop_front().expect("expect the enum name")
     } else {
         enum_name
@@ -179,7 +183,11 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         let mut value = v.split_whitespace();
         let fn_part = value.next().expect("at least one part");
         let operator_part = value.next();
-        let name_string = format!("where_{}", fn_part);
+        let name_string = if is_none {
+            fn_part.to_string()
+        } else {
+            format!("where_{}", fn_part)
+        };
         let fn_name = Ident::new(&name_string, fn_name.span());
         let original_block_tokens: proc_macro2::TokenStream = quote! { #fn_block };
         let original_block_string = original_block_tokens.to_string();
@@ -198,6 +206,9 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         let variant = if is_join {
             quote! {
                 #[or_variant]
+            }
+        } else if is_none {
+            quote! {
             }
         } else {
             quote! {
