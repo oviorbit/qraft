@@ -1,6 +1,6 @@
 use crate::HasDialect;
 use crate::{
-    Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections,
+    Binds, Dialect, Ident, IntoRhsExpr,
     bind::Array,
     col::IntoColumns,
     expr::{Expr, TakeBindings},
@@ -128,7 +128,7 @@ impl FormatWriter for InsertBuilder {
                 conflicts.format_writer(context)?;
                 context.writer.write_char(')')?;
             } else if matches!(context.dialect, Dialect::MySql) {
-                context.writer.write_str(" on duplicate key update ");
+                context.writer.write_str(" on duplicate key update ")?;
             }
         }
         if let Some(ref sets) = self.maybe_sets {
