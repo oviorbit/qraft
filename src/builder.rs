@@ -4,7 +4,7 @@ use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
     bind::{Binds, IntoBinds}, col::{
-        AliasSub, IntoColumns, IntoSelectProj, IntoTable, ProjectionSchema, Projections, TableSchema
+        AliasSub, IntoColumns, IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema
     }, dialect::HasDialect, expr::{
         between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, insert::{Columns, InsertBuilder}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
@@ -654,7 +654,7 @@ impl Builder {
 
     pub fn select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoSelectProj,
+        T: IntoProjections,
     {
         self.projections = cols.into_select_proj();
         self
@@ -662,7 +662,7 @@ impl Builder {
 
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
-        T: IntoSelectProj,
+        T: IntoProjections,
     {
         let other = cols.into_select_proj();
         self.projections.append(other);

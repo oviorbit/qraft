@@ -122,41 +122,41 @@ where
 
 // add into something proj that contains stuff like subqueries and so on
 
-pub trait IntoSelectProj {
+pub trait IntoProjections {
     fn into_select_proj(self) -> Projections;
 }
 
-impl IntoSelectProj for &str {
+impl IntoProjections for &str {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoSelectProj for String {
+impl IntoProjections for String {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoSelectProj for Raw {
+impl IntoProjections for Raw {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoSelectProj for Ident {
+impl IntoProjections for Ident {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoSelectProj for TableRef {
+impl IntoProjections for TableRef {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self))
     }
 }
 
-impl<const N: usize> IntoSelectProj for [&str; N] {
+impl<const N: usize> IntoProjections for [&str; N] {
     fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
@@ -168,14 +168,14 @@ impl<const N: usize> IntoSelectProj for [&str; N] {
     }
 }
 
-impl<const N: usize> IntoSelectProj for [String; N] {
+impl<const N: usize> IntoProjections for [String; N] {
     fn into_select_proj(self) -> Projections {
         let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
         Projections::Many(vec)
     }
 }
 
-impl<const N: usize> IntoSelectProj for [Ident; N] {
+impl<const N: usize> IntoProjections for [Ident; N] {
     fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
@@ -187,7 +187,7 @@ impl<const N: usize> IntoSelectProj for [Ident; N] {
     }
 }
 
-impl<const N: usize> IntoSelectProj for [Raw; N] {
+impl<const N: usize> IntoProjections for [Raw; N] {
     fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
@@ -199,7 +199,7 @@ impl<const N: usize> IntoSelectProj for [Raw; N] {
     }
 }
 
-impl<const N: usize> IntoSelectProj for [TableRef; N] {
+impl<const N: usize> IntoProjections for [TableRef; N] {
     fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
@@ -211,7 +211,7 @@ impl<const N: usize> IntoSelectProj for [TableRef; N] {
     }
 }
 
-impl IntoSelectProj for Vec<&str> {
+impl IntoProjections for Vec<&str> {
     fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
@@ -221,7 +221,7 @@ impl IntoSelectProj for Vec<&str> {
     }
 }
 
-impl IntoSelectProj for Vec<String> {
+impl IntoProjections for Vec<String> {
     fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
@@ -231,7 +231,7 @@ impl IntoSelectProj for Vec<String> {
     }
 }
 
-impl IntoSelectProj for Vec<Ident> {
+impl IntoProjections for Vec<Ident> {
     fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
@@ -241,7 +241,7 @@ impl IntoSelectProj for Vec<Ident> {
     }
 }
 
-impl IntoSelectProj for Vec<Raw> {
+impl IntoProjections for Vec<Raw> {
     fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
@@ -251,7 +251,7 @@ impl IntoSelectProj for Vec<Raw> {
     }
 }
 
-impl IntoSelectProj for Vec<TableRef> {
+impl IntoProjections for Vec<TableRef> {
     fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
@@ -261,56 +261,56 @@ impl IntoSelectProj for Vec<TableRef> {
     }
 }
 
-impl IntoSelectProj for Projections {
+impl IntoProjections for Projections {
     fn into_select_proj(self) -> Projections {
         self
     }
 }
 
-impl<T: ProjectionSchema> IntoSelectProj for T {
+impl<T: ProjectionSchema> IntoProjections for T {
     fn into_select_proj(self) -> Projections {
         T::projections()
     }
 }
 
-impl IntoSelectProj for Bind {
+impl IntoProjections for Bind {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Bind(self))
     }
 }
 
-impl IntoSelectProj for Expr {
+impl IntoProjections for Expr {
     fn into_select_proj(self) -> Projections {
         Projections::One(self)
     }
 }
 
-impl IntoSelectProj for AggregateCall {
+impl IntoProjections for AggregateCall {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::AggregateCall(self))
     }
 }
 
-impl IntoSelectProj for AliasSub {
+impl IntoProjections for AliasSub {
     fn into_select_proj(self) -> Projections {
         let table_ref = TableRef::AliasSub(self);
         Projections::One(Expr::Ident(table_ref))
     }
 }
 
-impl IntoSelectProj for InExpr {
+impl IntoProjections for InExpr {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::In(Box::new(self)))
     }
 }
 
-impl IntoSelectProj for ExistsExpr {
+impl IntoProjections for ExistsExpr {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Exists(self))
     }
 }
 
-impl IntoSelectProj for Builder {
+impl IntoProjections for Builder {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Subquery(Box::new(self)))
     }
@@ -408,7 +408,7 @@ mod tests {
 
     fn select<T>(value: T) -> Projections
     where
-        T: IntoSelectProj,
+        T: IntoProjections,
     {
         value.into_select_proj()
     }
