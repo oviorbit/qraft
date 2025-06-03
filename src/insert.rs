@@ -1,5 +1,10 @@
 use crate::{
-    bind::Array, col::IntoColumns, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef
+    Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef,
+    bind::Array,
+    col::IntoColumns,
+    expr::{Expr, TakeBindings},
+    ident::{IntoIdent, RawOrIdent},
+    writer::{FormatContext, FormatWriter},
 };
 use crate::{Builder, HasDialect};
 
@@ -9,7 +14,7 @@ impl IntoTable for RawOrIdent {
     fn into_table(self) -> crate::TableRef {
         match self {
             RawOrIdent::Ident(ident) => TableRef::Ident(ident),
-            RawOrIdent::Raw(raw) => TableRef::Raw(raw)
+            RawOrIdent::Raw(raw) => TableRef::Raw(raw),
         }
     }
 }
@@ -90,17 +95,16 @@ impl InsertBuilder {
         self
     }
 
-    pub fn select(&mut self, mut select: Builder) -> &mut Self {
-        debug_assert!(
-            self.values.is_empty(),
-            "Cannot combine the `.field` based values with a `from_select` {:?}",
-            self.values,
-        );
+    pub fn select<F>(&mut self, select: F) -> &mut Self
+    where
+        F: FnOnce(&mut Builder),
+    {
+        let mut builder = Builder::default();
+        select(&mut builder);
         self.binds = Binds::None;
-        let select_binds = select.take_bindings();
+        let select_binds = builder.take_bindings();
         self.binds.append(select_binds);
-
-        self.maybe_select = Some(Box::new(select));
+        self.maybe_select = Some(Box::new(builder));
 
         self
     }
@@ -199,7 +203,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{lit, raw, MySql, Postgres, Sqlite};
+    use crate::{MySql, Postgres, Sqlite, lit, raw};
 
     use super::*;
 
@@ -228,19 +232,21 @@ mod tests {
     fn insert_builder() {
         let mut insert = Builder::insert_into("jobs");
         insert.columns(["model_type", "model_id", "type"]);
-        insert.select({
-            let mut builder = Builder::table("jobs");
+        insert.select(|builder| {
             builder
+                .from("jobs")
                 .select_raw("'topic', ?, 'fetch topic posts'", 1)
                 .where_not_exists(|b| {
-                    b.select(raw("1"))
+                    b.select_one()
                         .where_eq("model_type", lit("topic"))
                         .where_eq("model_id", 1)
                         .where_eq("status", lit("queued"));
                 });
-            builder
         });
 
-        assert_eq!(r#"insert into "jobs" ("model_type", "model_id", "type") select 'topic', $1, 'fetch topic posts' from "jobs" where not exists (select 1 where "model_type" = 'topic' and "model_id" = $2 and "status" = 'queued')"#, insert.to_sql::<Postgres>());
+        assert_eq!(
+            r#"insert into "jobs" ("model_type", "model_id", "type") select 'topic', $1, 'fetch topic posts' from "jobs" where not exists (select 1 where "model_type" = 'topic' and "model_id" = $2 and "status" = 'queued')"#,
+            insert.to_sql::<Postgres>()
+        );
     }
 }
