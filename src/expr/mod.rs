@@ -123,7 +123,7 @@ impl FormatWriter for Expr {
             Expr::AggregateCall(aggregate) => aggregate.format_writer(context),
             Expr::Binary(condition) => condition.format_writer(context),
             Expr::Unary(condition) => condition.format_writer(context),
-            Expr::Between(condition) => condition.format_writer(context),
+            Expr::Between(condition) => condition.format_writer(context)
         }
     }
 }

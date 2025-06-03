@@ -1,10 +1,5 @@
 use crate::{
-    Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef,
-    bind::Array,
-    col::IntoColumns,
-    expr::{Expr, TakeBindings},
-    ident::{IntoIdent, RawOrIdent},
-    writer::{FormatContext, FormatWriter},
+    bind::Array, col::IntoColumns, expr::TakeBindings, ident::{IntoIdent, RawOrIdent}, row::Row, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef
 };
 use crate::{Builder, HasDialect};
 
@@ -22,9 +17,9 @@ impl IntoTable for RawOrIdent {
 #[derive(Debug)]
 pub struct InsertBuilder {
     table: Ident,
-    columns: Array<RawOrIdent>,
-    values: Vec<Expr>,
+    columns: Columns,
     binds: Binds,
+    rows: Vec<Row>,
     maybe_conflict_cols: Option<Array<RawOrIdent>>,
     maybe_sets: Option<Array<RawOrIdent>>,
     maybe_select: Option<Box<Builder>>,
@@ -49,24 +44,22 @@ impl InsertBuilder {
     pub fn insert_into<T: IntoIdent>(table: T) -> Self {
         Self {
             table: table.into_ident(),
-            columns: Array::None,
+            columns: Columns::None,
             binds: Binds::None,
-            values: Vec::default(),
             maybe_conflict_cols: None,
             maybe_sets: None,
             maybe_select: None,
+            rows: Vec::new(),
         }
     }
 
-    pub fn field<K, V>(&mut self, column: K, value: V) -> &mut Self
+    pub fn row<F>(&mut self, fn_row: F) -> &mut Self
     where
-        K: IntoIdent,
-        V: IntoRhsExpr,
+        F: FnOnce(&mut Row),
     {
-        self.columns.push(RawOrIdent::Ident(column.into_ident()));
-        let mut value = value.into_rhs_expr();
-        self.binds.append(value.take_bindings());
-        self.values.push(value);
+        let mut row = Row::new();
+        fn_row(&mut row);
+        // do something like add it to the vec row
         self
     }
 
@@ -86,19 +79,13 @@ impl InsertBuilder {
         self
     }
 
-    #[inline]
-    pub fn columns<C>(&mut self, cols: C) -> &mut Self
-    where
-        C: IntoColumns,
-    {
-        self.columns.append(cols.into_columns());
-        self
-    }
-
-    pub fn select<F>(&mut self, select: F) -> &mut Self
+    pub fn select<C, F>(&mut self, cols: C, select: F) -> &mut Self
     where
         F: FnOnce(&mut Builder),
+        C: IntoColumns
     {
+        // todo something with cols
+        self.columns.append(cols.into_columns());
         let mut builder = Builder::default();
         select(&mut builder);
         self.binds = Binds::None;
@@ -153,11 +140,12 @@ impl FormatWriter for InsertBuilder {
             select_builder.format_writer(context)?;
         } else {
             context.writer.write_str("values (")?;
-            for (i, expr) in self.values.iter().enumerate() {
+            // print the rows
+            for (i, row) in self.rows.iter().enumerate() {
                 if i > 0 {
                     context.writer.write_str(", ")?;
                 }
-                expr.format_writer(context)?;
+                row.format_writer(context)?;
             }
             context.writer.write_char(')')?;
         }
@@ -211,8 +199,10 @@ mod tests {
     fn test_format_upsert() {
         let mut insert = InsertBuilder::insert_into("users");
         insert
-            .field("username", "ovior")
-            .field("name", "ovior")
+            .row(|row| {
+                row.field("username", "ovior")
+                    .field("name", "ovior");
+            })
             .upsert(["id"], ["username", "name"]);
         assert_eq!(
             r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
@@ -231,8 +221,7 @@ mod tests {
     #[test]
     fn insert_builder() {
         let mut insert = Builder::insert_into("jobs");
-        insert.columns(["model_type", "model_id", "type"]);
-        insert.select(|builder| {
+        insert.select(["model_type", "model_id", "type"], |builder| {
             builder
                 .from("jobs")
                 .select_raw("'topic', ?, 'fetch topic posts'", 1)

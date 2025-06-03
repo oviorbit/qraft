@@ -8,6 +8,7 @@ mod insert;
 mod join;
 mod raw;
 mod writer;
+mod row;
 
 use bind::Bind;
 use col::AliasSub;
