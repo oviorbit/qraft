@@ -1,10 +1,10 @@
-mod insert;
 mod bind;
 mod builder;
 mod col;
 mod dialect;
 pub mod expr;
 mod ident;
+mod insert;
 mod join;
 mod raw;
 mod writer;

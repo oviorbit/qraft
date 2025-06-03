@@ -3,12 +3,28 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{
+    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins,
+    bind::{Binds, IntoBinds},
+    col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
         TableSchema,
-    }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
+    },
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::BetweenOperator,
+        binary::Operator,
+        cond::{Conditions, Conjunction},
+        exists::ExistsOperator,
+        fncall::{Aggregate, AggregateCall},
+        r#in::InOperator,
+        order::{Order, Ordering},
+        unary::UnaryOperator,
+    },
+    ident::{IntoIdent, TableRef},
+    insert::InsertBuilder,
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +84,6 @@ impl Builder {
         InsertBuilder::insert_into(ident)
     }
 
-
     pub fn insert_into<T: IntoIdent>(table: T) -> InsertBuilder {
         InsertBuilder::insert_into(table)
     }
@@ -107,7 +122,7 @@ impl Builder {
     where
         F: FnOnce(&mut Self),
     {
-        if ! condition {
+        if !condition {
             builder(self);
         }
         self
@@ -950,7 +965,7 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{expr::exists::ExistsExpr, Ident};
+        use crate::{Ident, expr::exists::ExistsExpr};
 
         let self_builder = self.take();
         let mut builder = Builder::default();
@@ -999,7 +1014,6 @@ impl FormatWriter for Builder {
         &self,
         context: &mut crate::writer::FormatContext<'_, W>,
     ) -> std::fmt::Result {
-
         // check if we are building a select or delete
 
         if self.ty == QueryKind::Delete {
@@ -1084,7 +1098,12 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, sub, MySql, Sqlite
+        MySql, Sqlite,
+        bind::{self, Bind},
+        col::ProjectionSchema,
+        column_static,
+        dialect::Postgres,
+        raw, sub,
     };
 
     use super::*;
@@ -1506,21 +1525,27 @@ mod tests {
     #[test]
     fn test_delete_kind() {
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder
+            .where_eq("id", 1)
+            .join("contacts", "users.id", "=", "contacts.user_id");
         builder.delete_query::<MySql>();
         assert_eq!(
             r#"delete `users` from `users` inner join `contacts` on `users`.`id` = `contacts`.`user_id` where `id` = ?"#,
             builder.to_sql::<MySql>()
         );
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder
+            .where_eq("id", 1)
+            .join("contacts", "users.id", "=", "contacts.user_id");
         builder.delete_query::<Postgres>();
         assert_eq!(
             r#"delete from "users" where "ctid" in (select "users"."ctid" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" where "id" = $1)"#,
             builder.to_sql::<Postgres>()
         );
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).join("contacts", "users.id", "=", "contacts.user_id");
+        builder
+            .where_eq("id", 1)
+            .join("contacts", "users.id", "=", "contacts.user_id");
         builder.delete_query::<Sqlite>();
         assert_eq!(
             r#"delete from "users" where "rowid" in (select "users"."rowid" from "users" inner join "contacts" on "users"."id" = "contacts"."user_id" where "id" = ?1)"#,
@@ -1538,12 +1563,16 @@ mod tests {
     #[test]
     fn test_insert_query() {
         let mut builder = Builder::table("users");
-        let insert = builder.inserting()
+        let insert = builder
+            .inserting()
             .field("id", 1)
             .field("username", "ovior")
             .to_sql::<Postgres>();
 
-        assert_eq!("insert into \"users\" (\"id\", \"username\") values ($1, $2)", insert);
+        assert_eq!(
+            "insert into \"users\" (\"id\", \"username\") values ($1, $2)",
+            insert
+        );
 
         // Builder::insert_into("users") // return an insert builder
         //  .field("email", "ddanygagnon@gmail.com")
@@ -1577,10 +1606,7 @@ mod tests {
     #[test]
     fn test_empty_table() {
         let mut builder = Builder::table("");
-        assert_eq!(
-            "select * from \"\"",
-            builder.to_sql::<Postgres>()
-        );
+        assert_eq!("select * from \"\"", builder.to_sql::<Postgres>());
     }
 
     #[test]

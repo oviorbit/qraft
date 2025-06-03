@@ -178,7 +178,6 @@ pub fn split_alias(s: &str) -> (&str, Option<&str>) {
     }
 }
 
-
 impl Ident {
     #[inline]
     pub fn new<T>(value: T) -> Self

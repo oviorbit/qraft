@@ -1,4 +1,4 @@
-use crate::{writer::FormatWriter, Ident};
+use crate::{Ident, writer::FormatWriter};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Aggregate {
@@ -9,7 +9,10 @@ pub enum Aggregate {
 }
 
 impl FormatWriter for Aggregate {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             Aggregate::Avg => context.writer.write_str("avg("),
             Aggregate::Sum => context.writer.write_str("sum("),
@@ -28,16 +31,15 @@ pub struct AggregateCall {
 
 impl AggregateCall {
     pub fn new(agg: Aggregate, column: Ident, alias: Option<Ident>) -> Self {
-        Self {
-            agg,
-            column,
-            alias,
-        }
+        Self { agg, column, alias }
     }
 }
 
 impl FormatWriter for AggregateCall {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         self.agg.format_writer(context)?;
         self.column.format_writer(context)?;
         context.writer.write_char(')')?;

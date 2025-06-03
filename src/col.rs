@@ -1,7 +1,11 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, expr::{exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, RawOrIdent, TableRef}, writer::FormatWriter, Builder, Raw
+    Builder, Raw,
+    bind::Array,
+    expr::{Expr, TakeBindings, exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr},
+    ident::{Ident, IntoIdent, RawOrIdent, TableRef},
+    writer::FormatWriter,
 };
 
 pub type Projections = Array<Expr>;
@@ -45,18 +49,24 @@ pub trait IntoColumns {
 }
 
 impl FormatWriter for RawOrIdent {
-    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
             RawOrIdent::Ident(ident) => ident.format_writer(context),
-            RawOrIdent::Raw(raw) => raw.format_writer(context)
+            RawOrIdent::Raw(raw) => raw.format_writer(context),
         }
     }
 }
 
 impl FormatWriter for Array<RawOrIdent> {
-    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         match self {
-            Self::None => {},
+            Self::None => {}
             Self::One(ident) => ident.format_writer(context)?,
             Self::Many(idents) => {
                 for (index, elem) in idents.iter().enumerate() {
@@ -73,7 +83,8 @@ impl FormatWriter for Array<RawOrIdent> {
 
 impl<T> IntoColumns for T
 where
-    T: IntoIdent {
+    T: IntoIdent,
+{
     fn into_columns(self) -> Array<RawOrIdent> {
         Array::One(RawOrIdent::Ident(self.into_ident()))
     }
@@ -87,7 +98,7 @@ impl IntoColumns for Raw {
 
 impl<T, const N: usize> IntoColumns for [T; N]
 where
-    T: IntoIdent + Clone
+    T: IntoIdent + Clone,
 {
     fn into_columns(self) -> Array<RawOrIdent> {
         // cheap clone O(1)
@@ -102,7 +113,7 @@ where
 
 impl<T> IntoColumns for Vec<T>
 where
-    T: IntoIdent
+    T: IntoIdent,
 {
     fn into_columns(self) -> Array<RawOrIdent> {
         let vec = self

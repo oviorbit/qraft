@@ -1,5 +1,12 @@
-use crate::{bind::Array, col::IntoColumns, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections};
 use crate::HasDialect;
+use crate::{
+    Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections,
+    bind::Array,
+    col::IntoColumns,
+    expr::{Expr, TakeBindings},
+    ident::{IntoIdent, RawOrIdent},
+    writer::{FormatContext, FormatWriter},
+};
 
 #[derive(Debug)]
 pub struct InsertBuilder {
@@ -12,7 +19,10 @@ pub struct InsertBuilder {
 }
 
 impl FormatWriter for Array<Ident> {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         for (index, ident) in self.iter().enumerate() {
             if index > 0 {
                 context.writer.write_str(", ")?;
@@ -92,7 +102,10 @@ impl InsertBuilder {
 }
 
 impl FormatWriter for InsertBuilder {
-    fn format_writer<W: std::fmt::Write>(&self, context: &mut FormatContext<'_, W>) -> std::fmt::Result {
+    fn format_writer<W: std::fmt::Write>(
+        &self,
+        context: &mut FormatContext<'_, W>,
+    ) -> std::fmt::Result {
         // sanity check
         debug_assert!(self.columns.len() == self.values.len());
         context.writer.write_str("insert into ")?;
@@ -108,16 +121,18 @@ impl FormatWriter for InsertBuilder {
         }
         context.writer.write_char(')')?;
         if let Some(ref conflicts) = self.maybe_conflict_cols {
-            if ! conflicts.is_empty() && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite) {
+            if !conflicts.is_empty()
+                && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite)
+            {
                 context.writer.write_str(" on conflict (")?;
                 conflicts.format_writer(context)?;
                 context.writer.write_char(')')?;
             } else if matches!(context.dialect, Dialect::MySql) {
-                 context.writer.write_str(" on duplicate key update ");
+                context.writer.write_str(" on duplicate key update ");
             }
         }
         if let Some(ref sets) = self.maybe_sets {
-            if ! sets.is_empty() && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite) {
+            if !sets.is_empty() && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite) {
                 context.writer.write_str(" do update set ")?;
                 for (index, set) in sets.iter().enumerate() {
                     if index > 0 {
@@ -154,9 +169,21 @@ mod tests {
     #[test]
     fn test_format_upsert() {
         let mut insert = InsertBuilder::insert_into("users");
-        insert.field("username", "ovior").field("name", "ovior").upsert(["id"], ["username", "name"]);
-        assert_eq!(r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Postgres>());
-        assert_eq!(r#"insert into `users` (`username`, `name`) values (?, ?) on duplicate key update `username` = values(`username`), `name` = values(`name`)"#, insert.to_sql::<MySql>());
-        assert_eq!(r#"insert into "users" ("username", "name") values (?1, ?2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Sqlite>());
+        insert
+            .field("username", "ovior")
+            .field("name", "ovior")
+            .upsert(["id"], ["username", "name"]);
+        assert_eq!(
+            r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
+            insert.to_sql::<Postgres>()
+        );
+        assert_eq!(
+            r#"insert into `users` (`username`, `name`) values (?, ?) on duplicate key update `username` = values(`username`), `name` = values(`name`)"#,
+            insert.to_sql::<MySql>()
+        );
+        assert_eq!(
+            r#"insert into "users" ("username", "name") values (?1, ?2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
+            insert.to_sql::<Sqlite>()
+        );
     }
 }
