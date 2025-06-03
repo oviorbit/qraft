@@ -225,7 +225,7 @@ mod tests {
         insert.select({
             let mut builder = Builder::table("jobs");
             builder
-                .select_raw("'topic', ?, 'fetch topic posts'", 10)
+                .select_raw("'topic', ?, 'fetch topic posts'", 1)
                 .where_not_exists(|b| {
                     b.select(raw("1"))
                         .where_eq("model_type", lit("topic"))

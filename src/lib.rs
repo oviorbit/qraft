@@ -17,6 +17,7 @@ pub use col::ProjectionSchema;
 pub use col::Projections;
 pub use col::TableSchema;
 use expr::sub::AliasSubFn;
+use expr::Expr;
 use ident::IntoIdent;
 pub use join::*;
 
@@ -91,13 +92,13 @@ where
     AliasSubFn::new(keyword, builder, alias)
 }
 
-pub fn sub<F>(query: F) -> Builder
+pub fn sub<F>(query: F) -> Expr
 where
     F: FnOnce(&mut Builder),
 {
     let mut builder = Builder::default();
     query(&mut builder);
-    builder
+    Expr::Subquery(Box::new(builder))
 }
 
 #[cfg(test)]

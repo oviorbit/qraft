@@ -112,6 +112,12 @@ impl IntoIdent for Ident {
     }
 }
 
+impl IntoIdent for char {
+    fn into_ident(self) -> Ident {
+        Ident::new(smol_str::format_smolstr!("{}", self))
+    }
+}
+
 impl IntoIdent for &str {
     #[inline]
     fn into_ident(self) -> Ident {

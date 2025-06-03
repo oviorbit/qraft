@@ -3,28 +3,12 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins,
-    bind::{Binds, IntoBinds},
-    col::{
+    bind::{Binds, IntoBinds}, col::{
         AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
         TableSchema,
-    },
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::BetweenOperator,
-        binary::Operator,
-        cond::{Conditions, Conjunction},
-        exists::ExistsOperator,
-        fncall::{Aggregate, AggregateCall},
-        r#in::InOperator,
-        order::{Order, Ordering},
-        unary::UnaryOperator,
-    },
-    ident::{IntoIdent, TableRef},
-    insert::InsertBuilder,
-    raw::IntoRaw,
-    writer::{FormatContext, FormatWriter},
+    }, dialect::HasDialect, expr::{
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +55,10 @@ impl Builder {
             maybe_table: Some(table.into_table()),
             ..Default::default()
         }
+    }
+
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn inserting(&mut self) -> InsertBuilder {
@@ -683,7 +671,7 @@ impl Builder {
         self
     }
 
-    pub fn avg<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+    pub fn select_avg<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
@@ -691,7 +679,7 @@ impl Builder {
         self
     }
 
-    pub fn max<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+    pub fn select_max<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
@@ -699,7 +687,7 @@ impl Builder {
         self
     }
 
-    pub fn sum<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+    pub fn select_sum<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
@@ -707,10 +695,18 @@ impl Builder {
         self
     }
 
-    pub fn min<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+    pub fn select_min<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn select_count<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Count, table, alias);
         self.add_select(fncall);
         self
     }
@@ -1493,7 +1489,7 @@ mod tests {
     #[test]
     fn test_avg_agg() {
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).avg("price");
+        builder.where_eq("id", 1).select_avg("price");
 
         assert_eq!(
             "select avg(\"price\") from \"users\" where \"id\" = $1",
@@ -1501,7 +1497,7 @@ mod tests {
         );
 
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).avg("price as avg_price");
+        builder.where_eq("id", 1).select_avg("price as avg_price");
 
         assert_eq!(
             "select avg(\"price\") as \"avg_price\" from \"users\" where \"id\" = $1",
@@ -1615,5 +1611,17 @@ mod tests {
         builder.reset();
         // invalid but predictable behavior
         assert_eq!("select *", builder.to_sql::<Postgres>());
+    }
+
+    #[test]
+    fn test_scalar_select() {
+       let result = "select (select count(*) from \"posts\" where \"topic_id\" = $1) = (select \"posts_count\" from \"topics\" where \"id\" = $2)";
+        let mut builder = Builder::new();
+        builder.select(sub(|builder| {
+            builder.select_count('*').from("posts").where_eq("topic_id", 1);
+        }).eq(sub(|builder| {
+            builder.select("posts_count").from("topics").where_eq("id", 1);
+        })));
+        println!("{}", builder.to_sql::<Postgres>())
     }
 }

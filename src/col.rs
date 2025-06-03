@@ -292,6 +292,12 @@ impl IntoSelectProj for Bind {
     }
 }
 
+impl IntoSelectProj for Expr {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(self)
+    }
+}
+
 impl IntoSelectProj for AggregateCall {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::AggregateCall(self))
@@ -314,6 +320,12 @@ impl IntoSelectProj for InExpr {
 impl IntoSelectProj for ExistsExpr {
     fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Exists(self))
+    }
+}
+
+impl IntoSelectProj for Builder {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(Expr::Subquery(Box::new(self)))
     }
 }
 

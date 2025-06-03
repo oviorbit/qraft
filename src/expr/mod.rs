@@ -12,6 +12,7 @@ pub(crate) mod order;
 pub(crate) mod sub;
 pub(crate) mod unary;
 
+use binary::BinaryCondition;
 pub use cond::Conjunction;
 use exists::ExistsExpr;
 use fncall::AggregateCall;
@@ -32,6 +33,35 @@ pub enum Expr {
     Exists(ExistsExpr),
     In(Box<InExpr>),
     AggregateCall(AggregateCall),
+    Binary(Box<BinaryCondition>),
+}
+
+impl Expr {
+    pub fn eq<R>(self, other: R) -> Expr
+    where
+        R: IntoRhsExpr,
+    {
+        let rhs_expr = other.into_rhs_expr();
+        let bin = BinaryCondition {
+            lhs: self,
+            operator: Operator::Eq,
+            rhs: rhs_expr,
+        };
+        Expr::Binary(Box::new(bin))
+    }
+
+    pub fn ne<R>(self, other: R) -> Expr
+    where
+        R: IntoRhsExpr,
+    {
+        let rhs_expr = other.into_rhs_expr();
+        let bin = BinaryCondition {
+            lhs: self,
+            operator: Operator::NotEq,
+            rhs: rhs_expr,
+        };
+        Expr::Binary(Box::new(bin))
+    }
 }
 
 pub(crate) trait TakeBindings {
@@ -47,6 +77,7 @@ impl TakeBindings for Expr {
             Expr::Exists(condition) => condition.take_bindings(),
             Expr::In(condition) => condition.take_bindings(),
             Expr::AggregateCall(_) => Binds::None,
+            Expr::Binary(condition) => condition.take_bindings(),
         }
     }
 }
@@ -67,6 +98,7 @@ impl FormatWriter for Expr {
             Expr::Exists(condition) => condition.format_writer(context),
             Expr::In(condition) => condition.format_writer(context),
             Expr::AggregateCall(aggregate) => aggregate.format_writer(context),
+            Expr::Binary(condition) => condition.format_writer(context),
         }
     }
 }

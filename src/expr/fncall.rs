@@ -6,6 +6,7 @@ pub enum Aggregate {
     Sum,
     Max,
     Min,
+    Count,
 }
 
 impl FormatWriter for Aggregate {
@@ -18,6 +19,7 @@ impl FormatWriter for Aggregate {
             Aggregate::Sum => context.writer.write_str("sum("),
             Aggregate::Max => context.writer.write_str("max("),
             Aggregate::Min => context.writer.write_str("min("),
+            Aggregate::Count => context.writer.write_str("count(")
         }
     }
 }
