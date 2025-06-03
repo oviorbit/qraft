@@ -3,11 +3,28 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, col::{
-        AliasSub, IntoColumns, IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema
-    }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, insert::{Columns, InsertBuilder}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
+    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins, Raw,
+    bind::{Binds, IntoBinds},
+    col::{
+        AliasSub, IntoColumns, IntoProjections, IntoTable, ProjectionSchema, Projections,
+        TableSchema,
+    },
+    dialect::HasDialect,
+    expr::{
+        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
+        between::BetweenOperator,
+        binary::Operator,
+        cond::{Conditions, Conjunction},
+        exists::{ExistsExpr, ExistsOperator},
+        fncall::{Aggregate, AggregateCall},
+        r#in::InOperator,
+        order::{Order, Ordering},
+        unary::UnaryOperator,
+    },
+    ident::{IntoIdent, TableRef},
+    insert::{Columns, InsertBuilder},
+    raw::IntoRaw,
+    writer::{FormatContext, FormatWriter},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -660,6 +677,11 @@ impl Builder {
         self
     }
 
+    pub fn select_one(&mut self) -> &mut Self {
+        self.select(Raw::new_static("1"));
+        self
+    }
+
     pub fn add_select<T>(&mut self, cols: T) -> &mut Self
     where
         T: IntoProjections,
@@ -673,7 +695,7 @@ impl Builder {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
-        self.add_select(fncall);
+        self.select(fncall);
         self
     }
 
@@ -681,7 +703,7 @@ impl Builder {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
-        self.add_select(fncall);
+        self.select(fncall);
         self
     }
 
@@ -689,11 +711,27 @@ impl Builder {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
-        self.add_select(fncall);
+        self.select(fncall);
         self
     }
 
     pub fn select_min<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Min, table, alias);
+        self.select(fncall);
+        self
+    }
+
+    pub fn select_count<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Count, table, alias);
+        self.select(fncall);
+        self
+    }
+
+    pub fn add_select_avg<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
@@ -701,7 +739,31 @@ impl Builder {
         self
     }
 
-    pub fn select_count<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+    pub fn add_select_max<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn add_select_sum<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn add_select_min<T: IntoIdent>(&mut self, table: T) -> &mut Self {
+        let ident = table.into_ident();
+        let (table, alias) = ident.split_alias();
+        let fncall = AggregateCall::new(Aggregate::Min, table, alias);
+        self.add_select(fncall);
+        self
+    }
+
+    pub fn add_select_count<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
         let fncall = AggregateCall::new(Aggregate::Count, table, alias);
@@ -722,7 +784,7 @@ impl Builder {
             alias: Some(Ident::new_static("exists")),
         };
         let exists = Expr::Exists(exists);
-        self.add_select(exists);
+        self.select(exists);
         self
     }
 
@@ -955,8 +1017,6 @@ impl Builder {
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
     {
-        use crate::{Ident, expr::exists::ExistsExpr};
-
         let self_builder = self.take();
         let mut builder = Builder::default();
         let exists = ExistsExpr::new(
@@ -964,6 +1024,7 @@ impl Builder {
             self_builder,
             Some(Ident::new_static("exists")),
         );
+        let exists = Expr::Exists(exists);
         builder.select(exists);
         builder.value(executor).await
     }
@@ -1614,7 +1675,7 @@ mod tests {
         builder.select(
             sub(|builder| {
                 builder
-                    .select_count('*')
+                    .add_select_count('*')
                     .from("posts")
                     .where_eq("topic_id", 1);
             })
@@ -1634,12 +1695,14 @@ mod tests {
         first.where_eq("id", 1);
 
         let mut builder = Builder::new();
-        builder.select_exists(|builder| {
-            builder.from("users").where_eq("id", 1);
+        builder.select_exists({
+            let mut builder = Builder::table("users");
+            builder.select_one().where_eq("id", 1);
+            builder
         });
 
         assert_eq!(
-            "select exists (select * from \"users\" where \"id\" = $1) as \"exists\"",
+            "select exists (select 1 from \"users\" where \"id\" = $1) as \"exists\"",
             builder.to_sql::<Postgres>()
         );
     }
