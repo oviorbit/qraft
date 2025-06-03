@@ -1,4 +1,4 @@
-use crate::{bind::Array, expr::{Expr, TakeBindings}, ident::IntoIdent, writer::{FormatContext, FormatWriter}, Binds, Ident, IntoRhsExpr};
+use crate::{bind::Array, col::IntoRawIdent, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Ident, IntoGroupProj, IntoRhsExpr, Projections};
 use crate::HasDialect;
 
 #[derive(Debug)]
@@ -7,6 +7,8 @@ pub struct InsertBuilder {
     columns: Array<Ident>,
     values: Vec<Expr>,
     binds: Binds,
+    maybe_conflict_cols: Option<Array<RawOrIdent>>,
+    maybe_sets: Option<Array<RawOrIdent>>,
 }
 
 impl FormatWriter for Array<Ident> {
@@ -28,6 +30,8 @@ impl InsertBuilder {
             columns: Array::None,
             binds: Binds::None,
             values: Vec::default(),
+            maybe_conflict_cols: None,
+            maybe_sets: None,
         }
     }
 
@@ -40,6 +44,22 @@ impl InsertBuilder {
         let mut value = value.into_rhs_expr();
         self.binds.append(value.take_bindings());
         self.values.push(value);
+        self
+    }
+
+    pub fn upsert<C, S>(&mut self, conflicted: C, set_cols: S) -> &mut Self
+    where
+        C: IntoRawIdent,
+        S: IntoRawIdent,
+    {
+        let conflicted = conflicted.into_raw_ident();
+        let set_cols = set_cols.into_raw_ident();
+
+        let target = self.maybe_conflict_cols.get_or_insert_default();
+        target.append(conflicted);
+        let target = self.maybe_sets.get_or_insert_default();
+        target.append(set_cols);
+
         self
     }
 
@@ -87,6 +107,29 @@ impl FormatWriter for InsertBuilder {
             expr.format_writer(context)?;
         }
         context.writer.write_char(')')?;
+        if let Some(ref conflicts) = self.maybe_conflict_cols {
+            if ! conflicts.is_empty() {
+                context.writer.write_str(" on conflict (")?;
+                conflicts.format_writer(context)?;
+                context.writer.write_char(')')?;
+            }
+        }
+        if let Some(ref sets) = self.maybe_sets {
+            if ! sets.is_empty() {
+                context.writer.write_str(" do update set ")?;
+                for (index, set) in sets.iter().enumerate() {
+                    if index > 0 {
+                        context.writer.write_str(", ")?;
+                    }
+                    set.format_writer(context)?;
+                    context.writer.write_str(" = ")?;
+                    let col_name = set.table_name();
+                    let ident = Ident::new(smol_str::format_smolstr!("excluded.{}", col_name));
+                    ident.format_writer(context)?;
+                }
+                context.writer.write_char(')')?;
+            }
+        }
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    bind::Array, expr::{exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, TableRef}, writer::FormatWriter, Builder, Raw
+    bind::Array, expr::{exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, RawOrIdent, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<Expr>;
@@ -38,6 +38,79 @@ pub trait ProjectionSchema {
 
 pub trait IntoGroupProj {
     fn into_group_proj(self) -> Projections;
+}
+
+pub trait IntoRawIdent {
+    fn into_raw_ident(self) -> Array<RawOrIdent>;
+}
+
+impl FormatWriter for RawOrIdent {
+    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+        match self {
+            RawOrIdent::Ident(ident) => ident.format_writer(context),
+            RawOrIdent::Raw(raw) => raw.format_writer(context)
+        }
+    }
+}
+
+impl FormatWriter for Array<RawOrIdent> {
+    fn format_writer<W: fmt::Write>(&self, context: &mut crate::writer::FormatContext<'_, W>) -> std::fmt::Result {
+        match self {
+            Self::None => {},
+            Self::One(ident) => ident.format_writer(context)?,
+            Self::Many(idents) => {
+                for (index, elem) in idents.iter().enumerate() {
+                    if index > 0 {
+                        context.writer.write_str(", ")?;
+                    }
+                    elem.format_writer(context)?;
+                }
+            }
+        };
+        Ok(())
+    }
+}
+
+impl<T> IntoRawIdent for T
+where
+    T: IntoIdent {
+    fn into_raw_ident(self) -> Array<RawOrIdent> {
+        Array::One(RawOrIdent::Ident(self.into_ident()))
+    }
+}
+
+impl IntoRawIdent for Raw {
+    fn into_raw_ident(self) -> Array<RawOrIdent> {
+        Array::One(RawOrIdent::Raw(self))
+    }
+}
+
+impl<T, const N: usize> IntoRawIdent for [T; N]
+where
+    T: IntoIdent + Clone
+{
+    fn into_raw_ident(self) -> Array<RawOrIdent> {
+        // cheap clone O(1)
+        if N == 1 {
+            Array::One(RawOrIdent::Ident(self[0].clone().into_ident()))
+        } else {
+            let vec: Vec<RawOrIdent> = self.map(|t| RawOrIdent::Ident(t.into_ident())).to_vec();
+            Array::Many(vec)
+        }
+    }
+}
+
+impl<T> IntoRawIdent for Vec<T>
+where
+    T: IntoIdent
+{
+    fn into_raw_ident(self) -> Array<RawOrIdent> {
+        let vec = self
+            .into_iter()
+            .map(|t| RawOrIdent::Ident(t.into_ident()))
+            .collect();
+        Array::Many(vec)
+    }
 }
 
 impl IntoGroupProj for &str {
@@ -186,6 +259,8 @@ impl<T: ProjectionSchema> IntoGroupProj for T {
         T::projections()
     }
 }
+
+// add into something proj that contains stuff like subqueries and so on
 
 pub trait IntoSelectProj {
     fn into_select_proj(self) -> Projections;

@@ -1,3 +1,5 @@
+use std::{borrow::Cow, sync::Arc};
+
 use smol_str::SmolStr;
 
 use crate::{
@@ -13,6 +15,24 @@ pub enum TableRef {
     Ident(Ident),
     Raw(Raw),
     AliasSub(AliasSub),
+}
+
+#[derive(Debug, Clone)]
+pub enum RawOrIdent {
+    Ident(Ident),
+    Raw(Raw),
+}
+
+impl RawOrIdent {
+    pub fn table_name(&self) -> &str {
+        match self {
+            Self::Ident(ident) => {
+                let res = split_alias(ident.0.as_str());
+                res.1.unwrap_or(res.0)
+            }
+            Self::Raw(raw) => raw.0.as_str(),
+        }
+    }
 }
 
 impl Default for TableRef {
@@ -92,12 +112,59 @@ impl IntoIdent for Ident {
     }
 }
 
-impl<T> IntoIdent for T
-where
-    T: Into<SmolStr>,
-{
+impl IntoIdent for &str {
+    #[inline]
     fn into_ident(self) -> Ident {
-        Ident::new(self.into())
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for &mut str {
+    #[inline]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for &String {
+    #[inline]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for String {
+    #[inline(always)]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for Box<str> {
+    #[inline]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for Arc<str> {
+    #[inline]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl<'a> IntoIdent for Cow<'a, str> {
+    #[inline]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
+    }
+}
+
+impl IntoIdent for SmolStr {
+    #[inline(always)]
+    fn into_ident(self) -> Ident {
+        Ident::new(self)
     }
 }
 
