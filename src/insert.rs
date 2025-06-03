@@ -127,9 +127,22 @@ impl FormatWriter for InsertBuilder {
                     let ident = Ident::new(smol_str::format_smolstr!("excluded.{}", col_name));
                     ident.format_writer(context)?;
                 }
-                context.writer.write_char(')')?;
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Postgres;
+
+    use super::*;
+
+    #[test]
+    fn test_format_upsert() {
+        let mut insert = InsertBuilder::insert_into("users");
+        insert.field("username", "ovior").field("name", "ovior").upsert(["id"], ["username", "name"]);
+        assert_eq!(r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Postgres>())
     }
 }
