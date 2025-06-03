@@ -1,3 +1,4 @@
+mod insert;
 mod bind;
 mod builder;
 mod col;

@@ -8,7 +8,7 @@ use crate::{
         TableSchema,
     }, dialect::HasDialect, expr::{
         between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
+    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoBind, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -56,6 +56,10 @@ impl Builder {
             maybe_table: Some(table.into_table()),
             ..Default::default()
         }
+    }
+
+    pub fn insert_into<T: IntoIdent>(table: T) -> InsertBuilder {
+        InsertBuilder::insert_into(table)
     }
 
     pub fn from<T: IntoTable>(&mut self, table: T) -> &mut Self {
@@ -1054,11 +1058,7 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bind::{self, Bind},
-        col::ProjectionSchema,
-        column_static,
-        dialect::Postgres,
-        raw, sub, MySql, Sqlite,
+        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, sub, MySql, Sqlite
     };
 
     use super::*;
@@ -1507,6 +1507,39 @@ mod tests {
             r#"delete from "roles" as "r" where "ctid" in (select "r"."ctid" from "roles" as "r" left join "contacts" on "users"."id" = "contacts"."user_id")"#,
             builder.to_sql::<Postgres>(),
         );
+    }
+
+    #[test]
+    fn test_insert_query() {
+        let mut builder = Builder::table("users");
+
+        // Builder::insert_into("users") // return an insert builder
+        //  .field("email", "ddanygagnon@gmail.com")
+        //  .field("name", "Dany")
+        //  .execute(&pool)
+        //  .await?;
+        //
+        //  Builder::table("users")
+        //      .inserting() // returns an InsertBuilder or something similar
+        //      .field("email", "ddanygagnon@gmail.com")
+        //      .field("votes", 0)
+        //      .execute(&pool)
+        //      .await?;
+        //
+        // On the insert builder directly ?
+        // .columns([...])
+        // .values([...])
+        // .fields( ? )
+        //
+        //
+        // Can accept Vec<NewUser> if need be
+        // User::create(NewUser {
+        //   name: "Dany",
+        //   email: "email@example.com",
+        //   password: Hashed("hashed...password"),
+        // })
+        //   .execute(&pool)
+        //   .await?;
     }
 
     #[test]
