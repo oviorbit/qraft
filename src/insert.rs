@@ -63,7 +63,7 @@ impl InsertBuilder {
         self
     }
 
-    pub fn to_sql<Database: HasDialect>(&mut self) -> String {
+    pub fn to_sql<Database: HasDialect>(&self) -> String {
         let size_hint = 64;
         let mut str = String::with_capacity(size_hint);
         let mut context = FormatContext::new(&mut str, Database::DIALECT);
