@@ -12,6 +12,7 @@ pub(crate) mod order;
 pub(crate) mod sub;
 pub(crate) mod unary;
 
+use between::{BetweenCondition, BetweenOperator};
 use binary::BinaryCondition;
 pub use cond::Conjunction;
 use exists::ExistsExpr;
@@ -37,13 +38,14 @@ pub enum Expr {
     AggregateCall(AggregateCall),
     Binary(Box<BinaryCondition>),
     Unary(Box<UnaryCondition>),
+    Between(Box<BetweenCondition>),
 }
 
 impl Expr {
     #[variant(
         none, Operator, Eq, not_eq, gt, lt, gte, lte, like, not_like, ilike, not_ilike
     )]
-    pub fn eq<R>(self, other: R) -> Expr
+    pub fn eq<R>(self, other: R) -> Self
     where
         R: IntoRhsExpr,
     {
@@ -57,12 +59,29 @@ impl Expr {
     }
 
     #[variant(none, UnaryOperator, Null, is_not_null NotNull, is_true True, is_false False)]
-    pub fn is_null<R>(self) -> Expr {
+    pub fn is_null<R>(self) -> Self {
         let unary = UnaryCondition {
             lhs: self,
             operator: UnaryOperator::Null,
         };
         Expr::Unary(Box::new(unary))
+    }
+
+    #[variant(none, BetweenOperator, Between, not_between)]
+    fn between<L, H>(self, low: L, high: H) -> Self
+    where
+        L: IntoRhsExpr,
+        H: IntoRhsExpr,
+    {
+        let low = low.into_rhs_expr();
+        let high = high.into_rhs_expr();
+        let btw = BetweenCondition {
+            lhs: self,
+            low,
+            high,
+            operator: BetweenOperator::Between,
+        };
+        Expr::Between(Box::new(btw))
     }
 }
 
@@ -81,6 +100,7 @@ impl TakeBindings for Expr {
             Expr::AggregateCall(_) => Binds::None,
             Expr::Binary(condition) => condition.take_bindings(),
             Expr::Unary(condition) => condition.take_bindings(),
+            Expr::Between(condition) => condition.take_bindings(),
         }
     }
 }
@@ -103,6 +123,7 @@ impl FormatWriter for Expr {
             Expr::AggregateCall(aggregate) => aggregate.format_writer(context),
             Expr::Binary(condition) => condition.format_writer(context),
             Expr::Unary(condition) => condition.format_writer(context),
+            Expr::Between(condition) => condition.format_writer(context),
         }
     }
 }

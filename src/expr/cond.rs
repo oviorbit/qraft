@@ -35,9 +35,9 @@ impl FormatWriter for Conjunction {
 
 #[derive(Debug, Clone)]
 pub enum ConditionKind {
-    Binary(BinaryCondition),
     Group(GroupCondition),
     Raw(Raw),
+    Binary(BinaryCondition),
     Unary(UnaryCondition),
     Between(BetweenCondition),
     In(InExpr),

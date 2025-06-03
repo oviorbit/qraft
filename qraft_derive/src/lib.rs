@@ -162,8 +162,8 @@ pub fn variant(attr: TokenStream, item: TokenStream) -> TokenStream {
         enum_name
     };
     let variant_name = snakes.pop_front().expect("expect the enum variant name");
-    if snakes.len() < 2 {
-        panic!("expected at least two operator inside #[binary(...)]");
+    if snakes.len() < 1 {
+        panic!("expected at least one operator inside #[binary(...)]");
     }
 
     let input_fn = parse_macro_input!(item as ItemFn);
