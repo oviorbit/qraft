@@ -15,7 +15,7 @@ pub(crate) mod unary;
 use between::{BetweenCondition, BetweenOperator};
 use binary::BinaryCondition;
 pub use cond::Conjunction;
-use exists::{ExistsExpr, ExistsOperator};
+use exists::ExistsExpr;
 use fncall::AggregateCall;
 use r#in::InExpr;
 use qraft_derive::variant;

@@ -1,9 +1,16 @@
 use qraft_derive::{or_variant, variant};
 
 use crate::{
-    builder::QueryKind, col::IntoColumns, expr::{
-        between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator, Conjunction, Expr, TakeBindings
-    }, insert::Columns, writer::FormatWriter, Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoRaw, IntoRhsExpr, IntoTable, Projections, TableRef
+    Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoRaw, IntoRhsExpr,
+    IntoTable, TableRef,
+    builder::QueryKind,
+    col::IntoColumns,
+    expr::{
+        Conjunction, Expr, TakeBindings, between::BetweenOperator, binary::Operator,
+        cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator,
+    },
+    insert::Columns,
+    writer::FormatWriter,
 };
 
 #[derive(Debug, Clone, Copy)]
