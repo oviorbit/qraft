@@ -1695,10 +1695,8 @@ mod tests {
         first.where_eq("id", 1);
 
         let mut builder = Builder::new();
-        builder.select_exists({
-            let mut builder = Builder::table("users");
-            builder.select_one().where_eq("id", 1);
-            builder
+        builder.select_exists(|builder| {
+            builder.select_one().from("users").where_eq("id", 1);
         });
 
         assert_eq!(
