@@ -8,7 +8,7 @@ use crate::{
         TableSchema,
     }, dialect::HasDialect, expr::{
         between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
-    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoBind, IntoInList, JoinClause, JoinType, Joins
+    }, ident::{IntoIdent, TableRef}, insert::InsertBuilder, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +57,18 @@ impl Builder {
             ..Default::default()
         }
     }
+
+    pub fn inserting(&mut self) -> InsertBuilder {
+        // cheap clone o(1)
+        let table = self.maybe_table.clone().unwrap_or_default();
+        let ident = match table {
+            TableRef::Ident(ident) => ident,
+            TableRef::Raw(raw) => Ident::new(raw.0),
+            TableRef::AliasSub(alias_sub) => alias_sub.alias,
+        };
+        InsertBuilder::insert_into(ident)
+    }
+
 
     pub fn insert_into<T: IntoIdent>(table: T) -> InsertBuilder {
         InsertBuilder::insert_into(table)
@@ -953,18 +965,13 @@ impl Builder {
         builder.value(executor).await
     }
 
-    pub fn to_sql<Database: HasDialect>(&mut self) -> &str {
+    pub fn to_sql<Database: HasDialect>(&mut self) -> String {
         let size_hint = 64;
         let mut str = String::with_capacity(size_hint);
         let mut context = FormatContext::new(&mut str, Database::DIALECT);
         self.format_writer(&mut context)
             .expect("should not fail on a string writer");
-        self.query = str;
-        self.query.as_str()
-    }
-
-    pub fn as_sql(&mut self) -> &str {
-        self.query.as_str()
+        str
     }
 }
 
@@ -1512,6 +1519,12 @@ mod tests {
     #[test]
     fn test_insert_query() {
         let mut builder = Builder::table("users");
+        let insert = builder.inserting()
+            .field("id", 1)
+            .field("username", "ovior")
+            .to_sql::<Postgres>();
+
+        assert_eq!("insert into \"users\" (\"id\", \"username\") values ($1, $2)", insert);
 
         // Builder::insert_into("users") // return an insert builder
         //  .field("email", "ddanygagnon@gmail.com")

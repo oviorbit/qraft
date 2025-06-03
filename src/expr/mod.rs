@@ -23,7 +23,7 @@ use crate::{
     expr::binary::Operator,
 };
 
-// expr should be <= 32 bytes
+// expr should be <= 64 bytes
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bind(Bind),

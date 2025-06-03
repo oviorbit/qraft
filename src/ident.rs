@@ -86,6 +86,12 @@ pub trait IntoIdent {
     fn into_ident(self) -> Ident;
 }
 
+impl IntoIdent for Ident {
+    fn into_ident(self) -> Ident {
+        self
+    }
+}
+
 impl<T> IntoIdent for T
 where
     T: Into<SmolStr>,
