@@ -1,12 +1,18 @@
 use crate::{
-    Binds, Dialect, Ident, IntoRhsExpr,
-    bind::Array,
-    col::IntoColumns,
-    expr::{Expr, TakeBindings},
-    ident::{IntoIdent, RawOrIdent},
-    writer::{FormatContext, FormatWriter},
+    bind::Array, col::IntoColumns, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef
 };
 use crate::{Builder, HasDialect};
+
+pub type Columns = Array<RawOrIdent>;
+
+impl IntoTable for RawOrIdent {
+    fn into_table(self) -> crate::TableRef {
+        match self {
+            RawOrIdent::Ident(ident) => TableRef::Ident(ident),
+            RawOrIdent::Raw(raw) => TableRef::Raw(raw)
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct InsertBuilder {

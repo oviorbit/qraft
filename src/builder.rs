@@ -3,28 +3,11 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins,
-    bind::{Binds, IntoBinds},
-    col::{
-        AliasSub, IntoGroupProj, IntoSelectProj, IntoTable, ProjectionSchema, Projections,
-        TableSchema,
-    },
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::BetweenOperator,
-        binary::Operator,
-        cond::{Conditions, Conjunction},
-        exists::ExistsOperator,
-        fncall::{Aggregate, AggregateCall},
-        r#in::InOperator,
-        order::{Order, Ordering},
-        unary::UnaryOperator,
-    },
-    ident::{IntoIdent, TableRef},
-    insert::InsertBuilder,
-    raw::IntoRaw,
-    writer::{FormatContext, FormatWriter},
+    bind::{Binds, IntoBinds}, col::{
+        AliasSub, IntoColumns, IntoSelectProj, IntoTable, ProjectionSchema, Projections, TableSchema
+    }, dialect::HasDialect, expr::{
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, insert::{Columns, InsertBuilder}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +18,6 @@ pub enum QueryKind {
     Having,
     Join,
     Delete,
-    Insert,
     Update,
 }
 
@@ -58,7 +40,7 @@ pub struct Builder {
     maybe_offset: Option<usize>,
     maybe_order: Option<Order>,
     maybe_joins: Option<Joins>,
-    maybe_group_by: Option<Projections>,
+    maybe_group_by: Option<Columns>,
 }
 
 impl Builder {
@@ -305,8 +287,8 @@ impl Builder {
 
     // group by stuff
 
-    pub fn group_by<T: IntoGroupProj>(&mut self, projections: T) -> &mut Self {
-        let proj = projections.into_group_proj();
+    pub fn group_by<T: IntoColumns>(&mut self, projections: T) -> &mut Self {
+        let proj = projections.into_columns();
         self.maybe_group_by = Some(proj);
         self
     }
@@ -503,14 +485,14 @@ impl Builder {
     #[condition_variant]
     pub fn where_all<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoGroupProj,
+        C: IntoColumns,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::And,
-            columns.into_group_proj(),
+            columns.into_columns(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -519,14 +501,14 @@ impl Builder {
     #[condition_variant]
     pub fn where_any<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoGroupProj,
+        C: IntoColumns,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::And,
             Conjunction::Or,
-            columns.into_group_proj(),
+            columns.into_columns(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -535,14 +517,14 @@ impl Builder {
     #[condition_variant(not)]
     pub fn where_none<C, O, V>(&mut self, columns: C, operator: O, rhs: V) -> &mut Self
     where
-        C: IntoGroupProj,
+        C: IntoColumns,
         O: IntoOperator,
         V: IntoRhsExpr,
     {
         self.where_grouped_expr(
             Conjunction::AndNot,
             Conjunction::Or,
-            columns.into_group_proj(),
+            columns.into_columns(),
             rhs.into_rhs_expr(),
             operator.into_operator(),
         )
@@ -578,14 +560,14 @@ impl Builder {
         &mut self,
         group_conj: Conjunction,
         conj: Conjunction,
-        projections: Projections,
+        projections: Columns,
         value: Expr,
         operator: Operator,
     ) -> &mut Self {
         let closure = |builder: &mut Self| {
             for proj in projections {
                 let conditions = builder.maybe_where.get_or_insert_default();
-                let mut lhs = proj.into_lhs_expr();
+                let mut lhs = proj.into_table().into_lhs_expr();
                 let mut rhs = value.clone();
                 builder.binds.append(lhs.take_bindings());
                 builder.binds.append(rhs.take_bindings());
@@ -1159,7 +1141,7 @@ mod tests {
     // generated ?
     impl ProjectionSchema for User {
         fn projections() -> Projections {
-            [column_static("id"), column_static("admin")].into_group_proj()
+            [column_static("id"), column_static("admin")].into_select_proj()
         }
     }
 

@@ -40,10 +40,6 @@ pub trait ProjectionSchema {
     fn projections() -> Projections;
 }
 
-pub trait IntoGroupProj {
-    fn into_group_proj(self) -> Projections;
-}
-
 pub trait IntoColumns {
     fn into_columns(self) -> Array<RawOrIdent>;
 }
@@ -124,38 +120,44 @@ where
     }
 }
 
-impl IntoGroupProj for &str {
-    fn into_group_proj(self) -> Projections {
+// add into something proj that contains stuff like subqueries and so on
+
+pub trait IntoSelectProj {
+    fn into_select_proj(self) -> Projections;
+}
+
+impl IntoSelectProj for &str {
+    fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoGroupProj for String {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for String {
+    fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoGroupProj for Raw {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Raw {
+    fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoGroupProj for Ident {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Ident {
+    fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self.into_table()))
     }
 }
 
-impl IntoGroupProj for TableRef {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for TableRef {
+    fn into_select_proj(self) -> Projections {
         Projections::One(Expr::Ident(self))
     }
 }
 
-impl<const N: usize> IntoGroupProj for [&str; N] {
-    fn into_group_proj(self) -> Projections {
+impl<const N: usize> IntoSelectProj for [&str; N] {
+    fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(Expr::Ident(self[0].into_table()))
@@ -166,15 +168,15 @@ impl<const N: usize> IntoGroupProj for [&str; N] {
     }
 }
 
-impl<const N: usize> IntoGroupProj for [String; N] {
-    fn into_group_proj(self) -> Projections {
+impl<const N: usize> IntoSelectProj for [String; N] {
+    fn into_select_proj(self) -> Projections {
         let vec: Vec<Expr> = self.map(|t| Expr::Ident(t.into_table())).to_vec();
         Projections::Many(vec)
     }
 }
 
-impl<const N: usize> IntoGroupProj for [Ident; N] {
-    fn into_group_proj(self) -> Projections {
+impl<const N: usize> IntoSelectProj for [Ident; N] {
+    fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(Expr::Ident(self[0].clone().into_table()))
@@ -185,8 +187,8 @@ impl<const N: usize> IntoGroupProj for [Ident; N] {
     }
 }
 
-impl<const N: usize> IntoGroupProj for [Raw; N] {
-    fn into_group_proj(self) -> Projections {
+impl<const N: usize> IntoSelectProj for [Raw; N] {
+    fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(Expr::Ident(self[0].clone().into_table()))
@@ -197,8 +199,8 @@ impl<const N: usize> IntoGroupProj for [Raw; N] {
     }
 }
 
-impl<const N: usize> IntoGroupProj for [TableRef; N] {
-    fn into_group_proj(self) -> Projections {
+impl<const N: usize> IntoSelectProj for [TableRef; N] {
+    fn into_select_proj(self) -> Projections {
         // cheap clone O(1)
         if N == 1 {
             Projections::One(Expr::Ident(self[0].clone()))
@@ -209,8 +211,8 @@ impl<const N: usize> IntoGroupProj for [TableRef; N] {
     }
 }
 
-impl IntoGroupProj for Vec<&str> {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Vec<&str> {
+    fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
             .map(|t| Expr::Ident(t.into_table()))
@@ -219,8 +221,8 @@ impl IntoGroupProj for Vec<&str> {
     }
 }
 
-impl IntoGroupProj for Vec<String> {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Vec<String> {
+    fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
             .map(|t| Expr::Ident(t.into_table()))
@@ -229,8 +231,8 @@ impl IntoGroupProj for Vec<String> {
     }
 }
 
-impl IntoGroupProj for Vec<Ident> {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Vec<Ident> {
+    fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
             .map(|t| Expr::Ident(t.into_table()))
@@ -239,8 +241,8 @@ impl IntoGroupProj for Vec<Ident> {
     }
 }
 
-impl IntoGroupProj for Vec<Raw> {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Vec<Raw> {
+    fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
             .map(|t| Expr::Ident(t.into_table()))
@@ -249,8 +251,8 @@ impl IntoGroupProj for Vec<Raw> {
     }
 }
 
-impl IntoGroupProj for Vec<TableRef> {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Vec<TableRef> {
+    fn into_select_proj(self) -> Projections {
         let vec = self
             .into_iter()
             .map(|t| Expr::Ident(t.into_table()))
@@ -259,30 +261,15 @@ impl IntoGroupProj for Vec<TableRef> {
     }
 }
 
-impl IntoGroupProj for Projections {
-    fn into_group_proj(self) -> Projections {
+impl IntoSelectProj for Projections {
+    fn into_select_proj(self) -> Projections {
         self
     }
 }
 
-impl<T: ProjectionSchema> IntoGroupProj for T {
-    fn into_group_proj(self) -> Projections {
-        T::projections()
-    }
-}
-
-// add into something proj that contains stuff like subqueries and so on
-
-pub trait IntoSelectProj {
-    fn into_select_proj(self) -> Projections;
-}
-
-impl<T> IntoSelectProj for T
-where
-    T: IntoGroupProj,
-{
+impl<T: ProjectionSchema> IntoSelectProj for T {
     fn into_select_proj(self) -> Projections {
-        self.into_group_proj()
+        T::projections()
     }
 }
 
@@ -421,9 +408,9 @@ mod tests {
 
     fn select<T>(value: T) -> Projections
     where
-        T: IntoGroupProj,
+        T: IntoSelectProj,
     {
-        value.into_group_proj()
+        value.into_select_proj()
     }
 
     #[test]

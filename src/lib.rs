@@ -11,7 +11,6 @@ mod writer;
 
 use bind::Bind;
 use col::AliasSub;
-pub use col::IntoGroupProj;
 pub use col::IntoTable;
 pub use col::ProjectionSchema;
 pub use col::Projections;
