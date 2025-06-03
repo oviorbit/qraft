@@ -31,7 +31,6 @@ impl TakeBindings for Builder {
 
 #[derive(Debug, Default, Clone)]
 pub struct Builder {
-    query: String,
     ty: QueryKind,
     distinct: bool,
     maybe_table: Option<TableRef>,
@@ -741,7 +740,6 @@ impl Builder {
 
     fn take(&mut self) -> Self {
         Self {
-            query: mem::take(&mut self.query),
             ty: mem::take(&mut self.ty),
             distinct: self.distinct,
             maybe_table: self.maybe_table.take(),
@@ -756,6 +754,21 @@ impl Builder {
             maybe_group_by: self.maybe_group_by.take(),
         }
         //
+    }
+
+    fn reset(&mut self) {
+        self.ty = QueryKind::Select;
+        self.distinct = false;
+        self.projections = Projections::None;
+        self.maybe_table = None;
+        self.binds = Binds::None;
+        self.maybe_where = None;
+        self.maybe_having = None;
+        self.maybe_limit = None;
+        self.maybe_offset = None;
+        self.maybe_order = None;
+        self.maybe_joins = None;
+        self.maybe_group_by = None;
     }
 
     // building the builder
@@ -773,7 +786,8 @@ impl Builder {
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
-        sqlx::query_with::<_, _>(sql, bindings)
+        self.reset();
+        sqlx::query_with::<_, _>(&sql, bindings)
             .execute(executor)
             .await
     }
@@ -788,7 +802,8 @@ impl Builder {
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
-        sqlx::query_as_with::<_, T, _>(sql, bindings)
+        self.reset();
+        sqlx::query_as_with::<_, T, _>(&sql, bindings)
             .fetch_optional(executor)
             .await
     }
@@ -803,7 +818,8 @@ impl Builder {
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
-        sqlx::query_as_with::<_, T, _>(sql, bindings)
+        self.reset();
+        sqlx::query_as_with::<_, T, _>(&sql, bindings)
             .fetch_one(executor)
             .await
     }
@@ -818,7 +834,8 @@ impl Builder {
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
-        sqlx::query_as_with::<_, T, _>(sql, bindings)
+        self.reset();
+        sqlx::query_as_with::<_, T, _>(&sql, bindings)
             .fetch_all(executor)
             .await
     }
@@ -834,7 +851,8 @@ impl Builder {
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
-        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
+        self.reset();
+        sqlx::query_scalar_with::<_, T, _>(&sql, bindings)
             .fetch_optional(executor)
             .await
     }
@@ -850,7 +868,8 @@ impl Builder {
     {
         let bindings = self.binds.take_bindings();
         let sql = self.to_sql::<DB>();
-        sqlx::query_scalar_with::<_, T, _>(sql, bindings)
+        self.reset();
+        sqlx::query_scalar_with::<_, T, _>(&sql, bindings)
             .fetch_one(executor)
             .await
     }
@@ -1562,5 +1581,13 @@ mod tests {
             "select * from \"\"",
             builder.to_sql::<Postgres>()
         );
+    }
+
+    #[test]
+    fn test_sql_reset() {
+        let mut builder = Builder::table("users");
+        builder.reset();
+        // invalid but predictable behavior
+        assert_eq!("select *", builder.to_sql::<Postgres>());
     }
 }
