@@ -1,10 +1,10 @@
-use crate::{bind::Array, col::IntoRawIdent, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections};
+use crate::{bind::Array, col::IntoColumns, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections};
 use crate::HasDialect;
 
 #[derive(Debug)]
 pub struct InsertBuilder {
     table: Ident,
-    columns: Array<Ident>,
+    columns: Array<RawOrIdent>,
     values: Vec<Expr>,
     binds: Binds,
     maybe_conflict_cols: Option<Array<RawOrIdent>>,
@@ -40,7 +40,7 @@ impl InsertBuilder {
         K: IntoIdent,
         V: IntoRhsExpr,
     {
-        self.columns.push(column.into_ident());
+        self.columns.push(RawOrIdent::Ident(column.into_ident()));
         let mut value = value.into_rhs_expr();
         self.binds.append(value.take_bindings());
         self.values.push(value);
@@ -49,11 +49,11 @@ impl InsertBuilder {
 
     pub fn upsert<C, S>(&mut self, conflicted: C, set_cols: S) -> &mut Self
     where
-        C: IntoRawIdent,
-        S: IntoRawIdent,
+        C: IntoColumns,
+        S: IntoColumns,
     {
-        let conflicted = conflicted.into_raw_ident();
-        let set_cols = set_cols.into_raw_ident();
+        let conflicted = conflicted.into_columns();
+        let set_cols = set_cols.into_columns();
 
         let target = self.maybe_conflict_cols.get_or_insert_default();
         target.append(conflicted);

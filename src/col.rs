@@ -40,8 +40,8 @@ pub trait IntoGroupProj {
     fn into_group_proj(self) -> Projections;
 }
 
-pub trait IntoRawIdent {
-    fn into_raw_ident(self) -> Array<RawOrIdent>;
+pub trait IntoColumns {
+    fn into_columns(self) -> Array<RawOrIdent>;
 }
 
 impl FormatWriter for RawOrIdent {
@@ -71,25 +71,25 @@ impl FormatWriter for Array<RawOrIdent> {
     }
 }
 
-impl<T> IntoRawIdent for T
+impl<T> IntoColumns for T
 where
     T: IntoIdent {
-    fn into_raw_ident(self) -> Array<RawOrIdent> {
+    fn into_columns(self) -> Array<RawOrIdent> {
         Array::One(RawOrIdent::Ident(self.into_ident()))
     }
 }
 
-impl IntoRawIdent for Raw {
-    fn into_raw_ident(self) -> Array<RawOrIdent> {
+impl IntoColumns for Raw {
+    fn into_columns(self) -> Array<RawOrIdent> {
         Array::One(RawOrIdent::Raw(self))
     }
 }
 
-impl<T, const N: usize> IntoRawIdent for [T; N]
+impl<T, const N: usize> IntoColumns for [T; N]
 where
     T: IntoIdent + Clone
 {
-    fn into_raw_ident(self) -> Array<RawOrIdent> {
+    fn into_columns(self) -> Array<RawOrIdent> {
         // cheap clone O(1)
         if N == 1 {
             Array::One(RawOrIdent::Ident(self[0].clone().into_ident()))
@@ -100,11 +100,11 @@ where
     }
 }
 
-impl<T> IntoRawIdent for Vec<T>
+impl<T> IntoColumns for Vec<T>
 where
     T: IntoIdent
 {
-    fn into_raw_ident(self) -> Array<RawOrIdent> {
+    fn into_columns(self) -> Array<RawOrIdent> {
         let vec = self
             .into_iter()
             .map(|t| RawOrIdent::Ident(t.into_ident()))
