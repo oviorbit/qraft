@@ -203,7 +203,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MySql, Postgres, Sqlite, lit, raw};
+    use crate::{MySql, Postgres, Sqlite, lit};
 
     use super::*;
 
