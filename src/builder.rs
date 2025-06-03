@@ -6,7 +6,7 @@ use crate::{
     bind::{Binds, IntoBinds}, col::{
         AliasSub, IntoColumns, IntoProjections, IntoTable, ProjectionSchema, Projections, TableSchema
     }, dialect::HasDialect, expr::{
-        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::ExistsOperator, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, fncall::{Aggregate, AggregateCall}, r#in::InOperator, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::{IntoIdent, TableRef}, insert::{Columns, InsertBuilder}, raw::IntoRaw, writer::{FormatContext, FormatWriter}, Dialect, Ident, IntoInList, JoinClause, JoinType, Joins
 };
 
@@ -709,6 +709,23 @@ impl Builder {
         self
     }
 
+    pub fn select_exists<F>(&mut self, sub: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut builder = Builder::default();
+        sub(&mut builder);
+        let sub = Box::new(builder);
+        let exists = ExistsExpr {
+            operator: ExistsOperator::Exists,
+            subquery: sub,
+            alias: Some(Ident::new_static("exists")),
+        };
+        let exists = Expr::Exists(exists);
+        self.add_select(exists);
+        self
+    }
+
     fn reset_select(&mut self) -> &mut Self {
         // could be made public but needs to impl take bindings on all conds
         self.projections.reset();
@@ -881,27 +898,6 @@ impl Builder {
         sqlx::query_scalar_with::<_, T, _>(&sql, bindings)
             .fetch_one(executor)
             .await
-    }
-
-    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
-    pub async fn count<DB, E>(&mut self, executor: E) -> Result<usize, sqlx::Error>
-    where
-        DB: sqlx::Database + HasDialect,
-        (usize,): for<'r> sqlx::FromRow<'r, DB::Row>,
-        E: for<'c> sqlx::Executor<'c, Database = DB>,
-        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
-    {
-        use crate::{Ident, expr::exists::ExistsExpr};
-
-        let self_builder = self.take();
-        let mut builder = Builder::default();
-        let exists = ExistsExpr::new(
-            ExistsOperator::Exists,
-            self_builder,
-            Some(Ident::new_static("exists")),
-        );
-        builder.select(exists);
-        builder.value(executor).await
     }
 
     fn delete_query<DB: HasDialect>(&mut self) {
@@ -1630,5 +1626,21 @@ mod tests {
             })),
         );
         assert_eq!(result, builder.to_sql::<Postgres>())
+    }
+
+    #[test]
+    fn test_exists() {
+        let mut first = Builder::new();
+        first.where_eq("id", 1);
+
+        let mut builder = Builder::new();
+        builder.select_exists(|builder| {
+            builder.from("users").where_eq("id", 1);
+        });
+
+        assert_eq!(
+            "select exists (select * from \"users\" where \"id\" = $1) as \"exists\"",
+            builder.to_sql::<Postgres>()
+        );
     }
 }
