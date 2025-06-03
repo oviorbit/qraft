@@ -1,4 +1,4 @@
-use crate::{bind::Array, col::IntoRawIdent, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Ident, IntoGroupProj, IntoRhsExpr, Projections};
+use crate::{bind::Array, col::IntoRawIdent, expr::{Expr, TakeBindings}, ident::{IntoIdent, RawOrIdent}, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoGroupProj, IntoRhsExpr, Projections};
 use crate::HasDialect;
 
 #[derive(Debug)]
@@ -108,14 +108,16 @@ impl FormatWriter for InsertBuilder {
         }
         context.writer.write_char(')')?;
         if let Some(ref conflicts) = self.maybe_conflict_cols {
-            if ! conflicts.is_empty() {
+            if ! conflicts.is_empty() && matches!(context.dialect, Dialect::Postgres) {
                 context.writer.write_str(" on conflict (")?;
                 conflicts.format_writer(context)?;
                 context.writer.write_char(')')?;
+            } else if matches!(context.dialect, Dialect::MySql) {
+                 context.writer.write_str(" on duplicate key update ");
             }
         }
         if let Some(ref sets) = self.maybe_sets {
-            if ! sets.is_empty() {
+            if ! sets.is_empty() && matches!(context.dialect, Dialect::Postgres) {
                 context.writer.write_str(" do update set ")?;
                 for (index, set) in sets.iter().enumerate() {
                     if index > 0 {
@@ -127,6 +129,16 @@ impl FormatWriter for InsertBuilder {
                     let ident = Ident::new(smol_str::format_smolstr!("excluded.{}", col_name));
                     ident.format_writer(context)?;
                 }
+            } else if matches!(context.dialect, Dialect::MySql) {
+                for (index, set) in sets.iter().enumerate() {
+                    if index > 0 {
+                        context.writer.write_str(", ")?;
+                    }
+                    set.format_writer(context)?;
+                    context.writer.write_str(" = values(")?;
+                    set.format_writer(context)?;
+                    context.writer.write_char(')')?;
+                }
             }
         }
         Ok(())
@@ -135,7 +147,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::Postgres;
+    use crate::{MySql, Postgres};
 
     use super::*;
 
@@ -143,6 +155,7 @@ mod tests {
     fn test_format_upsert() {
         let mut insert = InsertBuilder::insert_into("users");
         insert.field("username", "ovior").field("name", "ovior").upsert(["id"], ["username", "name"]);
-        assert_eq!(r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Postgres>())
+        assert_eq!(r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Postgres>());
+        assert_eq!(r#"insert into `users` (`username`, `name`) values (?, ?) on duplicate key update `username` = values(`username`), `name` = values(`name`)"#, insert.to_sql::<MySql>());
     }
 }
