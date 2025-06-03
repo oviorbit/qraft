@@ -18,6 +18,7 @@ use exists::ExistsExpr;
 use fncall::AggregateCall;
 use r#in::InExpr;
 use qraft_derive::variant;
+use unary::{UnaryCondition, UnaryOperator};
 
 use crate::{
     Binds, Builder, Ident, IntoBind, IntoTable, TableRef,
@@ -35,10 +36,13 @@ pub enum Expr {
     In(Box<InExpr>),
     AggregateCall(AggregateCall),
     Binary(Box<BinaryCondition>),
+    Unary(Box<UnaryCondition>),
 }
 
 impl Expr {
-    #[variant(none, Operator, Eq, not_eq, gt, lt, gte, lte, like, not_like, ilike, not_ilike)]
+    #[variant(
+        none, Operator, Eq, not_eq, gt, lt, gte, lte, like, not_like, ilike, not_ilike
+    )]
     pub fn eq<R>(self, other: R) -> Expr
     where
         R: IntoRhsExpr,
@@ -50,6 +54,15 @@ impl Expr {
             rhs: rhs_expr,
         };
         Expr::Binary(Box::new(bin))
+    }
+
+    #[variant(none, UnaryOperator, Null, is_not_null NotNull, is_true True, is_false False)]
+    pub fn is_null<R>(self) -> Expr {
+        let unary = UnaryCondition {
+            lhs: self,
+            operator: UnaryOperator::Null,
+        };
+        Expr::Unary(Box::new(unary))
     }
 }
 
@@ -67,6 +80,7 @@ impl TakeBindings for Expr {
             Expr::In(condition) => condition.take_bindings(),
             Expr::AggregateCall(_) => Binds::None,
             Expr::Binary(condition) => condition.take_bindings(),
+            Expr::Unary(condition) => condition.take_bindings(),
         }
     }
 }
@@ -88,6 +102,7 @@ impl FormatWriter for Expr {
             Expr::In(condition) => condition.format_writer(context),
             Expr::AggregateCall(aggregate) => aggregate.format_writer(context),
             Expr::Binary(condition) => condition.format_writer(context),
+            Expr::Unary(condition) => condition.format_writer(context),
         }
     }
 }
