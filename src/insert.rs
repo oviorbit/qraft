@@ -1,4 +1,3 @@
-use crate::HasDialect;
 use crate::{
     Binds, Dialect, Ident, IntoRhsExpr,
     bind::Array,
@@ -7,6 +6,7 @@ use crate::{
     ident::{IntoIdent, RawOrIdent},
     writer::{FormatContext, FormatWriter},
 };
+use crate::{Builder, HasDialect};
 
 #[derive(Debug)]
 pub struct InsertBuilder {
@@ -16,6 +16,7 @@ pub struct InsertBuilder {
     binds: Binds,
     maybe_conflict_cols: Option<Array<RawOrIdent>>,
     maybe_sets: Option<Array<RawOrIdent>>,
+    maybe_select: Option<Box<Builder>>,
 }
 
 impl FormatWriter for Array<Ident> {
@@ -42,6 +43,7 @@ impl InsertBuilder {
             values: Vec::default(),
             maybe_conflict_cols: None,
             maybe_sets: None,
+            maybe_select: None,
         }
     }
 
@@ -69,6 +71,30 @@ impl InsertBuilder {
         target.append(conflicted);
         let target = self.maybe_sets.get_or_insert_default();
         target.append(set_cols);
+
+        self
+    }
+
+    #[inline]
+    pub fn columns<C>(&mut self, cols: C) -> &mut Self
+    where
+        C: IntoColumns,
+    {
+        self.columns.append(cols.into_columns());
+        self
+    }
+
+    pub fn select(&mut self, mut select: Builder) -> &mut Self {
+        debug_assert!(
+            self.values.is_empty(),
+            "Cannot combine the `.field` based values with a `from_select` {:?}",
+            self.values,
+        );
+        self.binds = Binds::None;
+        let select_binds = select.take_bindings();
+        self.binds.append(select_binds);
+
+        self.maybe_select = Some(Box::new(select));
 
         self
     }
@@ -107,19 +133,24 @@ impl FormatWriter for InsertBuilder {
         context: &mut FormatContext<'_, W>,
     ) -> std::fmt::Result {
         // sanity check
-        debug_assert!(self.columns.len() == self.values.len());
         context.writer.write_str("insert into ")?;
         self.table.format_writer(context)?;
         context.writer.write_str(" (")?;
         self.columns.format_writer(context)?;
-        context.writer.write_str(") values (")?;
-        for (i, expr) in self.values.iter().enumerate() {
-            if i > 0 {
-                context.writer.write_str(", ")?;
+        context.writer.write_str(") ")?;
+
+        if let Some(ref select_builder) = self.maybe_select {
+            select_builder.format_writer(context)?;
+        } else {
+            context.writer.write_str("values (")?;
+            for (i, expr) in self.values.iter().enumerate() {
+                if i > 0 {
+                    context.writer.write_str(", ")?;
+                }
+                expr.format_writer(context)?;
             }
-            expr.format_writer(context)?;
+            context.writer.write_char(')')?;
         }
-        context.writer.write_char(')')?;
         if let Some(ref conflicts) = self.maybe_conflict_cols {
             if !conflicts.is_empty()
                 && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite)
@@ -162,7 +193,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MySql, Postgres, Sqlite};
+    use crate::{lit, raw, MySql, Postgres, Sqlite};
 
     use super::*;
 
@@ -185,5 +216,25 @@ mod tests {
             r#"insert into "users" ("username", "name") values (?1, ?2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
             insert.to_sql::<Sqlite>()
         );
+    }
+
+    #[test]
+    fn insert_builder() {
+        let mut insert = Builder::insert_into("jobs");
+        insert.columns(["model_type", "model_id", "type"]);
+        insert.select({
+            let mut builder = Builder::table("jobs");
+            builder
+                .select_raw("'topic', ?, 'fetch topic posts'", 10)
+                .where_not_exists(|b| {
+                    b.select(raw("1"))
+                        .where_eq("model_type", lit("topic"))
+                        .where_eq("model_id", 1)
+                        .where_eq("status", lit("queued"));
+                });
+            builder
+        });
+
+        assert_eq!(r#"insert into "jobs" ("model_type", "model_id", "type") select 'topic', $1, 'fetch topic posts' from "jobs" where not exists (select 1 where "model_type" = 'topic' and "model_id" = $2 and "status" = 'queued')"#, insert.to_sql::<Postgres>());
     }
 }

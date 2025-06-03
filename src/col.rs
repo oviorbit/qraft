@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     Builder, Raw,
-    bind::Array,
+    bind::{Array, Bind},
     expr::{Expr, TakeBindings, exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr},
     ident::{Ident, IntoIdent, RawOrIdent, TableRef},
     writer::FormatWriter,
@@ -283,6 +283,12 @@ where
 {
     fn into_select_proj(self) -> Projections {
         self.into_group_proj()
+    }
+}
+
+impl IntoSelectProj for Bind {
+    fn into_select_proj(self) -> Projections {
+        Projections::One(Expr::Bind(self))
     }
 }
 

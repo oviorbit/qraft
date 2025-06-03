@@ -66,6 +66,10 @@ pub fn raw(value: &str) -> Raw {
     Raw::new(value)
 }
 
+pub fn lit(value: &'static str) -> Raw {
+    Raw::new(smol_str::format_smolstr!("'{}'", value))
+}
+
 pub fn sub_as<F, I>(table: F, alias: I) -> AliasSub
 where
     F: FnOnce(&mut Builder),
