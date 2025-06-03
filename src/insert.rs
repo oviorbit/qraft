@@ -108,7 +108,7 @@ impl FormatWriter for InsertBuilder {
         }
         context.writer.write_char(')')?;
         if let Some(ref conflicts) = self.maybe_conflict_cols {
-            if ! conflicts.is_empty() && matches!(context.dialect, Dialect::Postgres) {
+            if ! conflicts.is_empty() && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite) {
                 context.writer.write_str(" on conflict (")?;
                 conflicts.format_writer(context)?;
                 context.writer.write_char(')')?;
@@ -117,7 +117,7 @@ impl FormatWriter for InsertBuilder {
             }
         }
         if let Some(ref sets) = self.maybe_sets {
-            if ! sets.is_empty() && matches!(context.dialect, Dialect::Postgres) {
+            if ! sets.is_empty() && matches!(context.dialect, Dialect::Postgres | Dialect::Sqlite) {
                 context.writer.write_str(" do update set ")?;
                 for (index, set) in sets.iter().enumerate() {
                     if index > 0 {
@@ -147,7 +147,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MySql, Postgres};
+    use crate::{MySql, Postgres, Sqlite};
 
     use super::*;
 
@@ -157,5 +157,6 @@ mod tests {
         insert.field("username", "ovior").field("name", "ovior").upsert(["id"], ["username", "name"]);
         assert_eq!(r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Postgres>());
         assert_eq!(r#"insert into `users` (`username`, `name`) values (?, ?) on duplicate key update `username` = values(`username`), `name` = values(`name`)"#, insert.to_sql::<MySql>());
+        assert_eq!(r#"insert into "users" ("username", "name") values (?1, ?2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#, insert.to_sql::<Sqlite>());
     }
 }
