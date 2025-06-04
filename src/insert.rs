@@ -1,5 +1,5 @@
 use crate::{
-    bind::Array, col::IntoColumns, expr::TakeBindings, ident::{IntoIdent, RawOrIdent}, row::Row, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoRhsExpr, IntoTable, TableRef
+    bind::Array, col::IntoColumns, expr::TakeBindings, ident::{IntoIdent, RawOrIdent}, row::Row, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoTable, TableRef
 };
 use crate::{Builder, HasDialect};
 
