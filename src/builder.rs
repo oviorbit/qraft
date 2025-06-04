@@ -204,7 +204,7 @@ impl Builder {
         O: IntoOperator,
         CC: IntoTable,
     {
-        self.left_join_clause(table, |join| {
+        self.right_join_clause(table, |join| {
             join.on(column, operator, other_column);
         });
         self
@@ -702,7 +702,7 @@ impl Builder {
     pub fn select_max<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
-        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        let fncall = AggregateCall::new(Aggregate::Max, table, alias);
         self.select(fncall);
         self
     }
@@ -710,7 +710,7 @@ impl Builder {
     pub fn select_sum<T: IntoIdent>(&mut self, table: T) -> &mut Self {
         let ident = table.into_ident();
         let (table, alias) = ident.split_alias();
-        let fncall = AggregateCall::new(Aggregate::Avg, table, alias);
+        let fncall = AggregateCall::new(Aggregate::Sum, table, alias);
         self.select(fncall);
         self
     }
@@ -1616,8 +1616,9 @@ mod tests {
         let mut builder = Builder::table("users");
         let insert = builder
             .inserting()
-            .field("id", 1)
-            .field("username", "ovior")
+            .values_with(|row| {
+                row.field("id", 1).field("username", "ovior");
+            })
             .to_sql::<Postgres>();
 
         assert_eq!(

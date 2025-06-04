@@ -53,7 +53,7 @@ impl InsertBuilder {
         }
     }
 
-    pub fn row<F>(&mut self, fn_row: F) -> &mut Self
+    pub fn values_with<F>(&mut self, fn_row: F) -> &mut Self
     where
         F: FnOnce(&mut Row),
     {
@@ -199,7 +199,7 @@ mod tests {
     fn test_format_upsert() {
         let mut insert = InsertBuilder::insert_into("users");
         insert
-            .row(|row| {
+            .values_with(|row| {
                 row.field("username", "ovior")
                     .field("name", "ovior");
             })
