@@ -2,6 +2,15 @@
 name = "qraft_derive"
 version = "0.1.0"
 edition = "2024"
+authors = ["Dany Gagnon dany@ovior.ca"]
+description = "Helpers used for qraft"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/qraft-rs/qraft"
+homepage = "https://github.com/qraft-rs/qraft"
+readme = "readme.md"
+keywords = ["sql", "query", "builder", "fluent", "async"]
+categories = ["database", "sql"]
+publish = ["crates-io"]
 
 [lib]
 proc-macro = true
