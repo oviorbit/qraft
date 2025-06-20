@@ -9,7 +9,7 @@ repository = "https://github.com/qraft-rs/qraft"
 homepage = "https://github.com/qraft-rs/qraft"
 readme = "readme.md"
 keywords = ["sql", "query", "builder", "fluent", "async"]
-categories = ["database", "sql"]
+categories = ["database"]
 publish = ["crates-io"]
 
 [dependencies]
