@@ -1,7 +1,16 @@
 [package]
 name = "qraft"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
+authors = ["Dany Gagnon dany@ovior.ca"]
+description = "A Rust library for building SQL queries with a fluent API."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/qraft-rs/qraft"
+homepage = "https://github.com/qraft-rs/qraft"
+readme = "README.md"
+keywords = ["sql", "query", "builder", "fluent", "async"]
+categories = ["database", "sql"]
+publish = ["crates-io"]
 
 [dependencies]
 smol_str = "0.3.2"
