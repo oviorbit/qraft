@@ -19,7 +19,7 @@ pub struct InsertBuilder {
     table: Ident,
     columns: Columns,
     binds: Binds,
-    rows: Vec<Row>,
+    rows: Option<Row>,
     maybe_conflict_cols: Option<Array<RawOrIdent>>,
     maybe_sets: Option<Array<RawOrIdent>>,
     maybe_select: Option<Box<Builder>>,
@@ -49,7 +49,7 @@ impl InsertBuilder {
             maybe_conflict_cols: None,
             maybe_sets: None,
             maybe_select: None,
-            rows: Vec::new(),
+            rows: None,
         }
     }
 
@@ -60,6 +60,11 @@ impl InsertBuilder {
         let mut row = Row::new();
         fn_row(&mut row);
         // do something like add it to the vec row
+        if let Some(rows) = &mut self.rows {
+            rows.append(row);
+        } else {
+            self.rows = Some(row);
+        }
         self
     }
 
@@ -133,7 +138,14 @@ impl FormatWriter for InsertBuilder {
         context.writer.write_str("insert into ")?;
         self.table.format_writer(context)?;
         context.writer.write_str(" (")?;
-        self.columns.format_writer(context)?;
+        if !self.columns.is_empty() {
+            self.columns.format_writer(context)?;
+        } else if let Some(row) = &self.rows {
+            // if no columns are specified, we use the first row's columns
+            row.format_idents(context)?;
+        } else {
+            panic!("InsertBuilder must have columns or rows specified");
+        }
         context.writer.write_str(") ")?;
 
         if let Some(ref select_builder) = self.maybe_select {
@@ -145,7 +157,7 @@ impl FormatWriter for InsertBuilder {
                 if i > 0 {
                     context.writer.write_str(", ")?;
                 }
-                row.format_writer(context)?;
+                row.format_values(context)?;
             }
             context.writer.write_char(')')?;
         }
@@ -200,10 +212,12 @@ mod tests {
         let mut insert = InsertBuilder::insert_into("users");
         insert
             .values_with(|row| {
-                row.field("username", "ovior")
+                row
+                    .field("username", "ovior")
                     .field("name", "ovior");
             })
             .upsert(["id"], ["username", "name"]);
+
         assert_eq!(
             r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
             insert.to_sql::<Postgres>()

@@ -12,6 +12,20 @@ pub(crate) struct FormatContext<'a, W: Write> {
     pub(crate) placeholder: u16,
 }
 
+impl<'a, W: Write> Deref for FormatContext<'a, W> {
+    type Target = W;
+
+    fn deref(&self) -> &Self::Target {
+        self.writer
+    }
+}
+
+impl<'a, W: Write> std::ops::DerefMut for FormatContext<'a, W> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.writer
+    }
+}
+
 impl<'a, W: Write> FormatContext<'a, W> {
     pub fn new(writer: &'a mut W, dialect: Dialect) -> Self {
         Self {
