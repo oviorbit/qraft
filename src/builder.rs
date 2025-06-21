@@ -35,7 +35,6 @@ pub enum QueryKind {
     Having,
     Join,
     Delete,
-    Update,
 }
 
 impl TakeBindings for Builder {
@@ -58,6 +57,27 @@ pub struct Builder {
     maybe_order: Option<Order>,
     maybe_joins: Option<Joins>,
     maybe_group_by: Option<Columns>,
+}
+
+pub trait IntoBuilder {
+    fn into_builder(self) -> Builder;
+}
+
+impl IntoBuilder for Builder {
+    fn into_builder(self) -> Builder {
+        self
+    }
+}
+
+impl<F> IntoBuilder for F
+where
+    F: FnOnce(&mut Builder),
+{
+    fn into_builder(self) -> Builder {
+        let mut builder = Builder::default();
+        self(&mut builder);
+        builder
+    }
 }
 
 impl Builder {
@@ -96,13 +116,12 @@ impl Builder {
         self
     }
 
-    pub fn from_sub<F, I>(&mut self, table: F, alias: I) -> &mut Self
+    pub fn from_sub<F, I>(&mut self, inner: F, alias: I) -> &mut Self
     where
-        F: FnOnce(&mut Self),
+        F: IntoBuilder,
         I: IntoIdent,
     {
-        let mut inner = Self::default();
-        table(&mut inner);
+        let mut inner = inner.into_builder();
         self.binds.append(inner.take_bindings());
         let aliased = AliasSub::new(inner, alias);
         self.maybe_table = Some(TableRef::AliasSub(aliased));
@@ -220,12 +239,11 @@ impl Builder {
 
     pub fn join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
     where
-        F: FnOnce(&mut Builder),
+        F: IntoBuilder,
         A: IntoIdent,
         J: FnOnce(&mut JoinClause),
     {
-        let mut inner = Self::default();
-        sub(&mut inner);
+        let mut inner = sub.into_builder();
         self.binds.append(inner.take_bindings());
         let aliased = AliasSub::new(inner, alias);
         let table_ref = TableRef::AliasSub(aliased);
@@ -235,12 +253,11 @@ impl Builder {
 
     pub fn left_join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
     where
-        F: FnOnce(&mut Builder),
+        F: IntoBuilder,
         A: IntoIdent,
         J: FnOnce(&mut JoinClause),
     {
-        let mut inner = Self::default();
-        sub(&mut inner);
+        let mut inner = sub.into_builder();
         self.binds.append(inner.take_bindings());
         let aliased = AliasSub::new(inner, alias);
         let table_ref = TableRef::AliasSub(aliased);
@@ -250,12 +267,11 @@ impl Builder {
 
     pub fn right_join_sub<F, A, J>(&mut self, sub: F, alias: A, clause: J) -> &mut Self
     where
-        F: FnOnce(&mut Builder),
+        F: IntoBuilder,
         A: IntoIdent,
         J: FnOnce(&mut JoinClause),
     {
-        let mut inner = Self::default();
-        sub(&mut inner);
+        let mut inner = sub.into_builder();
         self.binds.append(inner.take_bindings());
         let aliased = AliasSub::new(inner, alias);
         let table_ref = TableRef::AliasSub(aliased);
@@ -474,10 +490,9 @@ impl Builder {
     #[variant(ExistsOperator, Exists, exists, not_exists)]
     fn exists_expr<Q>(&mut self, sub: Q) -> &mut Self
     where
-        Q: FnOnce(&mut Self),
+        Q: IntoBuilder,
     {
-        let mut inner = Self::default();
-        sub(&mut inner);
+        let mut inner = sub.into_builder();
         self.binds.append(inner.take_bindings());
         let target = self.maybe_where.get_or_insert_default();
         target.push_exists(Conjunction::And, inner, ExistsOperator::Exists);
@@ -773,10 +788,9 @@ impl Builder {
 
     pub fn select_exists<F>(&mut self, sub: F) -> &mut Self
     where
-        F: FnOnce(&mut Self),
+        F: IntoBuilder,
     {
-        let mut builder = Builder::default();
-        sub(&mut builder);
+        let builder = sub.into_builder();
         let sub = Box::new(builder);
         let exists = ExistsExpr {
             operator: ExistsOperator::Exists,
@@ -1349,7 +1363,7 @@ mod tests {
     #[test]
     fn test_exists_expr() {
         let mut builder = Builder::table("users");
-        builder.where_exists(|builder| {
+        builder.where_exists(|builder: &mut Builder| {
             builder.select(raw("1")).from("users").where_eq("id", 1);
         });
         builder.where_eq("foo", "bar");
@@ -1380,7 +1394,7 @@ mod tests {
     fn test_from_sub() {
         let mut builder = Builder::table("users");
         builder.from_sub(
-            |builder| {
+            |builder: &mut Builder| {
                 builder.where_eq("username", "foo").from("bar");
             },
             "foo",
@@ -1616,7 +1630,7 @@ mod tests {
         let mut builder = Builder::table("users");
         let insert = builder
             .inserting()
-            .values_with(|row| {
+            .row_with(|row| {
                 row.field("id", 1).field("username", "ovior");
             })
             .to_sql::<Postgres>();
@@ -1696,7 +1710,7 @@ mod tests {
         first.where_eq("id", 1);
 
         let mut builder = Builder::new();
-        builder.select_exists(|builder| {
+        builder.select_exists(|builder: &mut Builder| {
             builder.select_one().from("users").where_eq("id", 1);
         });
 

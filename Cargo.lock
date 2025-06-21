@@ -871,6 +871,7 @@ name = "qraft"
 version = "0.1.1"
 dependencies = [
  "chrono",
+ "indexmap",
  "qraft_derive",
  "serde_json",
  "smol_str",

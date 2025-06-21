@@ -1,5 +1,11 @@
 use crate::{
-    bind::Array, col::IntoColumns, expr::TakeBindings, ident::{IntoIdent, RawOrIdent}, row::Row, writer::{FormatContext, FormatWriter}, Binds, Dialect, Ident, IntoTable, TableRef
+    Binds, Dialect, Ident, IntoTable, TableRef,
+    bind::Array,
+    col::IntoColumns,
+    expr::TakeBindings,
+    ident::{IntoIdent, RawOrIdent},
+    row::{IntoRow, Row},
+    writer::{FormatContext, FormatWriter},
 };
 use crate::{Builder, HasDialect};
 
@@ -53,13 +59,23 @@ impl InsertBuilder {
         }
     }
 
-    pub fn values_with<F>(&mut self, fn_row: F) -> &mut Self
+    pub fn row_with<F>(&mut self, fn_row: F) -> &mut Self
     where
         F: FnOnce(&mut Row),
     {
         let mut row = Row::new();
         fn_row(&mut row);
         // do something like add it to the vec row
+        if let Some(rows) = &mut self.rows {
+            rows.append(row);
+        } else {
+            self.rows = Some(row);
+        }
+        self
+    }
+
+    pub fn row<R: IntoRow>(&mut self, row: R) -> &mut Self {
+        let row = row.into_row();
         if let Some(rows) = &mut self.rows {
             rows.append(row);
         } else {
@@ -87,7 +103,7 @@ impl InsertBuilder {
     pub fn select<C, F>(&mut self, cols: C, select: F) -> &mut Self
     where
         F: FnOnce(&mut Builder),
-        C: IntoColumns
+        C: IntoColumns,
     {
         // todo something with cols
         self.columns.append(cols.into_columns());
@@ -99,6 +115,18 @@ impl InsertBuilder {
         self.maybe_select = Some(Box::new(builder));
 
         self
+    }
+
+    pub fn build(&mut self) -> Self {
+        Self {
+            table: std::mem::take(&mut self.table),
+            columns: self.columns.take(),
+            binds: self.binds.take(),
+            rows: self.rows.take(),
+            maybe_conflict_cols: self.maybe_conflict_cols.take(),
+            maybe_sets: self.maybe_sets.take(),
+            maybe_select: self.maybe_select.take(),
+        }
     }
 
     pub fn to_sql<Database: HasDialect>(&self) -> String {
@@ -209,14 +237,12 @@ mod tests {
 
     #[test]
     fn test_format_upsert() {
-        let mut insert = InsertBuilder::insert_into("users");
-        insert
-            .values_with(|row| {
-                row
-                    .field("username", "ovior")
-                    .field("name", "ovior");
+        let insert = InsertBuilder::insert_into("users")
+            .row_with(|row| {
+                row.field("username", "ovior").field("name", "ovior");
             })
-            .upsert(["id"], ["username", "name"]);
+            .upsert(["id"], ["username", "name"])
+            .build();
 
         assert_eq!(
             r#"insert into "users" ("username", "name") values ($1, $2) on conflict ("id") do update set "username" = "excluded"."username", "name" = "excluded"."name""#,
@@ -234,22 +260,33 @@ mod tests {
 
     #[test]
     fn insert_builder() {
-        let mut insert = Builder::insert_into("jobs");
-        insert.select(["model_type", "model_id", "type"], |builder| {
-            builder
-                .from("jobs")
-                .select_raw("'topic', ?, 'fetch topic posts'", 1)
-                .where_not_exists(|b| {
-                    b.select_one()
-                        .where_eq("model_type", lit("topic"))
-                        .where_eq("model_id", 1)
-                        .where_eq("status", lit("queued"));
-                });
-        });
+        let insert = Builder::insert_into("jobs")
+            .select(["model_type", "model_id", "type"], |builder| {
+                builder
+                    .from("jobs")
+                    .select_raw("'topic', ?, 'fetch topic posts'", 1)
+                    .where_not_exists(|b| {
+                        b.select_one()
+                            .where_eq("model_type", lit("topic"))
+                            .where_eq("model_id", 1)
+                            .where_eq("status", lit("queued"));
+                    });
+            })
+            .build();
 
         assert_eq!(
             r#"insert into "jobs" ("model_type", "model_id", "type") select 'topic', $1, 'fetch topic posts' from "jobs" where not exists (select 1 where "model_type" = 'topic' and "model_id" = $2 and "status" = 'queued')"#,
             insert.to_sql::<Postgres>()
         );
+    }
+
+    #[test]
+    fn insert_builder_row() {
+        let insert = InsertBuilder::insert_into("users").row({
+            Row::new()
+                .field("username", "ovior")
+                .field("name", "ovior")
+                .build()
+        });
     }
 }

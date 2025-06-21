@@ -99,7 +99,7 @@ impl FormatWriter for TableRef {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident(SmolStr);
 
 pub trait IntoIdent {
