@@ -1,4 +1,4 @@
-use qraft::Builder;
+use qraft::{Builder, InsertBuilder};
 
 #[derive(Debug)]
 pub struct User {
@@ -7,6 +7,6 @@ pub struct User {
 impl User {
     pub fn create() -> InsertBuilder {
         Builder::table("users")
-            .inserting();
+            .inserting()
     }
 }
