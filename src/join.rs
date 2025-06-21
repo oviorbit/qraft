@@ -1,7 +1,7 @@
 use qraft_derive::{or_variant, variant};
 
 use crate::{
-    bind::{Binds, IntoBinds}, builder::QueryKind, col::IntoColumns, expr::{
+    bind::{Binds, IntoBinds}, builder::QueryKind, col::{IntoColumns, IntoTable}, expr::{
         between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, list::IntoInList, unary::UnaryOperator, Conjunction, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
     }, ident::TableRef, insert::Columns, raw::IntoRaw, writer::FormatWriter, Builder
 };

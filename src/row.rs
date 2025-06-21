@@ -51,37 +51,6 @@ impl Row {
         self
     }
 
-    pub(crate) fn append(&mut self, other: Self) {
-        self.binds.append(other.binds);
-        self.values.extend(other.values);
-    }
-
-    pub(crate) fn format_idents<W: std::fmt::Write>(
-        &self,
-        context: &mut crate::writer::FormatContext<'_, W>,
-    ) -> std::fmt::Result {
-        for (i, (ident, _)) in self.values.iter().enumerate() {
-            if i > 0 {
-                context.writer.write_str(", ")?;
-            }
-            ident.format_writer(context)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn format_values<W: std::fmt::Write>(
-        &self,
-        context: &mut crate::writer::FormatContext<'_, W>,
-    ) -> std::fmt::Result {
-        for (i, (_, expr)) in self.values.iter().enumerate() {
-            if i > 0 {
-                context.writer.write_str(", ")?;
-            }
-            expr.format_writer(context)?;
-        }
-        Ok(())
-    }
-
     pub(crate) fn format_assignments<W: std::fmt::Write>(
         &self,
         ctx: &mut FormatContext<'_, W>
