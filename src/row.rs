@@ -1,10 +1,10 @@
 use indexmap::IndexMap;
 
 use crate::{
-    expr::{Expr, TakeBindings}, ident::IntoIdent, writer::FormatWriter, Binds, Ident, IntoRhsExpr
+    expr::{Expr, TakeBindings}, ident::IntoIdent, writer::{FormatContext, FormatWriter}, Binds, Ident, IntoRhsExpr
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Row {
     pub values: IndexMap<Ident, Expr>,
     pub binds: Binds,
@@ -78,6 +78,21 @@ impl Row {
                 context.writer.write_str(", ")?;
             }
             expr.format_writer(context)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn format_assignments<W: std::fmt::Write>(
+        &self,
+        ctx: &mut FormatContext<'_, W>
+    ) -> std::fmt::Result {
+        for (i, (col, expr)) in self.values.iter().enumerate() {
+            if i > 0 {
+                ctx.writer.write_str(", ")?;
+            }
+            col.format_writer(ctx)?;
+            ctx.writer.write_str(" = ")?;
+            expr.format_writer(ctx)?;
         }
         Ok(())
     }
