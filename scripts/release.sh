@@ -9,6 +9,8 @@ fi
 
 ARG=$1
 
+trap 'echo "Release failed. Removing tag v$NEW_VERSION"; git tag -d "v$NEW_VERSION" >/dev/null 2>&1 || true; exit 1' ERR
+
 CUR_VER=$(grep '^version' Cargo.toml | head -n1 | sed -E 's/version *= *"([^"]+)"/\1/')
 if [[ ! $CUR_VER =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Couldn't parse current version from Cargo.toml"
@@ -46,10 +48,10 @@ case "$ARG" in
 esac
 
 NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_PATCH"
-echo "Bumping version: $CUR_VER → $NEW_VERSION"
+echo "Bumping version: $CUR_VER to $NEW_VERSION"
 
 if ! command -v cargo-set-version &> /dev/null; then
-  echo "Installing cargo-set-version (cargo-edit)…"
+  echo "Installing cargo-set-version (cargo-edit)"
   cargo install cargo-edit
 fi
 
@@ -57,12 +59,15 @@ cargo set-version "$NEW_VERSION"
 
 git add Cargo.toml
 git commit -m "chore(release): v$NEW_VERSION"
-git tag "v$NEW_VERSION"
 
+git tag "v$NEW_VERSION"
 git push origin HEAD
 git push origin "v$NEW_VERSION"
 
-echo "Publishing v$NEW_VERSION to crates.io…"
-cargo publish
+echo "Publishing v$NEW_VERSION to crates.io"
+if ! cargo publish; then
+  echo "Publish failed, retrying with --allow-dirty"
+  cargo publish --allow-dirty
+fi
 
-echo "✅ Released v$NEW_VERSION"
+echo "Released v$NEW_VERSION"
