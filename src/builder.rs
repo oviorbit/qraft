@@ -980,12 +980,10 @@ impl Builder {
             .await
     }
 
-    pub fn update_query<DB, R>(&mut self, row: R) -> &mut Self
+    pub fn update_query<DB>(&mut self, mut row: Row) -> &mut Self
     where
         DB: HasDialect,
-        R: IntoRow,
     {
-        let mut row = row.into_row();
         let row_binds = row.take_bindings();
 
         self.ty = QueryKind::Update;
@@ -1063,6 +1061,23 @@ impl Builder {
     {
         use crate::HasRowsAffected;
         self.delete_query::<DB>();
+        let value = self.execute::<DB, E>(executor).await?;
+        let rows = value.rows_affected();
+        Ok(rows > 0)
+    }
+
+    // update query
+    #[cfg(any(feature = "postgres", feature = "sqlite", feature = "mysql"))]
+    pub async fn update<DB, E, R>(&mut self, executor: E, row: R) -> Result<bool, sqlx::Error>
+    where
+        DB: sqlx::Database + HasDialect,
+        R: IntoRow,
+        E: for<'c> sqlx::Executor<'c, Database = DB>,
+        Binds: for<'c> sqlx::IntoArguments<'c, DB>,
+        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+    {
+        use crate::HasRowsAffected;
+        self.update_query::<DB>(row.into_row());
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();
         Ok(rows > 0)
@@ -1721,11 +1736,12 @@ mod tests {
     #[test]
     fn test_update_query() {
         let mut builder = Builder::table("users");
+        let row = Row::new()
+            .field("votes", 1)
+            .build();
         builder
             .where_eq("id", 1)
-            .update_query::<Postgres, _>(|row: &mut Row| {
-                row.field("votes", 1);
-            });
+            .update_query::<Postgres>(row);
         assert_eq!(
             "update \"users\" set \"votes\" = $1 where \"id\" = $2",
             builder.to_sql::<Postgres>()
@@ -1735,12 +1751,13 @@ mod tests {
     #[test]
     fn test_update_join() {
         let mut builder = Builder::table("users as u");
+        let row = Row::new()
+            .field("votes", 1)
+            .build();
         builder
             .where_eq("id", 1)
             .join("contacts as c", "u.id", "=", "c.other_id")
-            .update_query::<Postgres, _>(|row: &mut Row| {
-                row.field("votes", 1);
-            });
+            .update_query::<Postgres>(row.clone());
 
         assert_eq!(
             r#"update "users" as "u" set "votes" = $1 where "ctid" in (select "u"."ctid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = $2)"#,
@@ -1750,9 +1767,7 @@ mod tests {
         builder
             .where_eq("id", 1)
             .join("contacts as c", "u.id", "=", "c.other_id")
-            .update_query::<Sqlite, _>(|row: &mut Row| {
-                row.field("votes", 1);
-            });
+            .update_query::<Sqlite>(row.clone());
         assert_eq!(
             r#"update "users" as "u" set "votes" = ?1 where "rowid" in (select "u"."rowid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = ?2)"#,
             builder.to_sql::<Sqlite>()
@@ -1761,24 +1776,7 @@ mod tests {
         builder
             .where_eq("id", 1)
             .join("contacts as c", "u.id", "=", "c.other_id")
-            .update_query::<MySql, _>(|row: &mut Row| {
-                row.field("votes", 1);
-            });
-        assert_eq!(
-            r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
-            builder.to_sql::<MySql>()
-        );
-    }
-
-    #[test]
-    fn update_simple() {
-        let mut builder = Builder::table("users as u");
-        builder
-            .where_eq("id", 1)
-            .join("contacts as c", "u.id", "=", "c.other_id")
-            .update_query::<MySql, _>(|row: &mut Row| {
-                row.field("votes", 1);
-            });
+            .update_query::<MySql>(row);
         assert_eq!(
             r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
             builder.to_sql::<MySql>()
