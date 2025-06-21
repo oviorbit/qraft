@@ -1000,9 +1000,13 @@ impl Builder {
             let table_name = self.maybe_table.clone();
             let alias = table_name.unwrap_or_default();
             let ident = match DB::DIALECT {
-                Dialect::Postgres => Ident::new(smol_str::format_smolstr!("{}.ctid", alias.table_name())),
-                Dialect::Sqlite => Ident::new(smol_str::format_smolstr!("{}.rowid", alias.table_name())),
-                _ => unreachable!()
+                Dialect::Postgres => {
+                    Ident::new(smol_str::format_smolstr!("{}.ctid", alias.table_name()))
+                }
+                Dialect::Sqlite => {
+                    Ident::new(smol_str::format_smolstr!("{}.rowid", alias.table_name()))
+                }
+                _ => unreachable!(),
             };
             self.select(ident);
             builder.ty = QueryKind::Update;
@@ -1207,37 +1211,41 @@ impl FormatWriter for Builder {
             }
         }
 
+        // make sure it's not
         // group by
-        if let Some(ref group_by) = self.maybe_group_by {
-            if matches!(self.ty, QueryKind::Select) {
-                context.writer.write_str(" group by ")?;
-            }
-            group_by.format_writer(context)?;
-        }
-
-        if let Some(ref h) = self.maybe_having {
-            // if we are not in a having group
-            if !h.is_empty() {
+        let update_cond = matches!(self.ty, QueryKind::Update)
+            && matches!(context.dialect, Dialect::Sqlite | Dialect::Postgres);
+        if !update_cond {
+            if let Some(ref group_by) = self.maybe_group_by {
                 if matches!(self.ty, QueryKind::Select) {
-                    context.writer.write_str(" having ")?;
+                    context.writer.write_str(" group by ")?;
                 }
-                h.format_writer(context)?;
+                group_by.format_writer(context)?;
             }
-        }
-
-        if let Some(ref order) = self.maybe_order {
-            if !order.is_empty() {
-                context.writer.write_str(" order by ")?;
-                order.format_writer(context)?;
+            if let Some(ref h) = self.maybe_having {
+                // if we are not in a having group
+                if !h.is_empty() {
+                    if matches!(self.ty, QueryKind::Select) {
+                        context.writer.write_str(" having ")?;
+                    }
+                    h.format_writer(context)?;
+                }
             }
-        }
 
-        if let Some(limit) = self.maybe_limit {
-            write!(context.writer, " limit {}", limit)?;
-        }
+            if let Some(ref order) = self.maybe_order {
+                if !order.is_empty() {
+                    context.writer.write_str(" order by ")?;
+                    order.format_writer(context)?;
+                }
+            }
 
-        if let Some(offset) = self.maybe_offset {
-            write!(context.writer, " offset {}", offset)?;
+            if let Some(limit) = self.maybe_limit {
+                write!(context.writer, " limit {}", limit)?;
+            }
+
+            if let Some(offset) = self.maybe_offset {
+                write!(context.writer, " offset {}", offset)?;
+            }
         }
 
         Ok(())
@@ -1736,12 +1744,8 @@ mod tests {
     #[test]
     fn test_update_query() {
         let mut builder = Builder::table("users");
-        let row = Row::new()
-            .field("votes", 1)
-            .build();
-        builder
-            .where_eq("id", 1)
-            .update_query::<Postgres>(row);
+        let row = Row::new().field("votes", 1).build();
+        builder.where_eq("id", 1).update_query::<Postgres>(row);
         assert_eq!(
             "update \"users\" set \"votes\" = $1 where \"id\" = $2",
             builder.to_sql::<Postgres>()
@@ -1751,9 +1755,7 @@ mod tests {
     #[test]
     fn test_update_join() {
         let mut builder = Builder::table("users as u");
-        let row = Row::new()
-            .field("votes", 1)
-            .build();
+        let row = Row::new().field("votes", 1).build();
         builder
             .where_eq("id", 1)
             .join("contacts as c", "u.id", "=", "c.other_id")
@@ -1780,6 +1782,44 @@ mod tests {
         assert_eq!(
             r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
             builder.to_sql::<MySql>()
+        );
+    }
+
+    #[test]
+    fn update_unknown_field() {
+        let mut builder = Builder::table("users");
+        let row = Row::new().field("unknown_field", "value").build();
+        builder
+            .where_eq("id", 1)
+            .order_by_asc("id")
+            .update_query::<MySql>(row);
+        assert_eq!(
+            "update \"users\" set \"unknown_field\" = $1 where \"id\" = $2",
+            builder.to_sql::<Postgres>()
+        );
+    }
+
+    #[test]
+    fn update_unknown_field_nojoin() {
+        let mut builder = Builder::table("users");
+        let row = Row::new().field("unknown_field", "value").build();
+        builder
+            .where_eq("id", 1)
+            .order_by_asc("id")
+            .update_query::<Postgres>(row);
+        assert_eq!(
+            "update \"users\" set \"unknown_field\" = $1 where \"id\" = $2",
+            builder.to_sql::<Postgres>()
+        );
+        let mut builder = Builder::table("users");
+        let row = Row::new().field("unknown_field", "value").build();
+        builder
+            .where_eq("id", 1)
+            .order_by_asc("id")
+            .update_query::<Sqlite>(row);
+        assert_eq!(
+            "update \"users\" set \"unknown_field\" = ?1 where \"id\" = ?2",
+            builder.to_sql::<Sqlite>()
         );
     }
 
