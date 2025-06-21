@@ -99,16 +99,6 @@ impl Builder {
         Self::default()
     }
 
-    pub fn update_query<R>(&mut self, row: R) -> &mut Self
-    where
-        R: IntoRow,
-    {
-        self.ty = QueryKind::Update;
-        let row = row.into_row();
-        self.maybe_sets = Some(row);
-        self
-    }
-
     pub fn inserting(&mut self) -> InsertBuilder {
         // cheap clone o(1)
         let table = self.maybe_table.clone().unwrap_or_default();
@@ -990,6 +980,47 @@ impl Builder {
             .await
     }
 
+    pub fn update_query<DB, R>(&mut self, row: R) -> &mut Self
+    where
+        DB: HasDialect,
+        R: IntoRow,
+    {
+        let mut row = row.into_row();
+        let row_binds = row.take_bindings();
+
+        self.ty = QueryKind::Update;
+        self.maybe_sets = Some(row);
+        self.binds.append(row_binds);
+
+        let is_joined = self.maybe_joins.is_some();
+        if is_joined && matches!(DB::DIALECT, Dialect::Postgres | Dialect::Sqlite) {
+            self.ty = QueryKind::Select;
+            let mut builder = Builder {
+                maybe_table: self.maybe_table.clone(),
+                ..Default::default()
+            };
+            let table_name = self.maybe_table.clone();
+            let alias = table_name.unwrap_or_default();
+            let ident = match DB::DIALECT {
+                Dialect::Postgres => Ident::new(smol_str::format_smolstr!("{}.ctid", alias.table_name())),
+                Dialect::Sqlite => Ident::new(smol_str::format_smolstr!("{}.rowid", alias.table_name())),
+                _ => unreachable!()
+            };
+            self.select(ident);
+            builder.ty = QueryKind::Update;
+            builder.maybe_sets = self.maybe_sets.take();
+
+            if matches!(DB::DIALECT, Dialect::Postgres) {
+                builder.where_in("ctid", self.take());
+            } else if matches!(DB::DIALECT, Dialect::Sqlite) {
+                builder.where_in("rowid", self.take());
+            }
+            *self = builder;
+        }
+
+        self
+    }
+
     fn delete_query<DB: HasDialect>(&mut self) {
         let dialect = DB::DIALECT;
         if matches!(dialect, Dialect::Postgres) {
@@ -1126,13 +1157,18 @@ impl FormatWriter for Builder {
         }
 
         // joins here
-        if let Some(ref joins) = self.maybe_joins {
-            context.writer.write_char(' ')?;
-            for (index, join) in joins.iter().enumerate() {
-                if index > 0 {
-                    context.writer.write_char(' ')?;
+        let update_cond = matches!(self.ty, QueryKind::Update)
+            && matches!(context.dialect, Dialect::Sqlite | Dialect::Postgres);
+
+        if !update_cond {
+            if let Some(ref joins) = self.maybe_joins {
+                context.writer.write_char(' ')?;
+                for (index, join) in joins.iter().enumerate() {
+                    if index > 0 {
+                        context.writer.write_char(' ')?;
+                    }
+                    join.format_writer(context)?;
                 }
-                join.format_writer(context)?;
             }
         }
 
@@ -1146,7 +1182,10 @@ impl FormatWriter for Builder {
         if let Some(ref w) = self.maybe_where {
             // if we are not in a where group
             if !w.is_empty() {
-                if matches!(self.ty, QueryKind::Select | QueryKind::Delete | QueryKind::Update) {
+                if matches!(
+                    self.ty,
+                    QueryKind::Select | QueryKind::Delete | QueryKind::Update
+                ) {
                     context.writer.write_str(" where ")?;
                 }
                 w.format_writer(context)?;
@@ -1682,9 +1721,11 @@ mod tests {
     #[test]
     fn test_update_query() {
         let mut builder = Builder::table("users");
-        builder.where_eq("id", 1).update_query(|row: &mut Row| {
-            row.field("votes", 1);
-        });
+        builder
+            .where_eq("id", 1)
+            .update_query::<Postgres, _>(|row: &mut Row| {
+                row.field("votes", 1);
+            });
         assert_eq!(
             "update \"users\" set \"votes\" = $1 where \"id\" = $2",
             builder.to_sql::<Postgres>()
@@ -1697,10 +1738,47 @@ mod tests {
         builder
             .where_eq("id", 1)
             .join("contacts as c", "u.id", "=", "c.other_id")
-            .update_query(|row: &mut Row| {
+            .update_query::<Postgres, _>(|row: &mut Row| {
                 row.field("votes", 1);
             });
 
+        assert_eq!(
+            r#"update "users" as "u" set "votes" = $1 where "ctid" in (select "u"."ctid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = $2)"#,
+            builder.to_sql::<Postgres>()
+        );
+        let mut builder = Builder::table("users as u");
+        builder
+            .where_eq("id", 1)
+            .join("contacts as c", "u.id", "=", "c.other_id")
+            .update_query::<Sqlite, _>(|row: &mut Row| {
+                row.field("votes", 1);
+            });
+        assert_eq!(
+            r#"update "users" as "u" set "votes" = ?1 where "rowid" in (select "u"."rowid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = ?2)"#,
+            builder.to_sql::<Sqlite>()
+        );
+        let mut builder = Builder::table("users as u");
+        builder
+            .where_eq("id", 1)
+            .join("contacts as c", "u.id", "=", "c.other_id")
+            .update_query::<MySql, _>(|row: &mut Row| {
+                row.field("votes", 1);
+            });
+        assert_eq!(
+            r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
+            builder.to_sql::<MySql>()
+        );
+    }
+
+    #[test]
+    fn update_simple() {
+        let mut builder = Builder::table("users as u");
+        builder
+            .where_eq("id", 1)
+            .join("contacts as c", "u.id", "=", "c.other_id")
+            .update_query::<MySql, _>(|row: &mut Row| {
+                row.field("votes", 1);
+            });
         assert_eq!(
             r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
             builder.to_sql::<MySql>()
