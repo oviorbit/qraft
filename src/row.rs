@@ -31,16 +31,6 @@ where
     }
 }
 
-impl IntoRow for Vec<Row> {
-    fn into_row(self) -> Row {
-        let mut row = Row::new();
-        for r in self {
-            row.append(r);
-        }
-        row
-    }
-}
-
 impl Row {
     pub fn new() -> Self {
         Self {

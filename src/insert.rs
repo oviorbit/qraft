@@ -25,7 +25,7 @@ pub struct InsertBuilder {
     table: Ident,
     columns: Columns,
     binds: Binds,
-    rows: Option<Row>,
+    rows: Vec<Row>,
     maybe_conflict_cols: Option<Array<RawOrIdent>>,
     maybe_sets: Option<Array<RawOrIdent>>,
     maybe_select: Option<Box<Builder>>,
@@ -55,31 +55,24 @@ impl InsertBuilder {
             maybe_conflict_cols: None,
             maybe_sets: None,
             maybe_select: None,
-            rows: None,
+            rows: Vec::new(),
         }
-    }
-
-    pub fn row_with<F>(&mut self, fn_row: F) -> &mut Self
-    where
-        F: FnOnce(&mut Row),
-    {
-        let mut row = Row::new();
-        fn_row(&mut row);
-        // do something like add it to the vec row
-        if let Some(rows) = &mut self.rows {
-            rows.append(row);
-        } else {
-            self.rows = Some(row);
-        }
-        self
     }
 
     pub fn row<R: IntoRow>(&mut self, row: R) -> &mut Self {
-        let row = row.into_row();
-        if let Some(rows) = &mut self.rows {
-            rows.append(row);
-        } else {
-            self.rows = Some(row);
+        let mut row = row.into_row();
+        self.binds.append(row.take_bindings());
+        self.rows.push(row);
+        self
+    }
+
+    pub fn rows<I, R>(&mut self, rows: I) -> &mut Self
+    where
+        I: IntoIterator<Item = R>,
+        R: IntoRow,
+    {
+        for row in rows {
+            self.row(row);
         }
         self
     }
@@ -122,7 +115,7 @@ impl InsertBuilder {
             table: std::mem::take(&mut self.table),
             columns: self.columns.take(),
             binds: self.binds.take(),
-            rows: self.rows.take(),
+            rows: std::mem::take(&mut self.rows),
             maybe_conflict_cols: self.maybe_conflict_cols.take(),
             maybe_sets: self.maybe_sets.take(),
             maybe_select: self.maybe_select.take(),
@@ -168,26 +161,27 @@ impl FormatWriter for InsertBuilder {
         context.writer.write_str(" (")?;
         if !self.columns.is_empty() {
             self.columns.format_writer(context)?;
-        } else if let Some(row) = &self.rows {
+        } else if let Some(row) = &self.rows.first() {
             // if no columns are specified, we use the first row's columns
             row.format_idents(context)?;
         } else {
-            panic!("InsertBuilder must have columns or rows specified");
+            return Err(std::fmt::Error);
         }
         context.writer.write_str(") ")?;
 
         if let Some(ref select_builder) = self.maybe_select {
             select_builder.format_writer(context)?;
         } else {
-            context.writer.write_str("values (")?;
+            context.writer.write_str("values ")?;
             // print the rows
             for (i, row) in self.rows.iter().enumerate() {
                 if i > 0 {
                     context.writer.write_str(", ")?;
                 }
+                context.writer.write_char('(')?;
                 row.format_values(context)?;
+                context.writer.write_char(')')?;
             }
-            context.writer.write_char(')')?;
         }
         if let Some(ref conflicts) = self.maybe_conflict_cols {
             if !conflicts.is_empty()
@@ -238,7 +232,7 @@ mod tests {
     #[test]
     fn test_format_upsert() {
         let insert = InsertBuilder::insert_into("users")
-            .row_with(|row| {
+            .row(|row: &mut Row| {
                 row.field("username", "ovior").field("name", "ovior");
             })
             .upsert(["id"], ["username", "name"])
@@ -265,7 +259,7 @@ mod tests {
                 builder
                     .from("jobs")
                     .select_raw("'topic', ?, 'fetch topic posts'", 1)
-                    .where_not_exists(|b| {
+                    .where_not_exists(|b: &mut Builder| {
                         b.select_one()
                             .where_eq("model_type", lit("topic"))
                             .where_eq("model_id", 1)
@@ -282,11 +276,18 @@ mod tests {
 
     #[test]
     fn insert_builder_row() {
-        let insert = InsertBuilder::insert_into("users").row({
-            Row::new()
-                .field("username", "ovior")
-                .field("name", "ovior")
-                .build()
-        });
+        let insert = InsertBuilder::insert_into("users")
+            .row(|row: &mut Row| {
+                row.field("username", "ovior").field("name", "ovior");
+            })
+            .row(|row: &mut Row| {
+                row.field("username", "ovior").field("name", "ovior");
+            })
+            .build();
+
+        assert_eq!(
+            r#"insert into "users" ("username", "name") values ($1, $2), ($3, $4)"#,
+            insert.to_sql::<Postgres>()
+        );
     }
 }

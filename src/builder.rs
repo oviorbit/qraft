@@ -1163,12 +1163,7 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        MySql, Sqlite,
-        bind::{self, Bind},
-        col::ProjectionSchema,
-        column_static,
-        dialect::Postgres,
-        raw, sub,
+        bind::{self, Bind}, col::ProjectionSchema, column_static, dialect::Postgres, raw, row::Row, sub, MySql, Sqlite
     };
 
     use super::*;
@@ -1630,7 +1625,7 @@ mod tests {
         let mut builder = Builder::table("users");
         let insert = builder
             .inserting()
-            .row_with(|row| {
+            .row(|row: &mut Row| {
                 row.field("id", 1).field("username", "ovior");
             })
             .to_sql::<Postgres>();
@@ -1639,34 +1634,6 @@ mod tests {
             "insert into \"users\" (\"id\", \"username\") values ($1, $2)",
             insert
         );
-
-        // Builder::insert_into("users") // return an insert builder
-        //  .field("email", "ddanygagnon@gmail.com")
-        //  .field("name", "Dany")
-        //  .execute(&pool)
-        //  .await?;
-        //
-        //  Builder::table("users")
-        //      .inserting() // returns an InsertBuilder or something similar
-        //      .field("email", "ddanygagnon@gmail.com")
-        //      .field("votes", 0)
-        //      .execute(&pool)
-        //      .await?;
-        //
-        // On the insert builder directly ?
-        // .columns([...])
-        // .values([...])
-        // .fields( ? )
-        //
-        //
-        // Can accept Vec<NewUser> if need be
-        // User::create(NewUser {
-        //   name: "Dany",
-        //   email: "email@example.com",
-        //   password: Hashed("hashed...password"),
-        // })
-        //   .execute(&pool)
-        //   .await?;
     }
 
     #[test]
