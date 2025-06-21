@@ -6,8 +6,8 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct Row {
-    values: IndexMap<Ident, Expr>,
-    binds: Binds,
+    pub values: IndexMap<Ident, Expr>,
+    pub binds: Binds,
 }
 
 pub trait IntoRow {

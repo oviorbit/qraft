@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     Binds, Dialect, Ident, IntoTable, TableRef,
     bind::Array,
@@ -59,6 +61,11 @@ impl InsertBuilder {
         }
     }
 
+    pub fn columns<C: IntoColumns>(&mut self, columns: C) -> &mut Self {
+        self.columns.append(columns.into_columns());
+        self
+    }
+
     pub fn row<R: IntoRow>(&mut self, row: R) -> &mut Self {
         let mut row = row.into_row();
         self.binds.append(row.take_bindings());
@@ -95,8 +102,8 @@ impl InsertBuilder {
 
     pub fn select<C, F>(&mut self, cols: C, select: F) -> &mut Self
     where
-        F: FnOnce(&mut Builder),
         C: IntoColumns,
+        F: FnOnce(&mut Builder),
     {
         // todo something with cols
         self.columns.append(cols.into_columns());
@@ -159,13 +166,27 @@ impl FormatWriter for InsertBuilder {
         context.writer.write_str("insert into ")?;
         self.table.format_writer(context)?;
         context.writer.write_str(" (")?;
-        if !self.columns.is_empty() {
-            self.columns.format_writer(context)?;
-        } else if let Some(row) = &self.rows.first() {
-            // if no columns are specified, we use the first row's columns
-            row.format_idents(context)?;
+
+        let header: Vec<RawOrIdent> = if !self.columns.is_empty() {
+            self.columns.iter().cloned().collect()
         } else {
-            return Err(std::fmt::Error);
+            let mut seen = HashSet::new();
+            let mut cols = Vec::new();
+            for row in &self.rows {
+                for ident in row.values.keys() {
+                    if seen.insert(ident.clone()) {
+                        cols.push(RawOrIdent::Ident(ident.clone()));
+                    }
+                }
+            }
+            cols
+        };
+
+        for (index, col) in header.iter().enumerate() {
+            if index > 0 {
+                context.writer.write_str(", ")?;
+            }
+            col.format_writer(context)?;
         }
         context.writer.write_str(") ")?;
 
@@ -174,12 +195,24 @@ impl FormatWriter for InsertBuilder {
         } else {
             context.writer.write_str("values ")?;
             // print the rows
-            for (i, row) in self.rows.iter().enumerate() {
-                if i > 0 {
-                    context.writer.write_str(", ")?;
-                }
+            for (ri, row) in self.rows.iter().enumerate() {
+                if ri > 0 { context.writer.write_str(", ")?; }
                 context.writer.write_char('(')?;
-                row.format_values(context)?;
+                for (ci, col) in header.iter().enumerate() {
+                    if ci > 0 { context.writer.write_str(", ")?; }
+                    match col {
+                        RawOrIdent::Ident(ident) => {
+                            if let Some(expr) = row.values.get(ident) {
+                                expr.format_writer(context)?;
+                            } else {
+                                context.writer.write_str("default")?;
+                            }
+                        }
+                        RawOrIdent::Raw(_) => {
+                            context.writer.write_str("default")?;
+                        }
+                    }
+                }
                 context.writer.write_char(')')?;
             }
         }
@@ -277,16 +310,20 @@ mod tests {
     #[test]
     fn insert_builder_row() {
         let insert = InsertBuilder::insert_into("users")
+            .columns(["username", "name", "created_at"])
             .row(|row: &mut Row| {
                 row.field("username", "ovior").field("name", "ovior");
             })
             .row(|row: &mut Row| {
                 row.field("username", "ovior").field("name", "ovior");
+            })
+            .row(|row: &mut Row| {
+                row.field("username", "ovior").field("name", "ovior").field("created_at", 1);
             })
             .build();
 
         assert_eq!(
-            r#"insert into "users" ("username", "name") values ($1, $2), ($3, $4)"#,
+            r#"insert into "users" ("username", "name", "created_at") values ($1, $2, default), ($3, $4, default), ($5, $6, $7)"#,
             insert.to_sql::<Postgres>()
         );
     }
