@@ -1,47 +1,25 @@
-mod bind;
+pub mod bind;
 mod builder;
-mod col;
-mod dialect;
+pub mod col;
+pub mod dialect;
 pub mod expr;
-mod ident;
+pub mod ident;
 mod insert;
-mod join;
-mod raw;
-mod writer;
-mod row;
-
-use bind::Bind;
-use col::AliasSub;
-pub use col::IntoTable;
-pub use col::ProjectionSchema;
-pub use col::Projections;
-pub use col::TableSchema;
-use expr::sub::AliasSubFn;
-use expr::Expr;
-use ident::IntoIdent;
-pub use join::*;
-
-pub use bind::Binds;
-pub use bind::IntoBind;
-pub use bind::IntoBinds;
-
-pub use ident::Ident;
-pub use ident::TableRef;
-pub use raw::IntoRaw;
-pub use raw::Raw;
+pub mod join;
+pub mod raw;
+pub mod writer;
+pub mod row;
 
 pub use builder::Builder;
+pub use insert::InsertBuilder;
 
-pub use expr::IntoLhsExpr;
-pub use expr::IntoOperator;
-pub use expr::IntoRhsExpr;
-
-pub use expr::list::IntoInList;
-
-pub use dialect::*;
+use bind::{Bind, IntoBind};
+use col::AliasSub;
+use expr::sub::AliasSubFn;
+use expr::Expr;
+use ident::{Ident, IntoIdent};
+use raw::Raw;
 use smol_str::SmolStr;
-
-// Can use { ... } instead of |builder| ...
 
 pub fn column_static(value: &'static str) -> Ident {
     Ident::new_static(value)

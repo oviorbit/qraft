@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::writer::{FormatContext, FormatWriter};
+use crate::{bind::Binds, writer::{FormatContext, FormatWriter}};
 
 use super::{Expr, TakeBindings};
 
@@ -19,7 +19,7 @@ pub struct BetweenCondition {
 }
 
 impl TakeBindings for BetweenCondition {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         let mut binds = self.lhs.take_bindings();
         binds.append(self.low.take_bindings());
         binds.append(self.high.take_bindings());

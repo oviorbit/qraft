@@ -1,6 +1,5 @@
 use crate::{
-    Ident,
-    writer::{self, FormatWriter},
+    bind::Binds, writer::{self, FormatWriter}, Ident
 };
 
 use super::{Expr, TakeBindings, list::InList};
@@ -25,7 +24,7 @@ impl InExpr {
 }
 
 impl TakeBindings for InExpr {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         let mut binds = self.lhs.take_bindings();
         binds.append(self.rhs.take_bindings());
         binds

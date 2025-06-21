@@ -1,16 +1,9 @@
 use qraft_derive::{or_variant, variant};
 
 use crate::{
-    Binds, Builder, IntoBinds, IntoInList, IntoLhsExpr, IntoOperator, IntoRaw, IntoRhsExpr,
-    IntoTable, TableRef,
-    builder::QueryKind,
-    col::IntoColumns,
-    expr::{
-        Conjunction, Expr, TakeBindings, between::BetweenOperator, binary::Operator,
-        cond::Conditions, exists::ExistsOperator, r#in::InOperator, unary::UnaryOperator,
-    },
-    insert::Columns,
-    writer::FormatWriter,
+    bind::{Binds, IntoBinds}, builder::QueryKind, col::IntoColumns, expr::{
+        between::BetweenOperator, binary::Operator, cond::Conditions, exists::ExistsOperator, r#in::InOperator, list::IntoInList, unary::UnaryOperator, Conjunction, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::TableRef, insert::Columns, raw::IntoRaw, writer::FormatWriter, Builder
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -59,7 +52,7 @@ impl Default for JoinClause {
 }
 
 impl TakeBindings for JoinClause {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.binds.take_bindings()
     }
 }

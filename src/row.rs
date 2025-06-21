@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 
 use crate::{
-    expr::{Expr, TakeBindings}, ident::IntoIdent, writer::{FormatContext, FormatWriter}, Binds, Ident, IntoRhsExpr
+    bind::Binds, expr::{Expr, IntoRhsExpr, TakeBindings}, ident::IntoIdent, writer::{FormatContext, FormatWriter}, Ident
 };
 
 #[derive(Debug, Clone, Default)]

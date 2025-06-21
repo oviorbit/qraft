@@ -3,29 +3,12 @@ use std::mem;
 use qraft_derive::{condition_variant, or_variant, variant};
 
 use crate::{
-    Dialect, Ident, IntoInList, JoinClause, JoinType, Joins, Raw,
-    bind::{Binds, IntoBinds},
-    col::{
+    bind::{Binds, IntoBinds}, col::{
         AliasSub, IntoColumns, IntoProjections, IntoTable, ProjectionSchema, Projections,
         TableSchema,
-    },
-    dialect::HasDialect,
-    expr::{
-        Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings,
-        between::BetweenOperator,
-        binary::Operator,
-        cond::{Conditions, Conjunction},
-        exists::{ExistsExpr, ExistsOperator},
-        fncall::{Aggregate, AggregateCall},
-        r#in::InOperator,
-        order::{Order, Ordering},
-        unary::UnaryOperator,
-    },
-    ident::{IntoIdent, TableRef},
-    insert::{Columns, InsertBuilder},
-    raw::IntoRaw,
-    row::{IntoRow, Row},
-    writer::{FormatContext, FormatWriter},
+    }, dialect::{Dialect, HasDialect}, expr::{
+        between::BetweenOperator, binary::Operator, cond::{Conditions, Conjunction}, exists::{ExistsExpr, ExistsOperator}, fncall::{Aggregate, AggregateCall}, r#in::InOperator, list::IntoInList, order::{Order, Ordering}, unary::UnaryOperator, Expr, IntoLhsExpr, IntoOperator, IntoRhsExpr, TakeBindings
+    }, ident::{IntoIdent, TableRef}, insert::{Columns, InsertBuilder}, join::{JoinClause, JoinType, Joins}, raw::IntoRaw, row::Row, writer::{FormatContext, FormatWriter}, Ident, Raw
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -888,7 +871,7 @@ impl Builder {
         DB: sqlx::Database + HasDialect,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
-        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+        <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
@@ -1061,9 +1044,8 @@ impl Builder {
         DB: sqlx::Database + HasDialect,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
-        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+        <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
-        use crate::HasRowsAffected;
         self.delete_query::<DB>();
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();
@@ -1075,12 +1057,11 @@ impl Builder {
     pub async fn update<DB, E, R>(&mut self, executor: E, row: R) -> Result<bool, sqlx::Error>
     where
         DB: sqlx::Database + HasDialect,
-        R: IntoRow,
+        R: crate::row::IntoRow,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
-        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+        <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
-        use crate::HasRowsAffected;
         self.update_query::<DB>(row.into_row());
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();
@@ -1255,11 +1236,10 @@ impl FormatWriter for Builder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        MySql, Sqlite,
         bind::{self, Bind},
         col::ProjectionSchema,
         column_static,
-        dialect::Postgres,
+        dialect::{MySql, Postgres, Sqlite},
         raw,
         row::Row,
         sub,

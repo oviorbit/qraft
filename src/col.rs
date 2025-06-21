@@ -1,11 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Builder, Raw,
-    bind::{Array, Bind},
-    expr::{Expr, TakeBindings, exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr},
-    ident::{Ident, IntoIdent, RawOrIdent, TableRef},
-    writer::FormatWriter,
+    bind::{Array, Bind, Binds}, expr::{exists::ExistsExpr, fncall::AggregateCall, r#in::InExpr, Expr, TakeBindings}, ident::{Ident, IntoIdent, RawOrIdent, TableRef}, writer::FormatWriter, Builder, Raw
 };
 
 pub type Projections = Array<Expr>;
@@ -349,7 +345,7 @@ impl FormatWriter for AliasSub {
 }
 
 impl TakeBindings for AliasSub {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.inner.take_bindings()
     }
 }

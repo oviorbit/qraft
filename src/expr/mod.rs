@@ -1,4 +1,4 @@
-use crate::{Raw, writer::FormatWriter};
+use crate::{bind::Binds, col::IntoTable, ident::TableRef, writer::FormatWriter, Raw};
 
 pub(crate) mod between;
 pub(crate) mod binary;
@@ -22,7 +22,7 @@ use qraft_derive::variant;
 use unary::{UnaryCondition, UnaryOperator};
 
 use crate::{
-    Binds, Builder, Ident, IntoBind, IntoTable, TableRef,
+    Builder, Ident, IntoBind,
     bind::{Array, Bind},
     expr::binary::Operator,
 };

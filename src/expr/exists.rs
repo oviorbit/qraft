@@ -1,8 +1,7 @@
 use std::fmt::Write;
 
 use crate::{
-    Builder, Ident,
-    writer::{FormatContext, FormatWriter},
+    bind::Binds, writer::{FormatContext, FormatWriter}, Builder, Ident
 };
 
 use super::TakeBindings;
@@ -15,7 +14,7 @@ pub struct ExistsExpr {
 }
 
 impl TakeBindings for ExistsExpr {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.subquery.take_bindings()
     }
 }

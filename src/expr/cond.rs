@@ -1,4 +1,4 @@
-use crate::{Binds, Builder, Raw, writer::FormatWriter};
+use crate::{bind::Binds, writer::FormatWriter, Builder, Raw};
 
 use super::{
     Expr, TakeBindings,
@@ -97,7 +97,7 @@ impl Condition {
 }
 
 impl TakeBindings for Condition {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.kind.take_bindings()
     }
 }

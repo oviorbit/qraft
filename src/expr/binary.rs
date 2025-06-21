@@ -1,4 +1,4 @@
-use crate::{dialect::Dialect, writer::FormatWriter};
+use crate::{bind::Binds, dialect::Dialect, writer::FormatWriter};
 
 use super::{Expr, TakeBindings};
 
@@ -10,7 +10,7 @@ pub struct BinaryCondition {
 }
 
 impl TakeBindings for BinaryCondition {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         let mut binds = self.lhs.take_bindings();
         binds.append(self.rhs.take_bindings());
         binds

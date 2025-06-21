@@ -1,10 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Binds, Raw,
-    bind::Array,
-    dialect::Dialect,
-    writer::{self, FormatWriter},
+    bind::{Array, Binds}, dialect::Dialect, writer::{self, FormatWriter}, Raw
 };
 
 use super::{Expr, TakeBindings};

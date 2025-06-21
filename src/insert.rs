@@ -1,20 +1,14 @@
 use std::collections::HashSet;
 
 use crate::{
-    Binds, Dialect, Ident, IntoTable, TableRef,
-    bind::Array,
-    col::IntoColumns,
-    expr::TakeBindings,
-    ident::{IntoIdent, RawOrIdent},
-    row::{IntoRow, Row},
-    writer::{FormatContext, FormatWriter},
+    bind::{Array, Binds}, col::{IntoColumns, IntoTable}, dialect::{Dialect, HasDialect}, expr::TakeBindings, ident::{IntoIdent, RawOrIdent, TableRef}, row::{IntoRow, Row}, writer::{FormatContext, FormatWriter}, Ident
 };
-use crate::{Builder, HasDialect};
+use crate::Builder;
 
 pub type Columns = Array<RawOrIdent>;
 
 impl IntoTable for RawOrIdent {
-    fn into_table(self) -> crate::TableRef {
+    fn into_table(self) -> TableRef {
         match self {
             RawOrIdent::Ident(ident) => TableRef::Ident(ident),
             RawOrIdent::Raw(raw) => TableRef::Raw(raw),
@@ -147,7 +141,7 @@ impl InsertBuilder {
         DB: sqlx::Database + HasDialect,
         E: for<'c> sqlx::Executor<'c, Database = DB>,
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
-        <DB as sqlx::Database>::QueryResult: crate::HasRowsAffected,
+        <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
         let bindings = self.binds.take();
         let sql = self.to_sql::<DB>();
@@ -258,7 +252,7 @@ impl FormatWriter for InsertBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MySql, Postgres, Sqlite, lit};
+    use crate::{dialect::{MySql, Postgres, Sqlite}, lit};
 
     use super::*;
 

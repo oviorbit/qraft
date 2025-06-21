@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use smol_str::SmolStr;
 
 use crate::{
-    bind::Array,
+    bind::{Array, Binds},
     col::AliasSub,
     expr::TakeBindings,
     raw::Raw,
@@ -42,7 +42,7 @@ impl Default for TableRef {
 }
 
 impl TakeBindings for TableRef {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         match self {
             TableRef::Ident(_) => Array::None,
             TableRef::Raw(_) => Array::None,

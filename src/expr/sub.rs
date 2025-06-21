@@ -1,10 +1,7 @@
 use smol_str::SmolStr;
 
 use crate::{
-    Builder,
-    col::AliasSub,
-    ident::IntoIdent,
-    writer::{self, FormatWriter},
+    bind::Binds, col::AliasSub, ident::IntoIdent, writer::{self, FormatWriter}, Builder
 };
 
 use super::TakeBindings;
@@ -16,7 +13,7 @@ pub struct AliasSubFn {
 }
 
 impl TakeBindings for AliasSubFn {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.inner.take_bindings()
     }
 }

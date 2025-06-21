@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::writer::{FormatContext, FormatWriter};
+use crate::{bind::Binds, writer::{FormatContext, FormatWriter}};
 
 use super::{Expr, TakeBindings};
 
@@ -19,7 +19,7 @@ pub struct UnaryCondition {
 }
 
 impl TakeBindings for UnaryCondition {
-    fn take_bindings(&mut self) -> crate::Binds {
+    fn take_bindings(&mut self) -> Binds {
         self.lhs.take_bindings()
     }
 }
