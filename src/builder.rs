@@ -1758,29 +1758,29 @@ mod tests {
         let row = Row::new().field("votes", 1).build();
         builder
             .where_eq("id", 1)
-            .join("contacts as c", "u.id", "=", "c.other_id")
+            .join("contacts as c", "u.id", "=", "c.user_id")
             .update_query::<Postgres>(row.clone());
 
         assert_eq!(
-            r#"update "users" as "u" set "votes" = $1 where "ctid" in (select "u"."ctid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = $2)"#,
+            r#"update "users" as "u" set "votes" = $1 where "ctid" in (select "u"."ctid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."user_id" where "id" = $2)"#,
             builder.to_sql::<Postgres>()
         );
         let mut builder = Builder::table("users as u");
         builder
             .where_eq("id", 1)
-            .join("contacts as c", "u.id", "=", "c.other_id")
+            .join("contacts as c", "u.id", "=", "c.user_id")
             .update_query::<Sqlite>(row.clone());
         assert_eq!(
-            r#"update "users" as "u" set "votes" = ?1 where "rowid" in (select "u"."rowid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."other_id" where "id" = ?2)"#,
+            r#"update "users" as "u" set "votes" = ?1 where "rowid" in (select "u"."rowid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."user_id" where "id" = ?2)"#,
             builder.to_sql::<Sqlite>()
         );
         let mut builder = Builder::table("users as u");
         builder
             .where_eq("id", 1)
-            .join("contacts as c", "u.id", "=", "c.other_id")
+            .join("contacts as c", "u.id", "=", "c.user_id")
             .update_query::<MySql>(row);
         assert_eq!(
-            r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`other_id` set `votes` = ? where `id` = ?"#,
+            r#"update `users` as `u` inner join `contacts` as `c` on `u`.`id` = `c`.`user_id` set `votes` = ? where `id` = ?"#,
             builder.to_sql::<MySql>()
         );
     }
@@ -1820,6 +1820,21 @@ mod tests {
         assert_eq!(
             "update \"users\" set \"unknown_field\" = ?1 where \"id\" = ?2",
             builder.to_sql::<Sqlite>()
+        );
+    }
+
+    #[test]
+    fn update_unknown_field_join() {
+        let mut builder = Builder::table("users as u");
+        let row = Row::new().field("votes", 1).build();
+        builder
+            .where_eq("id", 1)
+            .join("contacts as c", "u.id", "=", "c.user_id")
+            .order_by_asc("id")
+            .update_query::<Postgres>(row);
+        assert_eq!(
+            r#"update "users" as "u" set "votes" = $1 where "ctid" in (select "u"."ctid" from "users" as "u" inner join "contacts" as "c" on "u"."id" = "c"."user_id" where "id" = $2 order by "id" asc)"#,
+            builder.to_sql::<Postgres>()
         );
     }
 
