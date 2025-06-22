@@ -14,7 +14,7 @@ pub struct User {
 
 impl User {
     pub fn team(&self) -> BelongsTo {
-        self.belongs_to::<Team>().foreign_value(self.id)
+        self.belongs_to::<Team>()
     }
 }
 
