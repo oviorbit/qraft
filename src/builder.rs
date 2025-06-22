@@ -67,7 +67,7 @@ where
 }
 
 impl Builder {
-    pub fn table_schema<T: TableSchema>() -> Self {
+    pub fn table_as<T: TableSchema>() -> Self {
         Self::table(T::table())
     }
 
@@ -665,7 +665,7 @@ impl Builder {
         self
     }
 
-    pub fn select_schema<T: ProjectionSchema>(&mut self) -> &mut Self {
+    pub fn select_as<T: ProjectionSchema>(&mut self) -> &mut Self {
         self.projections = T::projections();
         self
     }
@@ -1296,8 +1296,8 @@ mod tests {
 
     #[test]
     fn test_select_into_ident() {
-        let mut builder = Builder::table_schema::<User>();
-        builder.select_schema::<User>();
+        let mut builder = Builder::table_as::<User>();
+        builder.select_as::<User>();
         assert_eq!(
             "select \"id\", \"admin\" from \"users\"",
             builder.to_sql::<Postgres>()
