@@ -152,6 +152,10 @@ impl HasOne {
     where
         I: IntoIdent,
     {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set owner_key when the builder is already dirty"
+        );
         self.owner_key = ident.into_ident();
         self
     }
@@ -160,6 +164,10 @@ impl HasOne {
     where
         B: IntoBind,
     {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set foreign_value when the builder is already dirty"
+        );
         self.foreign_value = ident.into_bind();
         self
     }
@@ -213,6 +221,10 @@ impl HasMany {
     where
         I: IntoIdent,
     {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set owner_key when the builder is already dirty"
+        );
         self.owner_key = ident.into_ident();
         self
     }
@@ -221,6 +233,10 @@ impl HasMany {
     where
         B: IntoBind,
     {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set foreign_value when the builder is already dirty"
+        );
         self.foreign_value = ident.into_bind();
         self
     }
@@ -358,7 +374,6 @@ pub fn main() {
 
     let mut team = user.team();
     team.where_true("active");
-    team = team.owner_key("bob");
     let sql = team.to_sql::<MySql>();
     let bindings = team.bindings();
 
