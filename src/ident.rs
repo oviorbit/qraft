@@ -193,6 +193,10 @@ impl Ident {
         Self(value.into())
     }
 
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     #[inline]
     pub fn new_static(value: &'static str) -> Self {
         Self(SmolStr::new_static(value))

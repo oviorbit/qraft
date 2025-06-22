@@ -14,3 +14,4 @@ publish = ["crates-io"]
 
 [dependencies]
 qraft = { path = "..", version = "0.3.2", feature = ["sqlite", "postgres", "mysql"] }
+smol_str = "0.3.2"
