@@ -1,7 +1,11 @@
 use std::ops::{Deref, DerefMut};
 
 use qraft::{
-    bind::{Bind, IntoBind}, col::TableSchema, dialect::MySql, ident::{Ident, IntoIdent}, Builder
+    Builder,
+    bind::{Bind, IntoBind},
+    col::TableSchema,
+    dialect::MySql,
+    ident::{Ident, IntoIdent},
 };
 
 #[derive(Debug)]
@@ -33,7 +37,7 @@ impl GetField for Team {
 }
 
 pub struct BelongsTo {
-    inner: Builder,
+    builder: Builder,
     table: Ident,
     owner_key: Ident,
     foreign_value: Bind,
@@ -43,21 +47,21 @@ impl Deref for BelongsTo {
     type Target = Builder;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.builder
     }
 }
 
 impl DerefMut for BelongsTo {
     fn deref_mut(&mut self) -> &mut Builder {
         self.ensure_inner();
-        &mut self.inner
+        &mut self.builder
     }
 }
 
 impl BelongsTo {
     pub fn new(table: Ident, owner_key: Ident, foreign_value: Bind) -> Self {
         Self {
-            inner: Builder::table(table.clone()),
+            builder: Builder::table(table.clone()),
             owner_key,
             foreign_value,
             table,
@@ -65,12 +69,82 @@ impl BelongsTo {
     }
 
     fn ensure_inner(&mut self) {
-        if !self.inner.has_where() {
-            // cheap arc clone of ident
-            self.inner.where_eq(
+        if ! self.builder.is_dirty() {
+            self.builder.where_eq(
                 self.table.dot(self.owner_key.clone()),
-                self.foreign_value.clone(),
+                std::mem::take(&mut self.foreign_value),
             );
+        }
+    }
+
+    pub fn owner_key<I>(mut self, ident: I) -> Self
+    where
+        I: IntoIdent,
+    {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set owner_key when the builder is already dirty"
+        );
+
+        self.owner_key = ident.into_ident();
+        self
+    }
+
+    pub fn foreign_value<B>(mut self, ident: B) -> Self
+    where
+        B: IntoBind,
+    {
+        debug_assert!(
+            !self.builder.is_dirty(),
+            "Cannot set foreign_value when the builder is already dirty"
+        );
+
+        self.foreign_value = ident.into_bind();
+        self
+    }
+}
+
+pub struct HasOne {
+    builder: Builder,
+    table: Ident,
+    owner_key: Ident,
+    foreign_value: Bind,
+}
+
+impl Deref for HasOne {
+    type Target = Builder;
+
+    fn deref(&self) -> &Self::Target {
+        &self.builder
+    }
+}
+
+impl DerefMut for HasOne {
+    fn deref_mut(&mut self) -> &mut Builder {
+        self.ensure_inner();
+        &mut self.builder
+    }
+}
+
+impl HasOne {
+    pub fn new(table: Ident, owner_key: Ident, foreign_value: Bind) -> Self {
+        Self {
+            builder: Builder::table(table.clone()),
+            owner_key,
+            foreign_value,
+            table,
+        }
+    }
+
+    fn ensure_inner(&mut self) {
+        // "select * from "users" where "users"."team_id" = 1 and "users"."team_id" is not null"
+        if !self.builder.is_dirty() {
+            let owner_key = self.table.dot(self.owner_key.clone());
+            self.builder.where_eq(
+                owner_key.clone(),
+                std::mem::take(&mut self.foreign_value),
+            )
+                .where_not_null(owner_key);
         }
     }
 
@@ -91,18 +165,78 @@ impl BelongsTo {
     }
 }
 
-impl BelongsToModel for User {
-    fn belongs_to<M: Model>(&self) -> BelongsTo {
-        // select * from teams where teams.id = users.team_id
-        let m_table = M::table();
-        let m_pk = M::primary_key();
-        let m_fk = M::foreign_key();
-        let value = self
-            .get_field(m_fk.as_str())
-            .expect("Foreign key not found in User model");
-        BelongsTo::new(m_table, m_pk, value)
+pub struct HasMany {
+    builder: Builder,
+    table: Ident,
+    owner_key: Ident,
+    foreign_value: Bind,
+}
+
+impl Deref for HasMany {
+    type Target = Builder;
+
+    fn deref(&self) -> &Self::Target {
+        &self.builder
     }
 }
+
+impl DerefMut for HasMany {
+    fn deref_mut(&mut self) -> &mut Builder {
+        self.ensure_inner();
+        &mut self.builder
+    }
+}
+
+impl HasMany {
+    pub fn new(table: Ident, owner_key: Ident, foreign_value: Bind) -> Self {
+        Self {
+            builder: Builder::table(table.clone()),
+            owner_key,
+            foreign_value,
+            table,
+        }
+    }
+
+    fn ensure_inner(&mut self) {
+        // "select * from "users" where "users"."team_id" = 1 and "users"."team_id" is not null"
+        if !self.builder.is_dirty() {
+            let owner_key = self.table.dot(self.owner_key.clone());
+            self.builder.where_eq(
+                owner_key.clone(),
+                std::mem::take(&mut self.foreign_value),
+            )
+                .where_not_null(owner_key);
+        }
+    }
+
+    pub fn owner_key<I>(mut self, ident: I) -> Self
+    where
+        I: IntoIdent,
+    {
+        self.owner_key = ident.into_ident();
+        self
+    }
+
+    pub fn foreign_value<B>(mut self, ident: B) -> Self
+    where
+        B: IntoBind,
+    {
+        self.foreign_value = ident.into_bind();
+        self
+    }
+
+    pub fn one(self) -> HasOne {
+        HasOne {
+            builder: self.builder,
+            table: self.table,
+            owner_key: self.owner_key,
+            foreign_value: self.foreign_value,
+        }
+    }
+}
+
+impl Relation for User {}
+impl Relation for Team {}
 
 impl GetField for User {
     fn get_field(&self, field: &str) -> Option<Bind> {
@@ -118,8 +252,37 @@ impl GetField for User {
 
 impl<T> Model for T where T: TableSchema + ForeignKey + PrimaryKey + GetField {}
 
-pub trait BelongsToModel {
-    fn belongs_to<M: Model>(&self) -> BelongsTo;
+pub trait Relation: GetField + ForeignKey {
+    fn belongs_to<M: Model>(&self) -> BelongsTo {
+        // select * from teams where teams.id = users.team_id
+        let m_table = M::table();
+        let m_pk = M::primary_key();
+        let m_fk = M::foreign_key();
+        let value = self
+            .get_field(m_fk.as_str())
+            .expect("Foreign key not found in User model");
+        BelongsTo::new(m_table, m_pk, value)
+    }
+
+    fn has_one<M: Model>(&self) -> HasOne {
+        self.has_many::<M>().one()
+    }
+
+    fn has_many<M: Model>(&self) -> HasMany {
+        // "select * from "users" where "users"."team_id" = ? and "users"."team_id" is not null"
+        let m_table = M::table(); // users
+        let s_fk = Self::foreign_key(); // team_id
+        // self is team, so I need to get primary key
+        let m_pk = M::primary_key(); // id
+        let value = self
+            .get_field(m_pk.as_str())
+            .expect("Primary key not found in Team model");
+        HasMany::new(m_table, s_fk, value)
+    }
+
+    fn belongs_to_many<M: Model>(&self) -> Builder {
+        todo!()
+    }
 }
 
 pub trait GetField {
@@ -194,6 +357,8 @@ pub fn main() {
     };
 
     let mut team = user.team();
+    team.where_true("active");
+    team = team.owner_key("bob");
     let sql = team.to_sql::<MySql>();
     let bindings = team.bindings();
 

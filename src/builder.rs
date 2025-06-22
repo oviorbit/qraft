@@ -328,8 +328,16 @@ impl Builder {
         self
     }
 
-    pub fn has_where(&self) -> bool {
-        self.maybe_where.is_some()
+    pub fn is_dirty(&self) -> bool {
+        !self.binds.is_empty()
+            || self.maybe_where.is_some()
+            || self.maybe_having.is_some()
+            || self.maybe_order.is_some()
+            || self.maybe_limit.is_some()
+            || self.maybe_offset.is_some()
+            || self.maybe_joins.is_some()
+            || self.maybe_group_by.is_some()
+            || !self.projections.is_empty()
     }
 
     pub fn add_binding<B>(&mut self, bind: B) -> &mut Self
@@ -846,7 +854,7 @@ impl Builder {
         self
     }
 
-    fn take(&mut self) -> Self {
+    pub fn take(&mut self) -> Self {
         Self {
             ty: mem::take(&mut self.ty),
             distinct: self.distinct,
@@ -863,10 +871,6 @@ impl Builder {
             maybe_sets: self.maybe_sets.take(),
         }
         //
-    }
-
-    pub fn finish(&mut self) -> Self {
-        self.take()
     }
 
     fn reset(&mut self) {
