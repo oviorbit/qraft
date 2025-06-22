@@ -82,6 +82,10 @@ impl Builder {
         Self::default()
     }
 
+    pub fn bindings(&self) -> &Binds {
+        &self.binds
+    }
+
     pub fn inserting(&mut self) -> InsertBuilder {
         // cheap clone o(1)
         let table = self.maybe_table.clone().unwrap_or_default();
@@ -319,8 +323,24 @@ impl Builder {
 
     // where stuff
 
-    fn reset_where(&mut self) -> &mut Self {
+    pub fn reset_where(&mut self) -> &mut Self {
         self.maybe_where = None;
+        self
+    }
+
+    pub fn has_where(&self) -> bool {
+        self.maybe_where.is_some()
+    }
+
+    pub fn add_binding<B>(&mut self, bind: B) -> &mut Self
+    where
+        B: IntoBinds,
+    {
+        self.binds.append(bind.into_binds());
+        self
+    }
+
+    pub fn reset_bindings(&mut self) -> &mut Self {
         self.binds = Binds::None;
         self
     }
@@ -845,6 +865,10 @@ impl Builder {
         //
     }
 
+    pub fn finish(&mut self) -> Self {
+        self.take()
+    }
+
     fn reset(&mut self) {
         self.ty = QueryKind::Select;
         self.distinct = false;
@@ -1282,8 +1306,8 @@ mod tests {
 
     // generated ?
     impl TableSchema for User {
-        fn table() -> TableRef {
-            TableRef::ident_static("users")
+        fn table() -> Ident {
+            Ident::new_static("users")
         }
     }
 

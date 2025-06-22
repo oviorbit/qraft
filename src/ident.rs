@@ -1,6 +1,6 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, fmt::Display, sync::Arc};
 
-use smol_str::SmolStr;
+use smol_str::{format_smolstr, SmolStr};
 
 use crate::{
     bind::{Array, Binds},
@@ -102,6 +102,12 @@ impl FormatWriter for TableRef {
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident(SmolStr);
 
+impl Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 pub trait IntoIdent {
     fn into_ident(self) -> Ident;
 }
@@ -195,6 +201,11 @@ impl Ident {
 
     pub fn as_str(&self) -> &str {
         self.0.as_str()
+    }
+
+    pub fn dot<I: IntoIdent>(&self, ident: I) -> Self {
+        let s = format_smolstr!("{}.{}", self.0, ident.into_ident().0);
+        Ident::new(s)
     }
 
     #[inline]

@@ -1,5 +1,7 @@
+use std::ops::{Deref, DerefMut};
+
 use qraft::{
-    bind::Bind, col::TableSchema, ident::{Ident, IntoIdent, TableRef}, Builder
+    bind::{Bind, IntoBind}, col::TableSchema, dialect::MySql, ident::{Ident, IntoIdent}, Builder
 };
 
 #[derive(Debug)]
@@ -10,49 +12,65 @@ pub struct User {
     team_id: i64,
 }
 
+impl User {
+    pub fn team(&self) -> BelongsTo {
+        self.belongs_to::<Team>().foreign_value(self.id)
+    }
+}
+
 #[derive(Debug)]
 pub struct Team {
     id: i64,
 }
 
-pub trait Relationship<From: Model, To: Model> {
-    type Output;
-    fn resolve(parent: &From) -> Self::Output;
-}
-
-impl<From: Model, To: Model> Relationship<From, To> for BelongsTo<From, To>
-where
-    From: Model,
-    To: Model,
-{
-    type Output = Option<To>;
-
-    fn resolve(parent: &From) -> Self::Output {
-        let owner_key = From::primary_key();
-        let foreign_key = To::primary_key();
-        todo!()
+impl GetField for Team {
+    fn get_field(&self, field: &str) -> Option<Bind> {
+        match field {
+            "id" => Some(Bind::from(self.id)),
+            _ => None,
+        }
     }
 }
 
-#[derive(Debug)]
-pub struct BelongsTo<F, To> {
+pub struct BelongsTo {
     inner: Builder,
+    table: Ident,
     owner_key: Ident,
-    foreign_key: Ident,
-    _marker: std::marker::PhantomData<(F, To)>,
+    foreign_value: Bind,
 }
 
-impl<F, To> BelongsTo<F, To>
-where
-    F: Model,
-    To: Model,
-{
-    pub fn new(inner: Builder, owner_key: Ident, foreign_key: Ident) -> Self {
+impl Deref for BelongsTo {
+    type Target = Builder;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for BelongsTo {
+    fn deref_mut(&mut self) -> &mut Builder {
+        self.ensure_inner();
+        &mut self.inner
+    }
+}
+
+impl BelongsTo {
+    pub fn new(table: Ident, owner_key: Ident, foreign_value: Bind) -> Self {
         Self {
-            inner,
+            inner: Builder::table(table.clone()),
             owner_key,
-            foreign_key,
-            _marker: std::marker::PhantomData,
+            foreign_value,
+            table,
+        }
+    }
+
+    fn ensure_inner(&mut self) {
+        if !self.inner.has_where() {
+            // cheap arc clone of ident
+            self.inner.where_eq(
+                self.table.dot(self.owner_key.clone()),
+                self.foreign_value.clone(),
+            );
         }
     }
 
@@ -64,17 +82,54 @@ where
         self
     }
 
-    pub fn foreign_key<I>(mut self, ident: I) -> Self
+    pub fn foreign_value<B>(mut self, ident: B) -> Self
     where
-        I: IntoIdent,
+        B: IntoBind,
     {
-        self.foreign_key = ident.into_ident();
+        self.foreign_value = ident.into_bind();
         self
     }
 }
 
-pub trait Model: Query + PrimaryKey {
+impl BelongsToModel for User {
+    fn belongs_to<M: Model>(&self) -> BelongsTo {
+        // select * from teams where teams.id = users.team_id
+        let m_table = M::table();
+        let m_pk = M::primary_key();
+        let m_fk = M::foreign_key();
+        let value = self
+            .get_field(m_fk.as_str())
+            .expect("Foreign key not found in User model");
+        BelongsTo::new(m_table, m_pk, value)
+    }
+}
+
+impl GetField for User {
+    fn get_field(&self, field: &str) -> Option<Bind> {
+        match field {
+            "id" => Some(Bind::from(self.id)),
+            "username" => Some(Bind::from(self.username.clone())),
+            "email" => Some(Bind::from(self.email.clone())),
+            "team_id" => Some(Bind::from(self.team_id)),
+            _ => None,
+        }
+    }
+}
+
+impl<T> Model for T where T: TableSchema + ForeignKey + PrimaryKey + GetField {}
+
+pub trait BelongsToModel {
+    fn belongs_to<M: Model>(&self) -> BelongsTo;
+}
+
+pub trait GetField {
     fn get_field(&self, field: &str) -> Option<Bind>;
+}
+
+pub trait Model: Query + PrimaryKey + ForeignKey + GetField {}
+
+pub trait ForeignKey {
+    fn foreign_key() -> Ident;
 }
 
 pub trait PrimaryKey {
@@ -82,14 +137,26 @@ pub trait PrimaryKey {
 }
 
 impl TableSchema for Team {
-    fn table() -> qraft::ident::TableRef {
-        TableRef::ident_static("teams")
+    fn table() -> Ident {
+        Ident::new_static("teams")
     }
 }
 
 impl PrimaryKey for Team {
     fn primary_key() -> Ident {
         Ident::new_static("id")
+    }
+}
+
+impl ForeignKey for Team {
+    fn foreign_key() -> Ident {
+        Ident::new_static("team_id")
+    }
+}
+
+impl ForeignKey for User {
+    fn foreign_key() -> Ident {
+        Ident::new_static("user_id")
     }
 }
 
@@ -108,13 +175,13 @@ where
     T: TableSchema,
 {
     fn query() -> Builder {
-        Builder::table_schema::<T>()
+        Builder::table_as::<T>()
     }
 }
 
 impl TableSchema for User {
-    fn table() -> qraft::ident::TableRef {
-        TableRef::ident_static("users")
+    fn table() -> Ident {
+        Ident::new_static("users")
     }
 }
 
@@ -125,4 +192,11 @@ pub fn main() {
         email: "test".into(),
         team_id: 1,
     };
+
+    let mut team = user.team();
+    let sql = team.to_sql::<MySql>();
+    let bindings = team.bindings();
+
+    // select * from teams where teams.id = users.team_id
+    println!("SQL: {} and binds {:?}", sql, bindings);
 }

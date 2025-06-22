@@ -29,7 +29,7 @@ impl FormatWriter for Projections {
 }
 
 pub trait TableSchema {
-    fn table() -> TableRef;
+    fn table() -> Ident;
 }
 
 pub trait ProjectionSchema {
@@ -392,7 +392,38 @@ impl IntoTable for TableRef {
 
 impl<T: TableSchema> IntoTable for T {
     fn into_table(self) -> TableRef {
-        T::table()
+        TableRef::Ident(T::table())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ColumnRef {
+    table: Ident,
+    column: Ident,
+}
+
+pub trait Column {
+    fn column<I: IntoIdent>(self, ident: I) -> ColumnRef;
+}
+
+impl Column for Ident {
+    fn column<I: IntoIdent>(self, ident: I) -> ColumnRef {
+        ColumnRef {
+            table: self,
+            column: ident.into_ident(),
+        }
+    }
+}
+
+impl FormatWriter for ColumnRef {
+    fn format_writer<W: fmt::Write>(
+        &self,
+        context: &mut crate::writer::FormatContext<'_, W>,
+    ) -> std::fmt::Result {
+        self.table.format_writer(context)?;
+        context.writer.write_char('.')?;
+        self.column.format_writer(context)?;
+        Ok(())
     }
 }
 
