@@ -12,6 +12,7 @@ pub mod row;
 
 pub use builder::Builder;
 pub use insert::InsertBuilder;
+pub use row::Row;
 
 use bind::{Bind, IntoBind};
 use col::AliasSub;
@@ -77,6 +78,24 @@ where
     let mut builder = Builder::default();
     query(&mut builder);
     Expr::Subquery(Box::new(builder))
+}
+
+#[macro_export]
+macro_rules! row {
+    ( $( $key:ident => $val:expr ),* $(,)? ) => {{
+        let mut __row = $crate::Row::new();
+        $(
+            __row.field(stringify!($key), $val);
+        )*
+        __row
+    }};
+    ( $( $key:expr => $val:expr ),* $(,)? ) => {{
+        let mut __row = $crate::Row::new();
+        $(
+            __row.field($key, $val);
+        )*
+        __row
+    }};
 }
 
 #[cfg(test)]
