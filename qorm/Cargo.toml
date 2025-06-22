@@ -13,4 +13,4 @@ categories = ["database"]
 publish = ["crates-io"]
 
 [dependencies]
-qraft = { version = "*", path = "..", feature = ["sqlite", "postgres", "mysql"] }
+qraft = { version = "*", path = ".." }

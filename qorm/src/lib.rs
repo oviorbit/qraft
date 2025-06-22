@@ -24,10 +24,3 @@ impl TableSchema for User {
         TableRef::ident_static("users")
     }
 }
-
-impl User {}
-
-pub fn main() {
-    let user = User::query();
-    println!("{:?}", user);
-}
