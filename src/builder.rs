@@ -1046,6 +1046,8 @@ impl Builder {
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
         <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
+        use crate::dialect::HasRowsAffected;
+
         self.delete_query::<DB>();
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();
@@ -1062,6 +1064,8 @@ impl Builder {
         Binds: for<'c> sqlx::IntoArguments<'c, DB>,
         <DB as sqlx::Database>::QueryResult: crate::dialect::HasRowsAffected,
     {
+        use crate::dialect::HasRowsAffected;
+
         self.update_query::<DB>(row.into_row());
         let value = self.execute::<DB, E>(executor).await?;
         let rows = value.rows_affected();

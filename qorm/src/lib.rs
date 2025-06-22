@@ -1,6 +1,6 @@
 use qraft::{col::TableSchema, ident::TableRef, Builder};
 
-#[derive(Debug)]
+#[derive(Debug, Qorm)]
 pub struct User {
     username: String,
     email: String,
