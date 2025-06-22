@@ -2,6 +2,15 @@
 name = "qorm"
 version = "0.1.0"
 edition = "2024"
+authors = ["Dany Gagnon dany@ovior.ca"]
+description = "A Rust library for building SQL queries with a fluent API."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/oviorbit/qraft"
+homepage = "https://github.com/oviorbit/qraft"
+readme = "readme.md"
+keywords = ["sql", "query", "builder", "fluent", "async"]
+categories = ["database"]
+publish = ["crates-io"]
 
 [dependencies]
 qraft = { path = "..", feature = ["sqlite", "postgres", "mysql"] }
