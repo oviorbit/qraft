@@ -64,6 +64,10 @@ impl Bind {
         value.into_bind()
     }
 
+    pub fn from_bind<B: IntoBind>(bind: B) -> Self {
+        bind.into_bind()
+    }
+
     pub fn is_consumed(&self) -> bool {
         matches!(self, Self::Consumed)
     }
@@ -371,6 +375,24 @@ impl Binds {
 
 pub trait IntoBind {
     fn into_bind(self) -> Bind;
+}
+
+pub type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+pub trait Cast: Sized {
+    fn try_get(raw: Bind) -> Result<Self, BoxError>;
+
+    fn get(raw: Bind) -> Self {
+        Self::try_get(raw).expect("Failed to cast bind to type")
+    }
+
+    fn set(self) -> Bind;
+}
+
+impl<C: Cast> IntoBind for C {
+    fn into_bind(self) -> Bind {
+        self.set()
+    }
 }
 
 pub trait IntoBinds {
